@@ -27,4 +27,4 @@ header .brand{white-space:nowrap}header nav{gap:clamp(12px,2vw,30px)}header nav 
 @media(prefers-reduced-motion:reduce){.market-card-photo img{transition:none}}
 
 /* Marca VRS: inicial roja, visible sobre fondos oscuros y títulos rojos. */
-.vrs-mark{white-space:nowrap;color:#f6f4ef;font:inherit;letter-spacing:inherit}.vrs-mark>.vrs-v{color:#ff303b;font:inherit;font-weight:900;text-shadow:0 0 .18em #ff303ba6,0 0 .5em #ff303b3d}.vrs-text{font:inherit;letter-spacing:inherit}
+.vrs-mark{white-space:nowrap;color:#f6f4ef;font:inherit;letter-spacing:inherit}.vrs-mark>.vrs-v{color:#ff303b;font:inherit;font-weight:900;text-shadow:0 1px 1px #000,0 0 .18em #ff303ba6,0 0 .5em #ff303b3d}.vrs-text{font:inherit;letter-spacing:inherit}
