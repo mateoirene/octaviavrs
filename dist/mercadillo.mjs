@@ -1,3 +1,5 @@
+import { setVrsText, upperVrs } from './branding.mjs';
+
 const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
 
 export function availableListings(items) {
@@ -30,7 +32,7 @@ function safeUrl(value, protocols) {
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
-  if (text) node.textContent = text;
+  if (text) setVrsText(node, text);
   return node;
 }
 
@@ -42,10 +44,10 @@ function listingCard(item) {
     link.href = photo;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
-    link.setAttribute('aria-label', `Ver foto completa: ${item.title}`);
+    link.setAttribute('aria-label', `Ver foto completa: ${upperVrs(item.title)}`);
     const image = element('img');
     image.src = photo;
-    image.alt = item.title;
+    image.alt = upperVrs(item.title);
     image.loading = 'lazy';
     link.append(image);
     card.append(link);

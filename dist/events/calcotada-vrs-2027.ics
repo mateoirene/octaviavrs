@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Club Octavia vRS Catalunya//Calendario//ES
+PRODID:-//Club Octavia VRS Catalunya//Calendario//ES
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
@@ -8,7 +8,7 @@ UID:calcotada-vrs-2027@octaviaap.pages.dev
 DTSTAMP:20261022T192121Z
 DTSTART;VALUE=DATE:20270123
 DTEND;VALUE=DATE:20270124
-SUMMARY:Cuarta edición Calçotada vRS
+SUMMARY:Cuarta edición Calçotada VRS
 DESCRIPTION:Lugar y hora pendientes de confirmar.\nConsulta la información
   de la quedada en Instagram.
 URL:https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTg5Mzk3OTk0MDQ4NTgx?story_

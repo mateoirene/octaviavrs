@@ -1,4 +1,4 @@
-# Club Octavia vRS Cataluña
+# Club Octavia VRS Cataluña
 
 Web pública: https://octaviaap.pages.dev
 
@@ -16,7 +16,7 @@ Para renovar el token, usar `Account > Cloudflare Pages > Edit`, limitado a la c
 
 ## Contenido
 
-La próxima quedada es el 23 de enero de 2027, cuarta edición Calçotada vRS. La galería incluye las fotos de los coches y el enlace al álbum del club.
+La próxima quedada es el 23 de enero de 2027, cuarta edición Calçotada VRS. La galería incluye las fotos de los coches y el enlace al álbum del club.
 
 El botón del álbum abre Google Fotos; sus fotos nuevas no se copian automáticamente a las miniaturas de la web.
 

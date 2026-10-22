@@ -1,3 +1,5 @@
+import { setVrsText, upperVrs } from './branding.mjs';
+
 const pad = number => String(number).padStart(2, '0');
 export const dateKey = (year, month, day) => `${year}-${pad(month)}-${pad(day)}`;
 export function shiftMonth(year, month, step) {
@@ -46,7 +48,7 @@ if (typeof document !== 'undefined') {
       const element = (tag, className, text) => {
         const node = document.createElement(tag);
         if (className) node.className = className;
-        if (text) node.textContent = text;
+        if (text) setVrsText(node, text);
         return node;
       };
       function eventCard(event) {
@@ -92,7 +94,7 @@ if (typeof document !== 'undefined') {
               if (dates.has(date)) {
                 content.type = 'button'; content.dataset.calendarDate = date;
                 content.classList.add('has-event');
-                content.setAttribute('aria-label', labelDate(date) + ': ' + events.filter(event => event.date === date).map(event => event.title).join(', '));
+                content.setAttribute('aria-label', labelDate(date) + ': ' + events.filter(event => event.date === date).map(event => upperVrs(event.title)).join(', '));
                 content.setAttribute('aria-pressed', String(date === selectedDate));
               }
               cell.append(content);
