@@ -10,7 +10,7 @@ Los cambios en `dist/` de la rama `main` activan `Publicar web del club` en GitH
 
 El token se guarda en el secreto de GitHub `CLOUDFLARE_API_TOKEN`. El identificador de cuenta (no es una clave) está configurado en el flujo. No hay que crear un secreto adicional para el identificador.
 
-Antes de publicar, el flujo valida el token, confirma el proyecto `octaviaap.pages.dev` y consulta la rama de producción real. La primera publicación automática está pendiente de comprobar su resultado.
+Antes de publicar, el flujo valida el token, confirma el proyecto `octaviaap.pages.dev` y consulta la rama de producción real. Primera publicación automática confirmada el 22 de octubre de 2026. Incluye la foto «Los más fans de OCTAVIA» y la quedada del 23 de enero de 2027.
 
 Para renovar el token, usar `Account > Cloudflare Pages > Edit`, limitado a la cuenta de Raúl, y actualizar el secreto en GitHub.
 
