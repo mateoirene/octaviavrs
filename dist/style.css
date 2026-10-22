@@ -29,19 +29,14 @@ header .brand{white-space:nowrap}header nav{gap:clamp(12px,2vw,30px)}header nav 
 /* Marca VRS: inicial roja, visible sobre fondos oscuros y títulos rojos. */
 .vrs-mark{white-space:nowrap;color:#f6f4ef;font:inherit;letter-spacing:inherit}.vrs-mark>.vrs-v{color:#ff303b;font:inherit;font-weight:900;text-shadow:0 1px 1px #000,0 0 .18em #ff303ba6,0 0 .5em #ff303b3d}.vrs-text{font:inherit;letter-spacing:inherit}
 
-/* Fibra de carbono: trama estática, compartida por las dos páginas. */
+/* Carbono brillante: cuadros grandes en diagonal y hebras con reflejos. */
 :root{
-  --carbon:
-    linear-gradient(27deg,#111315 5px,transparent 5px) 0 5px/20px 20px,
-    linear-gradient(207deg,#111315 5px,transparent 5px) 10px 0/20px 20px,
-    linear-gradient(27deg,#1d2023 5px,transparent 5px) 0 10px/20px 20px,
-    linear-gradient(207deg,#1d2023 5px,transparent 5px) 10px 5px/20px 20px,
-    linear-gradient(90deg,#151719 10px,transparent 10px) 0 0/20px 20px,
-    linear-gradient(#191c1f 25%,#111315 25%,#111315 50%,transparent 50%,transparent 75%,#1d2023 75%) 0 0/20px 20px #0d0f11;
-  --carbon-panel:linear-gradient(#090b0d66,#090b0d66),var(--carbon);
+  --carbon-tile:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22112%22%20height%3D%22112%22%20viewBox%3D%220%200%20112%20112%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22v%22%3E%3Cstop%20stop-color%3D%22%2311191f%22%2F%3E%3Cstop%20offset%3D%22.30%22%20stop-color%3D%22%2336414b%22%2F%3E%3Cstop%20offset%3D%22.46%22%20stop-color%3D%22%2327333d%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23121b22%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22h%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%2310181e%22%2F%3E%3Cstop%20offset%3D%22.32%22%20stop-color%3D%22%23313d47%22%2F%3E%3Cstop%20offset%3D%22.50%22%20stop-color%3D%22%23222d36%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2310171d%22%2F%3E%3C%2FlinearGradient%3E%3Cpattern%20id%3D%22vf%22%20width%3D%224%22%20height%3D%224%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M.5%200V4%22%20stroke%3D%22%23bdc9d3%22%20stroke-opacity%3D%22.10%22%2F%3E%3Cpath%20d%3D%22M2.5%200V4%22%20stroke%3D%22%23000%22%20stroke-opacity%3D%22.30%22%2F%3E%3C%2Fpattern%3E%3Cpattern%20id%3D%22hf%22%20width%3D%224%22%20height%3D%224%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M0%20.5H4%22%20stroke%3D%22%23bdc9d3%22%20stroke-opacity%3D%22.10%22%2F%3E%3Cpath%20d%3D%22M0%202.5H4%22%20stroke%3D%22%23000%22%20stroke-opacity%3D%22.30%22%2F%3E%3C%2Fpattern%3E%3Cpattern%20id%3D%22weave%22%20width%3D%2279.1959594929%22%20height%3D%2279.1959594929%22%20patternUnits%3D%22userSpaceOnUse%22%20patternTransform%3D%22rotate%2845%29%22%3E%3Crect%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23v%29%22%2F%3E%3Crect%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23vf%29%22%2F%3E%3Crect%20x%3D%2239.5979797464%22%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23h%29%22%2F%3E%3Crect%20x%3D%2239.5979797464%22%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23hf%29%22%2F%3E%3Crect%20y%3D%2239.5979797464%22%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23h%29%22%2F%3E%3Crect%20y%3D%2239.5979797464%22%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23hf%29%22%2F%3E%3Crect%20x%3D%2239.5979797464%22%20y%3D%2239.5979797464%22%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23v%29%22%2F%3E%3Crect%20x%3D%2239.5979797464%22%20y%3D%2239.5979797464%22%20width%3D%2239.5979797464%22%20height%3D%2239.5979797464%22%20fill%3D%22url%28%23vf%29%22%2F%3E%3Cpath%20d%3D%22M0%2039.5979797464H79.1959594929M39.5979797464%200V79.1959594929%22%20stroke%3D%22%23050a0e%22%20stroke-opacity%3D%22.7%22%20stroke-width%3D%22.8%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22%2311191f%22%20d%3D%22M0%200h112v112H0z%22%2F%3E%3Cpath%20fill%3D%22url%28%23weave%29%22%20d%3D%22M0%200h112v112H0z%22%2F%3E%3C%2Fsvg%3E");
+  --carbon:linear-gradient(115deg,#ffffff05 0%,#ffffff00 28%,#ffffff09 49%,#00000012 72%,#ffffff03 100%) 0 0/100% 100%,var(--carbon-tile) 0 0/160px 160px #11191f;
+  --carbon-panel:linear-gradient(#080c1080,#080c1080),var(--carbon);
 }
 body,header,footer,.hero,.section:not(.community){background:var(--carbon)}
-.intro.section,.events.section,.market-listings.section{background:linear-gradient(#ffffff03,#ffffff03),var(--carbon)}
+.intro.section,.events.section,.market-listings.section{background:linear-gradient(#090c1026,#090c1026),var(--carbon)}
 .vehicle-card,.garage-invite,.album-panel,.calendar-panel,.calendar-event-card,.market-invite,.market-card,.market-empty,.market-checklist,dialog{background:var(--carbon-panel)}
 header{box-shadow:0 1px 14px #0005}
 .hero{isolation:isolate}
@@ -53,3 +48,23 @@ header{box-shadow:0 1px 14px #0005}
 .hero-art .hero-img{animation:flag-sway 5.5s ease-in-out infinite;transform-origin:12% 50%;backface-visibility:hidden}.hero-art.flag-ready .hero-img{animation:none}.hero-art .hero-flag{mix-blend-mode:normal}
 @keyframes flag-sway{0%,100%{transform:perspective(900px) rotateY(-3deg) skewY(-.35deg) scale(.98)}50%{transform:perspective(900px) rotateY(3deg) skewY(.7deg) scale(1)}}
 @media(prefers-reduced-motion:reduce){.hero-art .hero-img{animation:none}}
+
+/* Interacciones de ratón, pantalla táctil y teclado. */
+:where(a[href],button,input,select,summary,[role="button"]){-webkit-tap-highlight-color:transparent;transition:box-shadow .18s ease,border-color .18s ease,filter .12s ease,transform .12s ease}
+:where(a[href],button,input,select,summary,[role="button"]).action-flash{outline:2px solid #ff7278;outline-offset:3px;box-shadow:0 0 0 4px #ed383f20,0 0 22px #ed383f3d}
+:where(a[href],button,input,select,summary,[role="button"]).action-pressed{transform:translateY(1px) scale(.98);filter:brightness(1.16)}
+@media(hover:hover){:where(.button,.nav-button,.event-social,.calendar-arrow,.calendar-tools button,.market-reset,.calendar-save,.instagram-link):hover{transform:translateY(-2px);box-shadow:0 7px 22px #0005,0 0 14px #ed383f24}.photo:hover{box-shadow:0 0 0 1px #ed383f80,0 8px 24px #0006}}
+.action-ripple{position:fixed;z-index:2147483646;width:44px;height:44px;border:2px solid #ff7278;border-radius:50%;background:radial-gradient(circle,#ed383f40,transparent 68%);box-shadow:0 0 14px #ed383f66;pointer-events:none;animation:action-ripple .46s ease-out forwards}
+@keyframes action-ripple{from{transform:translate(-50%,-50%) scale(.3);opacity:.9}to{transform:translate(-50%,-50%) scale(2.1);opacity:0}}
+.section-arrival{animation:section-arrival .85s ease-out}
+@keyframes section-arrival{from{box-shadow:inset 0 0 0 2px #ed383fa6,inset 0 0 65px #ed383f14}to{box-shadow:inset 0 0 0 2px transparent,inset 0 0 65px transparent}}
+@media(prefers-reduced-motion:reduce){:where(a[href],button,input,select,summary,[role="button"]){transition:none}:where(a[href],button,input,select,summary,[role="button"]).action-pressed{transform:none;filter:none}.action-ripple{display:none}.section-arrival{animation:none;outline:2px solid #ff7278;outline-offset:-2px}:where(.button,.nav-button,.event-social,.calendar-arrow,.calendar-tools button,.market-reset,.calendar-save,.instagram-link):hover{transform:none}}
+
+/* El carbono ondea detrás de toda la página, sin desplazar texto ni controles. */
+body{position:relative;isolation:isolate;background:var(--carbon)}
+.carbon-backdrop{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--carbon);contain:strict}.carbon-backdrop canvas{display:block;width:100%;height:100%;opacity:0}.carbon-backdrop.carbon-ready canvas{opacity:1}
+header,footer{background:#080c1059}.hero,.section:not(.community){background:transparent}.intro.section,.events.section,.market-listings.section{background:#080c1026}
+.vehicle-card,.garage-invite,.album-panel,.calendar-panel,.calendar-event-card,.market-invite,.market-card,.market-empty,.market-checklist,dialog{background:#080c10b8}
+.community{background:#be1e2bc9}.community em{color:#ffe1e3}
+@media(hover:hover){:where(a[href],button,input,select,summary,[role="button"]).action-pressed:hover{transform:translateY(1px) scale(.98)}}
+@media(prefers-reduced-motion:reduce){.carbon-backdrop canvas{display:none}:where(a[href],button,input,select,summary,[role="button"]).action-pressed:hover{transform:none}}

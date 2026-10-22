@@ -35,6 +35,7 @@
       const strips = 80;
       const sourceStrip = picture.naturalWidth / strips;
       const strip = imageWidth / strips;
+      context.globalCompositeOperation = 'source-over';
       context.clearRect(0, 0, width, height);
       for (let i = 0; i < strips; i++) {
         const position = i / (strips - 1);
@@ -46,8 +47,10 @@
         const x = left + i * strip;
         const y = top + offset - (stretched - imageHeight) / 2;
         context.drawImage(picture, i * sourceStrip, 0, sourceStrip, picture.naturalHeight, x, y, strip + 0.6, stretched);
+        context.globalCompositeOperation = 'source-atop';
         context.fillStyle = 'rgba(0,0,0,' + ((Math.cos(phase) + 1) * 0.065 * strength) + ')';
         context.fillRect(x, y, strip + 0.6, stretched);
+        context.globalCompositeOperation = 'source-over';
       }
       art.classList.add('flag-ready');
     } catch { fallback(); }
