@@ -2,10 +2,11 @@ import { appendFileSync } from 'node:fs';
 
 const token = process.env.CLOUDFLARE_API_TOKEN;
 const account = process.env.CLOUDFLARE_ACCOUNT_ID;
-if (!token || !account) {
-  console.log('Configuración pendiente: guarda CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID en los secretos de GitHub y ejecuta de nuevo este flujo.');
+const missing = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'].filter(name => !process.env[name]);
+if (missing.length) {
+  console.log(`Configuración pendiente. Falta guardar en GitHub: ${missing.join(', ')}.`);
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ready=false\n');
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, '## Publicación pendiente\nFalta configurar la autorización de Cloudflare en los secretos del repositorio. La web online no se ha actualizado.\n');
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Publicación pendiente\nFalta guardar en GitHub: ${missing.join(', ')}. La web online no se ha actualizado.\n`);
   process.exit(0);
 }
 if (!/^[a-f0-9]{32}$/i.test(account)) {
