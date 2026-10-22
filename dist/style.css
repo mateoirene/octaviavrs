@@ -79,3 +79,6 @@ body{background:var(--page-background)}header,footer{background:#080c108c}.hero,
 
 /* Letras Škoda de la cabecera; el enlace conserva el regreso al inicio. */
 .header-wordmark{display:block;flex-shrink:0;width:280px;height:40px;overflow:hidden}.header-wordmark img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}@media(max-width:760px){.header-wordmark{width:min(300px,100%);height:42px}}
+
+/* La bienvenida completa mantiene espacio para la bandera. */
+.hero h1.welcome-title{font-size:clamp(34px,3.8vw,56px);line-height:1.1;letter-spacing:-1.7px}@media(max-width:760px){.hero h1.welcome-title{font-size:clamp(32px,8.5vw,42px);letter-spacing:-1.3px}}
