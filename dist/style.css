@@ -68,3 +68,6 @@ header,footer{background:#080c1059}.hero,.section:not(.community){background:tra
 .community{background:#be1e2bc9}.community em{color:#ffe1e3}
 @media(hover:hover){:where(a[href],button,input,select,summary,[role="button"]).action-pressed:hover{transform:translateY(1px) scale(.98)}}
 @media(prefers-reduced-motion:reduce){.carbon-backdrop canvas{display:none}:where(a[href],button,input,select,summary,[role="button"]).action-pressed:hover{transform:none}}
+
+/* Imagen de presentación del garaje, completa y sin recortar. */
+.garage-poster{margin:0;min-width:0;border:1px solid #41464b;background:#030303}.garage-poster img{display:block;width:100%;height:auto;max-height:760px;object-fit:contain}
