@@ -28,3 +28,23 @@ header .brand{white-space:nowrap}header nav{gap:clamp(12px,2vw,30px)}header nav 
 
 /* Marca VRS: inicial roja, visible sobre fondos oscuros y títulos rojos. */
 .vrs-mark{white-space:nowrap;color:#f6f4ef;font:inherit;letter-spacing:inherit}.vrs-mark>.vrs-v{color:#ff303b;font:inherit;font-weight:900;text-shadow:0 1px 1px #000,0 0 .18em #ff303ba6,0 0 .5em #ff303b3d}.vrs-text{font:inherit;letter-spacing:inherit}
+
+/* Fibra de carbono: trama estática, compartida por las dos páginas. */
+:root{
+  --carbon:
+    linear-gradient(27deg,#111315 5px,transparent 5px) 0 5px/20px 20px,
+    linear-gradient(207deg,#111315 5px,transparent 5px) 10px 0/20px 20px,
+    linear-gradient(27deg,#1d2023 5px,transparent 5px) 0 10px/20px 20px,
+    linear-gradient(207deg,#1d2023 5px,transparent 5px) 10px 5px/20px 20px,
+    linear-gradient(90deg,#151719 10px,transparent 10px) 0 0/20px 20px,
+    linear-gradient(#191c1f 25%,#111315 25%,#111315 50%,transparent 50%,transparent 75%,#1d2023 75%) 0 0/20px 20px #0d0f11;
+  --carbon-panel:linear-gradient(#090b0d66,#090b0d66),var(--carbon);
+}
+body,header,footer,.hero,.section:not(.community){background:var(--carbon)}
+.intro.section,.events.section,.market-listings.section{background:linear-gradient(#ffffff03,#ffffff03),var(--carbon)}
+.vehicle-card,.garage-invite,.album-panel,.calendar-panel,.calendar-event-card,.market-invite,.market-card,.market-empty,.market-checklist,dialog{background:var(--carbon-panel)}
+header{box-shadow:0 1px 14px #0005}
+.hero{isolation:isolate}
+.hero-art{mix-blend-mode:screen}
+.hero-shade{pointer-events:none;background:linear-gradient(90deg,#080a0c55 10%,#080a0ca6 30%,#080a0c40 55%,transparent 84%),linear-gradient(0deg,#080a0c3d,transparent 30%)}
+@media(max-width:760px){.hero-shade{background:linear-gradient(0deg,#080a0c40 0%,#080a0c20 54%,transparent 84%)}}
