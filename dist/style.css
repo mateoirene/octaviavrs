@@ -45,6 +45,11 @@ body,header,footer,.hero,.section:not(.community){background:var(--carbon)}
 .vehicle-card,.garage-invite,.album-panel,.calendar-panel,.calendar-event-card,.market-invite,.market-card,.market-empty,.market-checklist,dialog{background:var(--carbon-panel)}
 header{box-shadow:0 1px 14px #0005}
 .hero{isolation:isolate}
-.hero-art{mix-blend-mode:screen}
+.hero-art{mix-blend-mode:normal}
 .hero-shade{pointer-events:none;background:linear-gradient(90deg,#080a0c55 10%,#080a0ca6 30%,#080a0c40 55%,transparent 84%),linear-gradient(0deg,#080a0c3d,transparent 30%)}
 @media(max-width:760px){.hero-shade{background:linear-gradient(0deg,#080a0c40 0%,#080a0c20 54%,transparent 84%)}}
+
+/* La imagen sigue visible y se balancea si el navegador no puede dibujar el lienzo. */
+.hero-art .hero-img{animation:flag-sway 5.5s ease-in-out infinite;transform-origin:12% 50%;backface-visibility:hidden}.hero-art.flag-ready .hero-img{animation:none}.hero-art .hero-flag{mix-blend-mode:normal}
+@keyframes flag-sway{0%,100%{transform:perspective(900px) rotateY(-3deg) skewY(-.35deg) scale(.98)}50%{transform:perspective(900px) rotateY(3deg) skewY(.7deg) scale(1)}}
+@media(prefers-reduced-motion:reduce){.hero-art .hero-img{animation:none}}
