@@ -18,12 +18,13 @@ try {
     summary('Token de Cloudflare: activo.');
   }
   if (missing.length) {
-    console.log('Configuración pendiente. Falta guardar en GitHub: ' + missing.join(', ') + '.');
+    console.log('Configuración pendiente. Falta configurar: ' + missing.join(', ') + '.');
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'ready=false\n');
-    summary('## Publicación pendiente\nFalta guardar en GitHub: ' + missing.join(', ') + '. La web online no se ha actualizado.');
+    summary('## Publicación pendiente\nFalta configurar: ' + missing.join(', ') + '. La web online no se ha actualizado.');
     process.exit(0);
   }
   if (!/^[a-f0-9]{32}$/i.test(account)) throw new Error('CLOUDFLARE_ACCOUNT_ID no tiene el formato esperado.');
+  console.log('Cuenta de destino configurada. Comprobando el proyecto octaviaap.');
   const response = await fetch('https://api.cloudflare.com/client/v4/accounts/' + account + '/pages/projects/octaviaap', {
     headers: { Authorization: 'Bearer ' + token },
     signal: AbortSignal.timeout(30000),
