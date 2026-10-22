@@ -2,28 +2,25 @@
 
 Web pública: https://octaviaap.pages.dev
 
-Este proyecto prepara la publicación automática en el proyecto existente de Cloudflare Pages. Repositorio: https://github.com/mateoirene/octaviavrs
+Repositorio: https://github.com/mateoirene/octaviavrs
 
-La configuración aún necesita la autorización de Cloudflare mediante los secretos del repositorio. La primera ejecución sin secretos se omite con un aviso y no modifica la web online.
+## Publicación
 
-## Configuración inicial
+Los cambios en `dist/` de la rama `main` activan `Publicar web del club` en GitHub Actions. El flujo también se puede iniciar manualmente desde Actions.
 
-1. Repositorio creado: `mateoirene/octaviavrs`, rama `main`.
-2. La conexión de GitHub en ChatGPT ya tiene permisos de escritura en ese repositorio.
-3. En la cuenta de Cloudflare de Raúl, crear un token personalizado con permiso `Account > Cloudflare Pages > Edit`, limitado a la cuenta que contiene `octaviaap`. No necesita permisos de administrador de cuenta ni de DNS. Puede gestionar proyectos Pages dentro de la cuenta seleccionada: Cloudflare no lo limita exclusivamente a octaviaap mediante este permiso.
-4. Guardar el token en el repositorio, en `Settings > Secrets and variables > Actions > New repository secret`, como `CLOUDFLARE_API_TOKEN`.
-5. Guardar el identificador de esa cuenta como otro secreto llamado `CLOUDFLARE_ACCOUNT_ID`. Ambos valores se introducen en GitHub; no deben incluirse en el código o en mensajes de la conversación.
-6. Ejecutar `Publicar web del club` desde Actions o incorporar un cambio en `dist/` en la rama `main`.
+El token se guarda en el secreto de GitHub `CLOUDFLARE_API_TOKEN`. El identificador de cuenta (no es una clave) está configurado en el flujo. No hay que crear un secreto adicional para el identificador.
 
-El flujo comprueba primero que la cuenta contiene exactamente el proyecto y el subdominio octaviaap.pages.dev, consulta su rama de producción real y publica allí. No crea otro proyecto.
+Antes de publicar, el flujo valida el token, confirma el proyecto `octaviaap.pages.dev` y consulta la rama de producción real. La primera publicación automática está pendiente de comprobar su resultado.
 
-## Actualizaciones
+Para renovar el token, usar `Account > Cloudflare Pages > Edit`, limitado a la cuenta de Raúl, y actualizar el secreto en GitHub.
 
-Los cambios de la web se hacen en `dist/`. Los cambios en `main` ejecutan el flujo de publicación. El asistente podrá editar esos archivos con la conexión de GitHub y consultar el resultado de Actions. No hay que intercambiar ZIP para estas actualizaciones.
+## Contenido
 
-Las fotos de portada están en `dist/assets`. El botón del álbum abre Google Fotos; no sincroniza automáticamente las miniaturas de la web. La próxima quedada es el 23 de enero de 2027, cuarta edición Calçotada vRS.
+La próxima quedada es el 23 de enero de 2027, cuarta edición Calçotada vRS. La galería incluye las fotos de los coches y «Los más fans de OCTAVIA».
 
-El acceso de administrador de Raúl para editar contenido desde un panel y las cuentas de socios siguen pendientes. Esta configuración automatiza la publicación de cambios; no añade un panel de administración.
+El botón del álbum abre Google Fotos; sus fotos nuevas no se copian automáticamente a las miniaturas de la web.
+
+El panel de administración de contenido y las cuentas de socios siguen pendientes.
 
 ## Referencia oficial
 
