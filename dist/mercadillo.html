@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101112">
+  <meta name="description" content="Mercadillo del Club Octavia vRS Cataluña. Piezas, recambios y accesorios a la venta entre miembros del club.">
+  <title>Mercadillo · Club Octavia vRS Cataluña</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="market-page">
+<header>
+  <a class="brand" href="index.html#inicio" aria-label="Inicio del club">OCTAVIA <b>vRS<span> / CATALUÑA</span></b></a>
+  <nav aria-label="Navegación principal">
+    <a href="index.html#club">El club</a>
+    <a href="index.html#garaje">Garaje</a>
+    <a href="index.html#galeria">Zona de galería</a>
+    <a href="index.html#calendario">Calendario</a>
+    <a href="mercadillo.html" aria-current="page">Mercadillo</a>
+    <a class="nav-button" href="https://www.instagram.com/club_octavia_vrs_catalunya/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+  </nav>
+</header>
+<main id="mercadillo">
+  <section class="market-heading section" aria-labelledby="market-title">
+    <a class="market-back" href="index.html">← Volver al club</a>
+    <p class="eyebrow red">DE MIEMBRO A MIEMBRO</p>
+    <h1 id="market-title">Mercadillo<em> del club.</em></h1>
+    <p>Piezas, recambios y accesorios que buscan su próximo Octavia.<br>Consulta lo que los miembros del club tienen a la venta.</p>
+    <a class="button" href="#vender">Quiero vender una pieza <span aria-hidden="true">↓</span></a>
+  </section>
+
+  <section class="market-listings section" aria-labelledby="pieces-title" data-market>
+    <div class="section-heading">
+      <div><p class="eyebrow red">EL TABLÓN DEL CLUB</p><h2 id="pieces-title">Piezas <em>en venta.</em></h2></div>
+      <p data-market-status role="status" aria-live="polite">Todavía no hay piezas anunciadas.</p>
+    </div>
+    <form class="market-filters" role="search" aria-label="Buscar piezas en el mercadillo" data-market-filters hidden>
+      <div><label for="piece-search">Buscar una pieza</label><input id="piece-search" name="search" type="search" placeholder="Nombre, modelo o recambio…" autocomplete="off" data-market-search></div>
+      <div><label for="piece-category">Categoría</label><select id="piece-category" name="category" data-market-category><option value="">Todas las categorías</option></select></div>
+      <button type="reset" class="market-reset">Limpiar filtros</button>
+    </form>
+    <div class="market-grid" data-market-grid></div>
+    <div class="market-empty" data-market-empty>
+      <span class="market-empty-symbol" aria-hidden="true">+</span>
+      <h3 data-market-empty-title>El primer anuncio puede ser el tuyo.</h3>
+      <p data-market-empty-copy>Cuando los miembros compartan sus piezas con el club, podrás ver aquí sus fotos, precio y forma de contacto.</p>
+      <a class="event-social" href="#vender">Cómo anunciar una pieza <span aria-hidden="true">↓</span></a>
+    </div>
+    <noscript><p class="market-notice">Activa JavaScript para consultar los anuncios actualizados. También puedes preguntar al club a través de <a href="https://www.instagram.com/club_octavia_vrs_catalunya/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>.</p></noscript>
+  </section>
+
+  <section class="market-sell section" id="vender" aria-labelledby="sell-title">
+    <div><p class="eyebrow red">DALE UNA SEGUNDA VIDA</p><h2 id="sell-title">¿Tienes una pieza<br><em>para vender?</em></h2><p>Envía la información al club por Instagram para preparar tu anuncio en el mercadillo.</p><a class="button" href="https://www.instagram.com/club_octavia_vrs_catalunya/" target="_blank" rel="noopener noreferrer">Enviar anuncio al club <span aria-hidden="true">↗</span></a></div>
+    <div class="market-checklist"><h3>Cuéntanos qué vendes</h3><ul><li>Fotos y nombre de la pieza.</li><li>Estado y modelos compatibles.</li><li>Precio y localidad.</li><li>Nombre o apodo y contacto para los interesados.</li></ul><p>Los interesados contactarán directamente con el vendedor para consultar la disponibilidad y acordar la compra.</p></div>
+  </section>
+</main>
+<footer><a class="brand" href="index.html#inicio">OCTAVIA <b>vRS<span> / CATALUÑA</span></b></a><p>Una pasión que se comparte.</p><small>Club independiente de aficionados. Sin afiliación oficial con Škoda Auto.</small></footer>
+<script type="module" src="mercadillo.mjs"></script>
+</body>
+</html>
