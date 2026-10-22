@@ -76,3 +76,6 @@ header,footer{background:#080c1059}.hero,.section:not(.community){background:tra
 @keyframes smoke-drift-reverse{from{transform:translate(5%,3%) scale(1.08)}to{transform:translate(-4%,-5%) scale(1)}}
 body{background:var(--page-background)}header,footer{background:#080c108c}.hero,.section:not(.community){background:#080c1026}.intro.section,.events.section,.market-listings.section{background:#080c1059}
 @media(prefers-reduced-motion:reduce){.smoke-backdrop::before,.smoke-backdrop::after{animation:none}}
+
+/* Letras Škoda de la cabecera; el enlace conserva el regreso al inicio. */
+.header-wordmark{display:block;flex-shrink:0;width:280px;height:40px;overflow:hidden}.header-wordmark img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}@media(max-width:760px){.header-wordmark{width:min(300px,100%);height:42px}}
