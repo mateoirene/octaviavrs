@@ -34,7 +34,7 @@ try{
  await evaluate("document.querySelector('[data-folder-form] input').value='Carpeta de prueba';document.querySelector('[data-folder-form]').requestSubmit()");
  await until("document.querySelectorAll('[data-folders] article').length===1");
  await evaluate("const f=document.querySelector('[data-member-form]');f.elements.pilot.value='Piloto de prueba';f.elements.phone.value='+34 600 123 456';f.elements.instagram.value='club_octavia_vrs_catalunya';f.elements.model.value='Octavia VRS MK4';f.elements.engine.value='2.0 TSI';f.elements.power.value='245 CV';f.elements.consent.checked=true;");
- const documentNode=await call('DOM.getDocument');const fileInput=await call('DOM.querySelector',{nodeId:documentNode.root.nodeId,selector:'[data-member-form] input[type=file]'});
+ const documentNode=await call('DOM.getDocument');const fileInput=await call('DOM.querySelector',{nodeId:documentNode.root.nodeId,selector:'[data-member-form] input[name=photos]'});
  await call('DOM.setFileInputFiles',{nodeId:fileInput.nodeId,files:[resolve('dist/assets/1-66228.jpg')]});
  const profileInput=await call('DOM.querySelector',{nodeId:documentNode.root.nodeId,selector:'[data-member-form] input[name=profilePhoto]'});await call('DOM.setFileInputFiles',{nodeId:profileInput.nodeId,files:[resolve('dist/assets/1-66228.jpg')]});
  await evaluate("document.querySelector('[data-member-form]').requestSubmit()");await until("document.querySelector('[data-garage-save-status]').textContent.includes('guardada')");
