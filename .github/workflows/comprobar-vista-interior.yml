@@ -12,9 +12,9 @@ jobs:
           python - <<'PY'
           from PIL import Image
           import io,base64,urllib.request
-          urls=['https://i.bstr.es/highmotor/2021/03/skoda-octavia-RS_'+str(i)+'.jpg' for i in range(5,10)]
+          urls=['https://i.bstr.es/highmotor/2021/03/skoda-octavia-RS_7.jpg']
           for i,url in enumerate(urls):
             try:
-              im=Image.open(io.BytesIO(urllib.request.urlopen(url,timeout=20).read()));print('SIZE',i,im.size);im.thumbnail((980,490));out=io.BytesIO();im.save(out,format='JPEG',quality=88);print('VISTA_REFERENCE_'+str(i)+' '+base64.b64encode(out.getvalue()).decode())
+              im=Image.open(io.BytesIO(urllib.request.urlopen(url,timeout=20).read()));print('SIZE',i,im.size);im=im.resize((980,653));im=im.crop((0,100,980,590));out=io.BytesIO();im.save(out,format='JPEG',quality=88);print('VISTA_REFERENCE_'+str(i)+' '+base64.b64encode(out.getvalue()).decode())
             except Exception as e: print('ERROR',i,str(e))
           PY
