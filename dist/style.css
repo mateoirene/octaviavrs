@@ -68,12 +68,14 @@ header,footer{background:#080c1059}.hero,.section:not(.community){background:tra
 /* Imagen de presentación del garaje, completa y sin recortar. */
 .garage-poster{margin:0;min-width:0;border:0;background:transparent}.garage-poster img{display:block;width:100%;height:auto;max-height:760px;object-fit:contain}
 
-/* El humo se desplaza despacio por la izquierda; los neumáticos de la foto no se mueven. */
+/* Capas de humo tomadas del lado izquierdo de la foto; los neumáticos permanecen fijos. */
+body{isolation:isolate}
 .smoke-backdrop{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--page-background);contain:strict}
-.smoke-backdrop::before,.smoke-backdrop::after{content:"";position:absolute;top:-18%;bottom:-18%;left:-22%;width:92%;pointer-events:none;background:radial-gradient(ellipse at 22% 30%,#dce4ef40 0%,#b7c2d31a 24%,transparent 54%),radial-gradient(ellipse at 60% 67%,#d4deeb33 0%,#b0bfd414 27%,transparent 56%),radial-gradient(ellipse at 10% 88%,#b9c8dc2b 0%,transparent 52%);filter:blur(26px);mask-image:linear-gradient(90deg,#000 0%,#000 60%,transparent 100%);-webkit-mask-image:linear-gradient(90deg,#000 0%,#000 60%,transparent 100%);animation:smoke-drift 34s ease-in-out infinite alternate}
-.smoke-backdrop::after{left:-12%;opacity:.7;background:radial-gradient(ellipse at 35% 45%,#d5e0ed36,transparent 55%),radial-gradient(ellipse at 5% 75%,#c0ccdc26,transparent 48%);animation:smoke-drift-reverse 43s ease-in-out infinite alternate}
-@keyframes smoke-drift{from{transform:translate(-3%,5%) scale(1)}to{transform:translate(7%,-6%) scale(1.12)}}
-@keyframes smoke-drift-reverse{from{transform:translate(5%,3%) scale(1.08)}to{transform:translate(-4%,-5%) scale(1)}}
+.smoke-backdrop::before,.smoke-backdrop::after{content:"";position:absolute;top:-28%;bottom:-22%;left:-30%;width:110%;pointer-events:none;background-image:radial-gradient(ellipse at 30% 42%,#dce4ef55,transparent 62%),url("assets/fondo-neumaticos-humo.jpg");background-size:100% 100%,270% 100%;background-position:center,left center;background-repeat:no-repeat;filter:blur(12px);mask-image:linear-gradient(90deg,#000 0%,#000 38%,transparent 78%);-webkit-mask-image:linear-gradient(90deg,#000 0%,#000 38%,transparent 78%);opacity:.75;will-change:transform;animation:smoke-drift 18s ease-in-out -7s infinite alternate}
+.smoke-backdrop::after{top:-36%;bottom:-30%;left:-26%;width:104%;background-image:radial-gradient(ellipse at 24% 68%,#e0e7f366,transparent 58%),url("assets/fondo-neumaticos-humo.jpg");background-position:center,left bottom;filter:blur(18px);opacity:.5;animation:smoke-drift-reverse 25s ease-in-out -16s infinite alternate}
+@keyframes smoke-drift{0%{transform:translate(-5%,10%) scale(1.02);opacity:.55}50%{opacity:.85}100%{transform:translate(15%,-12%) scale(1.15);opacity:.68}}
+@keyframes smoke-drift-reverse{0%{transform:translate(10%,8%) scale(1.14);opacity:.35}50%{opacity:.65}100%{transform:translate(-8%,-14%) scale(1.02);opacity:.5}}
+
 body{background:var(--page-background)}header,footer{background:#080c108c}.hero,.section:not(.community){background:#080c1026}.intro.section,.events.section,.market-listings.section{background:#080c1059}
 @media(prefers-reduced-motion:reduce){.smoke-backdrop::before,.smoke-backdrop::after{animation:none}}
 
