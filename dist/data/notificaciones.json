@@ -1,5 +1,17 @@
 [
   {
+    "id": "garaje-fichas-20261023",
+    "title": "El garaje de los miembros ya tiene sus fichas",
+    "message": "Entra en las carpetas y descubre el coche, el piloto y su Instagram.",
+    "href": "garaje.html"
+  },
+  {
+    "id": "circuito-mk4-20261023",
+    "title": "Entra en pista con el Octavia VRS MK4",
+    "message": "Tres vueltas, dos rivales y vista desde el interior. Juega con teclado o controles táctiles.",
+    "href": "simulador.html"
+  },
+  {
     "id": "mercadillo-envios-20261023",
     "title": "Ya puedes enviar tus anuncios",
     "message": "Sube las fotos y los datos de tu pieza desde el mercadillo. Alberto o Raúl revisarán el anuncio antes de publicarlo.",

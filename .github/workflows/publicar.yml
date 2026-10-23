@@ -30,6 +30,15 @@ jobs:
           node-version: '24'
       - name: Comprobar privacidad y moderación
         run: node --test tests/*.test.mjs
+      - name: Comprobar garaje y circuito en Chrome
+        run: node scripts/browser-check.mjs
+      - name: Guardar vistas de comprobación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vistas-garaje-circuito
+          path: artifacts/*.jpg
+          if-no-files-found: ignore
       - name: Comprobar acceso y proyecto de destino
         id: destino
         run: node scripts/cloudflare-target.mjs

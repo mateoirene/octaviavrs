@@ -48,3 +48,20 @@ CREATE TRIGGER IF NOT EXISTS market_listing_cleanup BEFORE DELETE ON market_list
 BEGIN
  DELETE FROM market_reviews WHERE listing_id=OLD.id;
 END;
+
+CREATE TABLE IF NOT EXISTS garage_folders (
+ id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE, created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS garage_members (
+ id TEXT PRIMARY KEY, folder_id TEXT NOT NULL REFERENCES garage_folders(id),
+ pilot TEXT NOT NULL, instagram TEXT NOT NULL DEFAULT '', model TEXT NOT NULL,
+ engine TEXT NOT NULL DEFAULT '', power TEXT NOT NULL DEFAULT '', year TEXT NOT NULL DEFAULT '',
+ gearbox TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
+ created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, updated_by TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS garage_members_folder ON garage_members(folder_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS garage_photos (
+ id TEXT PRIMARY KEY, member_id TEXT NOT NULL REFERENCES garage_members(id) ON DELETE CASCADE,
+ content_type TEXT NOT NULL, data BLOB NOT NULL, position INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS garage_photos_member ON garage_photos(member_id,position);

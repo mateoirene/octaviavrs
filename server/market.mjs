@@ -1,3 +1,4 @@
+import { handleGarageRequest } from './garage.mjs';
 import { dispatchReviewMail, reviewMailStatus } from './review-mail.mjs';
 import { ACTIVATION_HASH, ADMIN_EMAIL_HASHES } from './config.mjs';
 const enc = new TextEncoder();
@@ -24,6 +25,7 @@ export async function handleMarketRequest(request,env,context){try{
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
  if(Number(request.headers.get('content-length')||0)>4*1024*1024)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>4*1024*1024){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
+ if(path.startsWith('/api/garage/'))return await handleGarageRequest(request,db,await session(db,request));
  if(path==='/api/market/status'&&method==='GET')return json({ready:true,initialized:!!await db.prepare('SELECT id FROM market_admins LIMIT 1').first()});
  if(path==='/api/market/listings'&&method==='GET')return json(await listings(db,'approved'));
  if(path.startsWith('/api/market/photos/')&&method==='GET'){
