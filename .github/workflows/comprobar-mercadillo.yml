@@ -1,0 +1,21 @@
+name: Comprobar almacenamiento del mercadillo
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-market-access.mjs'
+      - '.github/workflows/comprobar-mercadillo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Comprobar permiso para guardar anuncios y fotos
+        run: node scripts/check-market-access.mjs
+        env:
+          CLOUDFLARE_ACCOUNT_ID: '71fb53fce0685a83a5b15712414cfc25'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
