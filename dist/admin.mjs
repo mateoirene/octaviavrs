@@ -3,6 +3,10 @@ import { groupByCategory } from './market-categories.mjs';
 const $ = selector => document.querySelector(selector);
 const status = $('[data-status]'), login = $('[data-login]'), panel = $('[data-panel]');
 const selectedId = new URLSearchParams(location.search).get('anuncio');
+const noteDrafts = new Map();
+let lastSignature = '', refreshing = false, polling = false;
+const signature = items => items.map(item => `${item.id}:${item.status}`).join('|');
+function showPendingCount(count) { $('[data-pending-summary]').textContent = count ? `Tienes ${count} ${count === 1 ? 'anuncio pendiente' : 'anuncios pendientes'} de autorización.` : 'No hay anuncios pendientes de autorización.'; }
 let key = new URLSearchParams(location.hash.slice(1)).get('activar'), focused = false;
 if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 async function api(path, body) {
@@ -32,23 +36,29 @@ function cardFor(item) {
     const a = node('a'), image = node('img'); a.href = src; a.target = '_blank'; a.rel = 'noopener noreferrer'; image.src = src; image.alt = 'Foto de ' + item.title; a.append(image); card.append(a);
   }
   const contact = node('a', 'Contacto del vendedor'); contact.href = item.contactUrl; contact.rel = 'noopener noreferrer'; card.append(contact);
-  const note = node('textarea'); note.placeholder = 'Nota privada de revisión (opcional)'; note.maxLength = 500; note.setAttribute('aria-label', 'Nota privada de revisión'); note.value = item.reviewNote || ''; card.append(note);
+  const note = node('textarea'); note.placeholder = 'Nota privada de revisión (opcional)'; note.maxLength = 500; note.setAttribute('aria-label', 'Nota privada de revisión'); note.value = noteDrafts.get(item.id) ?? item.reviewNote ?? ''; note.addEventListener('input', () => noteDrafts.set(item.id, note.value)); card.append(note);
+  const actionBar = node('div'); actionBar.className = 'admin-review-actions';
   const actions = item.status === 'pending' ? [['approve', 'Aprobar y publicar'], ['reject', 'Rechazar']] : item.status === 'approved' ? [['sold', 'Marcar vendido'], ['withdraw', 'Retirar anuncio']] : [];
   for (const [action, label] of actions) {
-    const button = node('button', label);
+    const button = node('button', label); button.className = action === 'approve' ? 'admin-approve' : action === 'reject' ? 'admin-reject' : ''; 
     button.addEventListener('click', async () => {
       button.disabled = true;
-      try { await api('admin/listings/' + item.id, { action, note: note.value }); await refresh(); window.dispatchEvent(new Event('club-session-change')); status.textContent = action === 'approve' ? 'Anuncio publicado en el mercadillo.' : 'Anuncio actualizado.'; }
+      try { await api('admin/listings/' + item.id, { action, note: note.value }); noteDrafts.delete(item.id); await refresh(); window.dispatchEvent(new Event('club-session-change')); status.textContent = action === 'approve' ? 'Anuncio publicado en el mercadillo.' : 'Anuncio actualizado.'; }
       catch (error) { status.textContent = error.message; button.disabled = false; }
     });
-    card.append(button);
+    actionBar.append(button);
   }
+  card.append(actionBar);
   return card;
 }
 async function refresh() {
+  if (refreshing) return; refreshing = true;
   const list = $('[data-list]'); status.textContent = 'Cargando anuncios…';
   try {
     const items = await api('admin/listings?status=' + $('[data-filter]').value);
+    lastSignature = signature(items);
+    if ($('[data-filter]').value === 'pending') showPendingCount(items.length);
+    else { const pending = await api('admin/listings?status=pending'); showPendingCount(pending.length); }
     const groups = groupByCategory(items, $('[data-admin-category]').value);
     list.replaceChildren();
     for (const group of groups) {
@@ -64,6 +74,18 @@ async function refresh() {
     }
     await refreshMail();
   } catch (error) { status.textContent = error.message; }
+  finally { refreshing = false; }
+}
+async function pollPending() {
+  if (panel.hidden || document.hidden || refreshing || polling) return;
+  polling = true;
+  try {
+    const pending = await api('admin/listings?status=pending');
+    showPendingCount(pending.length);
+    const editing = document.activeElement?.tagName === 'TEXTAREA';
+    if ($('[data-filter]').value === 'pending' && signature(pending) !== lastSignature && !editing) await refresh();
+  } catch (error) { status.textContent = error.message; }
+  finally { polling = false; }
 }
 async function enter(user) {
   key = null; login.hidden = true; panel.hidden = false; window.dispatchEvent(new Event('club-session-change'));
@@ -75,6 +97,9 @@ login.addEventListener('submit', async event => {
   try { const data = Object.fromEntries(new FormData(login)); if (key) data.key = key; await enter(await api(key ? 'admin/setup' : 'admin/login', data)); login.reset(); }
   catch (error) { status.textContent = error.message; } finally { button.disabled = false; }
 });
+setInterval(() => void pollPending(), 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void pollPending(); });
+$('[data-show-pending]').addEventListener('click', async event => { event.preventDefault(); $('[data-filter]').value = 'pending'; $('[data-admin-category]').value = ''; await refresh(); const list = $('[data-list]'); list.tabIndex = -1; list.focus({ preventScroll: true }); list.scrollIntoView({ block: 'start', behavior: 'instant' }); });
 $('[data-filter]').addEventListener('change', refresh);
 $('[data-admin-category]').addEventListener('change', refresh);
 $('[data-refresh]').addEventListener('click', refresh);
@@ -92,4 +117,4 @@ $('[data-add-user]').addEventListener('submit', async event => {
   try { await api('admin/users', Object.fromEntries(new FormData(form))); form.reset(); status.textContent = 'Acceso creado. El otro administrador ya puede iniciar sesión con su correo y contraseña.'; }
   catch (error) { status.textContent = error.message; } finally { button.disabled = false; }
 });
-try { await enter(await api('admin/session')); } catch { if (!key) status.textContent = 'Acceso privado para Alberto y Raúl.'; }
+try { await enter(await api('admin/session')); } catch (error) { if (!key) status.textContent = error.message === 'Inicia sesión para continuar.' ? 'Inicia sesión con la cuenta de administración del club para ver y autorizar los anuncios.' : error.message; }

@@ -39,7 +39,8 @@ export async function initNotifications(doc = document) {
   const mark = doc.createElement('button'); mark.type = 'button'; mark.className = 'notification-mark-read'; mark.textContent = 'Marcar todas como leídas';
   const status = doc.createElement('p'); status.className = 'notification-status'; status.setAttribute('role', 'status'); status.textContent = 'Buscando novedades…';
   const list = doc.createElement('ul'); list.className = 'notification-list';
-  panel.append(top, mark, status, list); area.append(button, panel); masthead.append(area);
+  const reviewAccess = doc.createElement('a'); reviewAccess.className = 'notification-review-access'; reviewAccess.href = 'admin.html'; reviewAccess.textContent = 'Entrar para revisar y autorizar anuncios →';
+  panel.append(top, mark, status, reviewAccess, list); area.append(button, panel); masthead.append(area);
   const toast = doc.createElement('div'); toast.className = 'notification-toast'; toast.setAttribute('role', 'status'); toast.hidden = true; doc.body.append(toast);
   function persist() { try { storage?.setItem(STORAGE_KEY, JSON.stringify([...read].slice(-1000))); } catch {} }
   function render() {
@@ -81,6 +82,7 @@ export async function initNotifications(doc = document) {
       items = buildNotifications(...values);
       const fresh = items.filter(item => !known.has(item.id) && !read.has(item.id));
       if (initialized && fresh.length) { toast.textContent = `${fresh.length === 1 ? 'Hay una nueva notificación' : `Hay ${fresh.length} notificaciones nuevas`}. Pulsa la campana para verlas.`; toast.hidden = false; clearTimeout(timer); timer = setTimeout(() => { toast.hidden = true; }, 6500); }
+      reviewAccess.textContent = values[2].length ? `Revisar ${values[2].length} anuncios pendientes →` : results[2].status === 'fulfilled' ? 'Abrir panel de revisión →' : 'Iniciar sesión para ver los anuncios pendientes →';
       known = new Set(items.map(item => item.id)); initialized = true;
       render(); status.textContent = items.length ? 'Novedades del club y del mercadillo.' : 'No hay novedades por ahora.';
       if (results[0].status === 'rejected' || results[1].status === 'rejected') status.textContent = 'Algunas novedades no se han podido actualizar. Volveremos a intentarlo.';
