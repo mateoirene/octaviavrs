@@ -43,7 +43,7 @@ function road(){
   if(grain){ctx.save();ctx.beginPath();ctx.moveTo(a.x-a.w,a.y);ctx.lineTo(a.x+a.w,a.y);ctx.lineTo(b.x+b.w,b.y);ctx.lineTo(b.x-b.w,b.y);ctx.closePath();ctx.clip();ctx.translate(0,(race.distance*14)%96);ctx.globalAlpha=.3;ctx.fillStyle=grain;ctx.fillRect(0,b.y-96,width,a.y-b.y+192);ctx.restore();}
   for(const side of [-1,1]){const edge=1.35;ctx.strokeStyle='#c0c6c9';ctx.lineWidth=Math.max(1,a.w*.024);ctx.beginPath();ctx.moveTo(a.x+side*a.w*edge,a.y-a.w*.10);ctx.lineTo(b.x+side*b.w*edge,b.y-b.w*.10);ctx.stroke();if(index%3===0){ctx.strokeStyle='#77818b';ctx.lineWidth=Math.max(1,b.w*.015);ctx.beginPath();ctx.moveTo(b.x+side*b.w*edge,b.y);ctx.lineTo(b.x+side*b.w*edge,b.y-b.w*.18);ctx.stroke();}}
   if(index%6<3)polygon([[a.x-a.w*.012,a.y],[a.x+a.w*.012,a.y],[b.x+b.w*.012,b.y],[b.x-b.w*.012,b.y]],'#e5e5dc');
-  if(index<2)for(let cell=0;cell<16;cell++)polygon([[a.x-a.w+cell*a.w/8,a.y],[a.x-a.w+(cell+1)*a.w/8,a.y],[b.x-b.w+(cell+1)*b.w/8,b.y],[b.x-b.w+cell*b.w/8,b.y]],(cell+index)%2?'#eee':'#101820');
+  if(index===0&&n>0){const t=.12,c={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,w:a.w+(b.w-a.w)*t};for(let cell=0;cell<16;cell++)polygon([[a.x-a.w+cell*a.w/8,a.y],[a.x-a.w+(cell+1)*a.w/8,a.y],[c.x-c.w+(cell+1)*c.w/8,c.y],[c.x-c.w+cell*c.w/8,c.y]],cell%2?'#eee':'#101820');}
   if(index%8===0&&b.y<horizon+height*.35){
     for(const side of [-1,1]){const x=b.x+side*b.w*1.7,tree=b.w*.8;rect(x-tree*.06,b.y-tree*.5,tree*.12,tree*.5,'#5c4639');polygon([[x,b.y-tree*1.5],[x-tree*.4,b.y-tree*.4],[x+tree*.4,b.y-tree*.4]],'#193e32');}
   }
@@ -58,7 +58,7 @@ function road(){
 function photographicCockpit(){
  const photo=photos.cockpit,ih=width*photo.height/photo.width,top=height*.57-ih*.2;
  const map=([x,y])=>[x/330*width,top+y/220*ih];
- ctx.save();ctx.beginPath();[[0,38],[32,29],[55,44],[65,23],[90,12],[133,15],[159,45],[183,42],[187,39],[285,42],[330,55],[330,220],[0,220]].map(map).forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.clip();ctx.drawImage(photo,0,top,width,ih);ctx.restore();
+ ctx.save();ctx.beginPath();[[0,38],[32,29],[55,44],[70,55],[160,55],[183,42],[187,39],[285,42],[330,55],[330,220],[0,220]].map(map).forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.clip();ctx.drawImage(photo,0,top,width,ih);ctx.restore();
  // Volante fotográfico real de tres radios, girado con la dirección.
  const cx=120/330*width,cy=top+82/220*ih,r=58/330*width;
  ctx.save();ctx.translate(cx,cy);ctx.rotate(race.steering*.40);ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.clip();ctx.drawImage(photo,(120-58)/330*photo.width,(82-58)/220*photo.height,116/330*photo.width,116/220*photo.height,-r,-r,2*r,2*r);ctx.restore();
