@@ -1,0 +1,13 @@
+name: Comprobar imagen del circuito
+on:
+  push:
+    paths: ['.github/workflows/comprobar-fondo-pista.yml']
+jobs:
+  imagen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar vista de referencia
+        run: |
+          node --input-type=module <<'NODE'
+          for(const url of ['https://image.shutterstock.com/image-illustration/race-track-260nw-2486053041.jpg','https://www.shutterstock.com/image-illustration/2486053041']){try{const r=await fetch(url,{signal:AbortSignal.timeout(15000)});console.log('REFERENCE_HTTP '+r.status+' '+r.headers.get('content-type'));if(r.ok&&r.headers.get('content-type')?.startsWith('image/')){const b=Buffer.from(await r.arrayBuffer());if(b.length<200000)console.log('TRACK_REFERENCE '+b.toString('base64'));break;}}catch{console.log('REFERENCE_UNAVAILABLE');}}
+          NODE
