@@ -51,6 +51,15 @@ try{
  await evaluate("document.querySelector('[data-race-start]').click();window.__raceImage=document.querySelector('canvas').toDataURL();window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));");
  await wait(1800);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}))");
  assert.equal(await evaluate("document.querySelector('[data-race-start]').disabled"),true);
+ const speed=await evaluate("Number(document.querySelector('canvas').dataset.speed)");assert.ok(speed>0,'El velocímetro digital sube con GAS');
+ await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}))");await wait(400);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}))");assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.speed)")<speed,'El velocímetro baja al frenar');
+ await evaluate("document.querySelector('[data-race-music]').scrollIntoView({block:'center'})");
+ const musicPoint=await evaluate("(()=>{const r=document.querySelector('[data-race-music]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
+ for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
+ await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='true'");
+ for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
+ await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='false'");
+
  assert.ok(await evaluate("document.querySelector('canvas').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));
  const clip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,640/r.width)}})()");const preview=await call('Page.captureScreenshot',{format:'jpeg',quality:25,clip});console.log('RACE_VISUAL_PREVIEW '+preview.data);

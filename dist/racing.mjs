@@ -1,3 +1,4 @@
+import { createMusic } from './racing-music.mjs';
 import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs';
 const $ = selector => document.querySelector(selector);
 const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.getContext('2d');
@@ -6,8 +7,9 @@ const levelPicker=$('[data-race-level]');
 function loadBest(level){try{const saved=Number(localStorage.getItem('octavia-mk4-best-lap-v2-'+level));return saved>0&&Number.isFinite(saved)?saved:null;}catch{return null;}}
 let storedBest=loadBest(levelPicker.value);
 let race=createRace(storedBest,levelPicker.value),width=1000,height=620,last=0,sound=false,audio,oscillator,gain;
+const music=createMusic(),musicButton=$('[data-race-music]');
 const photos={};let grain;
-const photoReady=Promise.all(['cockpit','rival','circuit'].map(id=>new Promise(resolve=>{const photo=new Image();photo.onload=()=>{photos[id]=photo;canvas.dataset[id+'Ready']='true';draw();resolve();};photo.onerror=()=>resolve();photo.src='assets/race/'+id+'.jpg';})));
+const photoReady=Promise.all(['cockpit','rival','circuit'].map(id=>new Promise(resolve=>{const photo=new Image();photo.onload=()=>{photos[id]=photo;canvas.dataset[id+'Ready']='true';draw();resolve();};photo.onerror=()=>resolve();photo.src=id==='cockpit'?'assets/cockpit-frontal.jpg':'assets/race/'+id+'.jpg';})));
 void photoReady;
 const grainCanvas=document.createElement('canvas');grainCanvas.width=grainCanvas.height=96;const grainContext=grainCanvas.getContext('2d');const noise=grainContext.createImageData(96,96);let seed=17;for(let i=0;i<noise.data.length;i+=4){seed=(seed*16807)%2147483647;const value=100+seed%100;noise.data[i]=noise.data[i+1]=noise.data[i+2]=value;noise.data[i+3]=45;}grainContext.putImageData(noise,0,0);grain=ctx.createPattern(grainCanvas,'repeat');
 const keys=new Set(),touches=new Map();
@@ -56,21 +58,19 @@ function road(){
  ctx.restore();
 }
 function photographicCockpit(){
- const photo=photos.cockpit,ih=width*photo.height/photo.width,top=height*.57-ih*.2;
- const map=([x,y])=>[x/330*width,top+y/220*ih];
- ctx.save();ctx.beginPath();[[0,38],[32,29],[55,44],[70,55],[160,55],[183,42],[187,39],[285,42],[330,55],[330,220],[0,220]].map(map).forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.clip();ctx.drawImage(photo,0,top,width,ih);ctx.restore();
- // Volante fotográfico real de tres radios, girado con la dirección.
- const cx=120/330*width,cy=top+82/220*ih,r=58/330*width;
- ctx.save();ctx.translate(cx,cy);ctx.rotate(race.steering*.40);ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.clip();ctx.drawImage(photo,(120-58)/330*photo.width,(82-58)/220*photo.height,116/330*photo.width,116/220*photo.height,-r,-r,2*r,2*r);ctx.restore();
- // Información viva en el Virtual Cockpit y en la pantalla central del salpicadero.
- const dx=width*.275,dy=top+ih*.205,dw=width*.14,dh=ih*.09;
- rect(dx,dy,dw,dh,'#061018');text(String(Math.round(race.speed*3.6)),dx+dw*.5,dy+dh*.65,Math.max(13,width*.022),'#f3faff','center');text('km/h',dx+dw*.83,dy+dh*.64,Math.max(6,width*.007),'#9fc8da','center');
- const sx=width*.578,sy=top+ih*.20,sw=width*.273,sh=ih*.238;
- rect(sx,sy,sw,sh,'#06111c');text('ŠKODA  ·  VRS 2022',sx+sw*.5,sy+sh*.16,Math.max(8,width*.011),'#e3edf4','center');
- text(race.settings.name.toUpperCase(),sx+sw*.5,sy+sh*.34,Math.max(8,width*.01),'#ff6379','center');
- text(`VUELTA ${Math.min(3,race.completedLaps+1)} / 3`,sx+sw*.5,sy+sh*.55,Math.max(9,width*.012),'#fff','center');text(lapTime(race.elapsed-race.lapStarted),sx+sw*.5,sy+sh*.76,Math.max(9,width*.014),'#87dce0','center');
- text('CLIMA  21.5°     DSG     SPORT',sx+sw*.5,sy+sh*.94,Math.max(6,width*.008),'#9ab2c4','center');
+ const photo=photos.cockpit,iw=Math.max(width,height*1.3),ih=iw*.5,left=(width-iw)*.3,top=height*.53-ih*.055;
+ const map=([x,y])=>[left+x/980*iw,top+y/490*ih];
+ // El parabrisas queda abierto al circuito; se conserva el salpicadero fotografiado.
+ ctx.save();ctx.beginPath();[[0,0],[95,29],[200,30],[400,28],[650,28],[920,35],[980,10],[980,490],[0,490]].map(map).forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.clip();ctx.drawImage(photo,left,top,iw,ih);ctx.restore();
+ if(top+ih<height)rect(0,top+ih,width,height-top-ih,'#0a1018');
+ const dx=left+iw*.292,dy=top+ih*.18,dw=iw*.044,dh=ih*.065;
+ rect(dx,dy,dw,dh,'#16121b');text(String(Math.round(race.speed*3.6)),dx+dw*.5,dy+dh*.74,Math.max(11,iw*.021),'#fff','center');
+ text('km/h',dx+dw*.5,dy+dh*1.23,Math.max(6,iw*.006),'#eee','center');
+ const sx=left+iw*.47,sy=top+ih*.175,sw=iw*.18,sh=ih*.14;
+ rect(sx,sy,sw,sh,'#121c29');text('CLUB VRS · MUSIC',sx+sw*.5,sy+sh*.23,Math.max(6,iw*.008),'#f7faff','center');
+ stage.style.setProperty('--music-left',sx/width*100+'%');stage.style.setProperty('--music-top',(sy+sh*.32)/height*100+'%');stage.style.setProperty('--music-width',sw/width*100+'%');stage.style.setProperty('--music-height',sh*.65/height*100+'%');
 }
+
 function cockpit(){
  if(photos.cockpit){photographicCockpit();return;}
 
@@ -103,7 +103,7 @@ function hud(){
  if(Math.abs(race.x)>1&&race.phase==='running')text('FUERA DE PISTA',width*.5,height*.39,size,'#ffe69c','center');
  if(race.hit>0){ctx.strokeStyle='#ff335b99';ctx.lineWidth=12;ctx.strokeRect(6,6,width-12,height-12);}
 }
-function draw(){ctx.clearRect(0,0,width,height);road();cockpit();hud();}
+function draw(){canvas.dataset.speed=String(Math.round(race.speed*3.6));ctx.clearRect(0,0,width,height);road();cockpit();hud();}
 function setOverlay(title,copy){overlay.replaceChildren();const strong=document.createElement('strong'),span=document.createElement('span');strong.textContent=title;span.textContent=copy;overlay.append(strong,span);overlay.hidden=false;}
 function updateUi(){levelPicker.disabled=['running','paused'].includes(race.phase);pause.disabled=!['running','paused'].includes(race.phase);pause.textContent=race.phase==='paused'?'Continuar':'Pausa';start.textContent=race.phase==='running'?'Motor en marcha':race.phase==='paused'?'Continuar carrera':race.phase==='finished'?'Volver a correr':'Arrancar y salir a pista';start.disabled=race.phase==='running';if(race.phase==='running')overlay.hidden=true;}
 function begin(){if(race.phase==='finished')race=createRace(storedBest,levelPicker.value);race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
@@ -118,8 +118,9 @@ for(const button of document.querySelectorAll('[data-drive]')){
  const release=event=>{touches.delete(event.pointerId);if(![...touches.values()].includes(button.dataset.drive))button.classList.remove('is-held');};
  button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);button.addEventListener('contextmenu',event=>event.preventDefault());
 }
-function leave(){clearControls();if(race.phase==='running')togglePause();}
+function leave(){music.stop();stage.dataset.music='stopped';musicButton.setAttribute('aria-pressed','false');musicButton.textContent='♫ Música';clearControls();if(race.phase==='running')togglePause();}
 window.addEventListener('blur',leave);document.addEventListener('visibilitychange',()=>{if(document.hidden)leave();});
+musicButton.addEventListener('click',async()=>{try{if(music.playing)music.stop();else await music.start();musicButton.setAttribute('aria-pressed',String(music.playing));musicButton.textContent=music.playing?'♫ Apagar':'♫ Música';stage.dataset.music=music.playing?'playing':'stopped';draw();}catch{status.textContent='No se puede activar la música en este navegador.';}});
 $('[data-race-sound]').addEventListener('click',async()=>{try{if(!audio){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)throw new Error();audio=new Audio();oscillator=audio.createOscillator();gain=audio.createGain();const filter=audio.createBiquadFilter();oscillator.type='sawtooth';filter.type='lowpass';filter.frequency.value=650;gain.gain.value=0;oscillator.connect(filter);filter.connect(gain);gain.connect(audio.destination);oscillator.start();}sound=!sound;if(sound)await audio.resume();$('[data-race-sound]').textContent=sound?'Sonido: encendido':'Sonido: apagado';$('[data-race-sound]').setAttribute('aria-pressed',String(sound));}catch{status.textContent='El sonido no está disponible en este navegador. Puedes seguir conduciendo.';}});
 function frame(timestamp){const dt=last?Math.min(.05,(timestamp-last)/1000):0;last=timestamp;
  const result=stepRace(race,controls(),dt);
@@ -130,4 +131,4 @@ function frame(timestamp){const dt=last?Math.min(.05,(timestamp-last)/1000):0;la
 }
 new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFrame(frame);
 
-fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
+fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>item.id!=='cockpit')){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
