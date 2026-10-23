@@ -1,0 +1,20 @@
+name: Comprobar referencia del habitáculo
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/comprobar-vista-interior.yml']
+permissions:
+  contents: read
+jobs:
+  referencia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Recuperar referencia visual
+        run: |
+          node --input-type=module <<'NODE'
+          const url='https://f.magazynauto.pl/magazynauto_prod_2021_09/16325988046f08a8.jpg';
+          const response=await fetch(url,{signal:AbortSignal.timeout(25000)});if(!response.ok)throw new Error('Referencia HTTP '+response.status);
+          const bytes=Buffer.from(await response.arrayBuffer());console.log('VISTA_BYTES '+bytes.length);
+          if(bytes.length<300000)console.log('VISTA_REFERENCE '+bytes.toString('base64'));
+          NODE
