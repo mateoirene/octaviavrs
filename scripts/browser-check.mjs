@@ -28,7 +28,7 @@ try{
  const call=(method,params={})=>new Promise((resolve,reject)=>{const next=++id;const timer=setTimeout(()=>{pending.delete(next);reject(new Error('Timeout: '+method));},15000);pending.set(next,{resolve,reject,timer});socket.send(JSON.stringify({id:next,method,params}));});
  const evaluate=async expression=>{const result=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description||'Error de JavaScript');return result.result.value;};
  async function until(expression){for(let i=0;i<100;i++){if(await evaluate(expression))return;await wait(100);}throw new Error('No se cumplió: '+expression);}
- await call('Page.enable');await call('Runtime.enable');await call('Network.enable');await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
+ await call('Page.bringToFront');await call('Page.enable');await call('Runtime.enable');await call('Network.enable');await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
  await call('Network.setCookie',{name:'club_session',value:token,url:base,path:'/',sameSite:'Strict'});
  await call('Page.navigate',{url:base+'/garaje.html'});await until("document.querySelector('[data-garage-management]')?.hidden===false");
  await evaluate("document.querySelector('[data-folder-form] input').value='Carpeta de prueba';document.querySelector('[data-folder-form]').requestSubmit()");
@@ -55,7 +55,9 @@ try{
  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}))");await wait(400);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}))");assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.speed)")<speed,'El velocímetro baja al frenar');
  await evaluate("document.querySelector('[data-race-music]').scrollIntoView({block:'center'})");
  const musicPoint=await evaluate("(()=>{const r=document.querySelector('[data-race-music]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
+ await call('Input.dispatchMouseEvent',{type:'mouseMoved',...musicPoint});
  for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
+ await wait(500);console.log('MUSIC_CHECK '+JSON.stringify(await evaluate("({status:document.querySelector('[data-race-status]').textContent,pressed:document.querySelector('[data-race-music]').getAttribute('aria-pressed'),music:document.querySelector('[data-racing-stage]').dataset.music,visibility:document.visibilityState})")));
  await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='true'");
  for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
  await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='false'");
