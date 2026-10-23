@@ -60,7 +60,21 @@ if (typeof document !== 'undefined') {
         const details = element('dl', 'event-facts');
         for (const [name, value] of [['Lugar', event.location || 'Pendiente de confirmar'], ['Hora', event.time || 'Pendiente de confirmar']]) {
           const row = element('div');
-          row.append(element('dt', '', name), element('dd', '', value));
+          const detail = element('dd', '', value);
+          if (name === 'Lugar' && event.mapUrl) {
+            try {
+              const url = new URL(event.mapUrl);
+              if (url.protocol === 'https:') {
+                const link = element('a', 'event-map-link');
+                link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+                link.setAttribute('aria-label', `Ver ${value} en Google Maps (abre en otra pestaña)`);
+                link.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+                link.append(element('span', '', value));
+                detail.replaceChildren(link);
+              }
+            } catch { /* Mantener el nombre del lugar si el enlace no es válido. */ }
+          }
+          row.append(element('dt', '', name), detail);
           details.append(row);
         }
         article.append(details);
