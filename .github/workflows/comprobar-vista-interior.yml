@@ -8,11 +8,13 @@ jobs:
     steps:
       - name: Recuperar referencia visual
         run: |
-          curl -fsSL https://f.magazynauto.pl/magazynauto_prod_2021_09/16325988046f08a8.jpg -o /tmp/interior.jpg
           python -m pip install --quiet pillow
           python - <<'PY'
           from PIL import Image
-          import io,base64
-          im=Image.open('/tmp/interior.jpg'); print('SIZE',im.size);im.thumbnail((980,490)); out=io.BytesIO(); im.save(out,format='JPEG',quality=85)
-          print('VISTA_REFERENCE '+base64.b64encode(out.getvalue()).decode())
+          import io,base64,urllib.request
+          urls=['https://images.cdn.autocar.co.uk/sites/autocar.co.uk/files/images/car-reviews/first-drives/legacy/71-skoda-octavia-vrs-2020-interior.jpg','https://images.autodaily.com.au/2020/10/71-skoda-octavia-vrs-2020-interior.jpg','https://s3-eu-west-1.amazonaws.com/eurekar-v2/uploads/images/original/skoda%20octavia%20vrs%202021%20cockpit.jpg']
+          for i,url in enumerate(urls):
+            try:
+              im=Image.open(io.BytesIO(urllib.request.urlopen(url,timeout=20).read()));print('SIZE',i,im.size);im.thumbnail((980,490));out=io.BytesIO();im.save(out,format='JPEG',quality=88);print('VISTA_REFERENCE_'+str(i)+' '+base64.b64encode(out.getvalue()).decode())
+            except Exception as e: print('ERROR',i,str(e))
           PY
