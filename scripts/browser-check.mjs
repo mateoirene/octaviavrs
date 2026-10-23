@@ -59,11 +59,13 @@ try{
  await call('Page.navigate',{url:base+'/galeria.html'});await until("document.querySelectorAll('[data-event-folders] article').length===1");assert.equal(await evaluate("document.querySelector('[data-gallery-management]').hidden"),true);
  await call('Page.navigate',{url:base+'/index.html'});await until("document.querySelectorAll('#galeria .gallery-decoration').length===4");assert.equal(await evaluate("document.querySelectorAll('#galeria button,#galeria [data-image]').length"),0);assert.equal(await evaluate("document.querySelector('.gallery-access').getAttribute('href')"),'galeria.html');
  await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
+ await until("document.querySelector('canvas').dataset.sceneryReady==='true'");
  await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
  for(const level of ['expert','intermediate','easy']){await evaluate(`document.querySelector('[data-race-level]').value='${level}';document.querySelector('[data-race-level]').dispatchEvent(new Event('change'))`);assert.equal(await evaluate("document.querySelector('[data-race-level]').value"),level);}
- await evaluate("document.querySelector('[data-race-start]').click();window.__raceImage=document.querySelector('canvas').toDataURL();window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));");
+ await evaluate("document.querySelector('[data-race-start]').click();window.__raceImage=document.querySelector('canvas').toDataURL();window.__sceneryDistance=Number(document.querySelector('canvas').dataset.sceneryDistance);window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));");
  await wait(1800);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}))");
  assert.equal(await evaluate("document.querySelector('[data-race-start]').disabled"),true);
+ assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.sceneryDistance)>window.__sceneryDistance"),'El paisaje avanza al acelerar');
  const speed=await evaluate("Number(document.querySelector('canvas').dataset.speed)");assert.ok(speed>0,'El velocímetro digital sube con GAS');
  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}))");await wait(400);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}))");assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.speed)")<speed,'El velocímetro baja al frenar');
  await evaluate("document.querySelector('[data-race-music]').scrollIntoView({block:'center',behavior:'instant'})");
@@ -82,8 +84,10 @@ try{
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));
  const clip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,640/r.width)}})()");const preview=await call('Page.captureScreenshot',{format:'jpeg',quality:25,clip});console.log('RACE_VISUAL_PREVIEW '+preview.data);
  await evaluate("document.querySelector('[data-race-pause]').click()");assert.ok(await evaluate("document.querySelector('[data-race-status]').textContent.includes('pausa')"));
+ const pausedScenery=await evaluate("document.querySelector('canvas').dataset.sceneryDistance");await wait(300);assert.equal(await evaluate("document.querySelector('canvas').dataset.sceneryDistance"),pausedScenery,'El paisaje se detiene con la carrera en pausa');
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
  await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
+ await until("document.querySelector('canvas').dataset.sceneryReady==='true'");
  await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
  await evaluate("document.querySelector('[data-race-start]').click();document.querySelector('.race-touch-controls').scrollIntoView({block:'center'});");
  const positions=await evaluate("['accelerate','left'].map(action=>{const b=document.querySelector('[data-drive='+action+']').getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2}})");
