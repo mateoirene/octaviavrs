@@ -9,6 +9,7 @@ jobs:
       - name: Recuperar referencia visual
         run: |
           curl -fsSL https://f.magazynauto.pl/magazynauto_prod_2021_09/16325988046f08a8.jpg -o /tmp/interior.jpg
+          python -m pip install --quiet pillow
           python - <<'PY'
           from PIL import Image
           import io,base64
