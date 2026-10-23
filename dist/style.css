@@ -82,3 +82,16 @@ body{background:var(--page-background)}header,footer{background:#080c108c}.hero,
 
 /* La bienvenida completa mantiene espacio para la bandera. */
 .hero h1.welcome-title{font-size:clamp(34px,3.8vw,56px);line-height:1.1;letter-spacing:-1.7px}@media(max-width:760px){.hero h1.welcome-title{font-size:clamp(32px,8.5vw,42px);letter-spacing:-1.3px}}
+
+/* Cabecera compacta con coches al atardecer y letras blancas centradas. */
+header{height:auto;min-height:0;display:block;padding:0;gap:0;background:#07090b}
+.masthead{height:168px;position:relative;isolation:isolate;display:flex;justify-content:center;align-items:flex-start;padding:22px 5% 0;background:#030405 url("assets/cabecera-coches-atardecer.jpg") center 61%/cover no-repeat}
+.masthead::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,#0005 0%,#0001 56%,#0000 100%)}
+header .header-wordmark{display:block;position:relative;flex:none;width:min(420px,82vw);height:46px;margin:0 auto;overflow:hidden;background:transparent}
+header .header-wordmark img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;filter:drop-shadow(0 2px 5px #000d)}
+header nav{display:flex;width:100%;justify-content:center;align-items:center;flex-wrap:wrap;gap:clamp(16px,3vw,36px);padding:14px 5%;text-align:center;background:#0b0f13e8}
+@media(max-width:760px){.masthead{height:130px;padding-top:16px}header .header-wordmark{width:min(300px,84vw);height:36px}header nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px 5%}}
+
+/* Cada letra conserva su forma; la separación se adapta al ancho de pantalla. */
+header .header-wordmark{display:flex;align-items:center;justify-content:center;gap:26px;filter:drop-shadow(0 2px 4px #000d)}header .header-wordmark svg{display:block;flex:none;width:auto;height:28px;overflow:hidden}
+@media(max-width:760px){header .header-wordmark{gap:clamp(16px,6.8vw,25px)}header .header-wordmark svg{height:clamp(18px,5.6vw,22px)}}
