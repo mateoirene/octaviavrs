@@ -1,0 +1,16 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync,mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+// Run the identical handler with isolated activation fixtures; production keys are never used.
+const directory=mkdtempSync(join(tmpdir(),'club-market-test-'));
+const digest=async value=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))).toString('hex');
+writeFileSync(join(directory,'market.mjs'),readFileSync(new URL('../server/market.mjs',import.meta.url)));
+writeFileSync(join(directory,'config.mjs'),`export const ACTIVATION_HASH=${JSON.stringify(await digest('test-only-activation'))};export const ADMIN_EMAIL_HASHES=${JSON.stringify([await digest('first@example.com'),await digest('second@example.com')])};`);
+const {handleMarketRequest}=await import(pathToFileURL(join(directory,'market.mjs')));
+const {DatabaseSync}=await import('node:sqlite');
+test('activación única y alta del segundo administrador',async()=>{const raw=new DatabaseSync(':memory:');raw.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));const db={prepare(sql){const statement=raw.prepare(sql);let args=[];const api={bind(...values){args=values;return api;},async first(){return statement.get(...args);},async run(){return {meta:{changes:statement.run(...args).changes}};}};return api;},async batch(items){raw.exec('BEGIN');try{for(const item of items)await item.run();raw.exec('COMMIT');}catch(error){raw.exec('ROLLBACK');throw error;}}};
+ const call=async(path,body,cookie)=>handleMarketRequest(new Request('https://club.example/api/admin/'+path,{method:'POST',headers:{origin:'https://club.example','Content-Type':'application/json',...(cookie?{cookie}:{})},body:JSON.stringify(body)}),{MARKET_DB:db});
+ try{assert.equal((await call('setup',{key:'test-only-activation',email:'outsider@example.com',password:'long-test-password'})).status,403);const response=await call('setup',{key:'test-only-activation',email:'first@example.com',password:'long-test-password'});assert.equal(response.status,201);const cookie=response.headers.get('set-cookie').split(';')[0];assert.equal((await call('setup',{key:'test-only-activation',email:'second@example.com',password:'long-test-password'})).status,409);assert.equal((await call('users',{email:'second@example.com',password:'second-test-password'},cookie)).status,201);assert.equal((await call('login',{email:'second@example.com',password:'second-test-password'})).status,200);assert.equal(raw.prepare('SELECT COUNT(*) n FROM market_admins').get().n,2);}finally{raw.close();rmSync(directory,{recursive:true,force:true});}});

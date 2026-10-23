@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101112">
   <meta name="description" content="Mercadillo del Club Octavia VRS Cataluña. Piezas, recambios y accesorios a la venta entre miembros del club.">
   <title>Mercadillo · Club Octavia VRS Cataluña</title>
-  <link rel="stylesheet" href="style.css?v=20261023-cabecera">
+  <link rel="stylesheet" href="style.css?v=20261023-envios">
 </head>
 <body class="market-page"><div class="smoke-backdrop" aria-hidden="true"></div>
 <header>
@@ -49,12 +49,14 @@
     <noscript><p class="market-notice">Activa JavaScript para consultar los anuncios actualizados. También puedes preguntar al club a través de <a href="https://www.instagram.com/club_octavia_vrs_catalunya/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>.</p></noscript>
   </section>
 
-  <section class="market-sell section" id="vender" aria-labelledby="sell-title">
-    <div><p class="eyebrow red">DALE UNA SEGUNDA VIDA</p><h2 id="sell-title">¿Tienes una pieza<br><em>para vender?</em></h2><p>Envía la información al club por Instagram para preparar tu anuncio en el mercadillo.</p><a class="button" href="https://www.instagram.com/club_octavia_vrs_catalunya/" target="_blank" rel="noopener noreferrer">Enviar anuncio al club <span aria-hidden="true">↗</span></a></div>
-    <div class="market-checklist"><h3>Cuéntanos qué vendes</h3><ul><li>Fotos y nombre de la pieza.</li><li>Estado y modelos compatibles.</li><li>Precio y localidad.</li><li>Nombre o apodo y contacto para los interesados.</li></ul><p>Los interesados contactarán directamente con el vendedor para consultar la disponibilidad y acordar la compra.</p></div>
-  </section>
+  <section class="section" id="vender"><p class="eyebrow red">DE MIEMBRO A MIEMBRO</p><h2>Envía tu <em>anuncio.</em></h2><p>Alberto o Raúl revisarán tu anuncio antes de publicarlo. Los compradores contactarán directamente contigo.</p><form class="club-form" data-submit-form>
+<label>Categoría<select name="category" required><option>Motor</option><option>Llantas y neumáticos</option><option>Interior</option><option>Exterior</option><option>Otros</option></select></label><label>Nombre de la pieza<input name="title" type="text" required minlength="4" maxlength="100"></label><label>Descripción<textarea name="description" required minlength="20" maxlength="2500" rows="5"></textarea></label><label>Precio (€)<input name="price" type="number" required min="0" max="100000" step="0.01"></label><label>Estado de la pieza<input name="condition" type="text" required minlength="2" maxlength="50"></label><label>Modelos compatibles<input name="compatibility" type="text" required minlength="2" maxlength="150"></label><label>Localidad<input name="location" type="text" required minlength="2" maxlength="100"></label><label>Nombre o apodo<input name="seller" type="text" required minlength="2" maxlength="80"></label><label>Correo, teléfono o usuario de Instagram<input name="contact_value" type="text" required minlength="2" maxlength="150"></label><label>Tipo de contacto<select name="contact_type"><option value="email">Correo electrónico</option><option value="phone">Teléfono</option><option value="instagram">Instagram</option></select></label>
+<label>Fotos de la pieza (de 1 a 3)<input type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple required></label><div class="photo-previews" data-previews></div>
+<label class="honeypot" aria-hidden="true">Deja este campo vacío<input name="website" tabindex="-1" autocomplete="off"></label>
+<label class="consent"><input name="consent" type="checkbox" value="yes" required>Acepto que mi nombre o apodo, localidad y contacto se vean públicamente cuando se apruebe el anuncio. Confirmo que las fotos son mías o tengo permiso para publicarlas.</label>
+<button class="button" type="submit">Enviar para revisión</button><p role="status" aria-live="polite" data-submit-status></p></form></section>
 </main>
-<footer><a class="brand" href="index.html#inicio">OCTAVIA <b><span class="vrs-text"><span class="vrs-mark"><span class="vrs-v">V</span>RS</span></span><span class="brand-region"> / CATALUÑA</span></b></a><p>Una pasión que se comparte.</p><small>Club independiente de aficionados. Sin afiliación oficial con Škoda Auto.</small></footer>
-<script type="module" src="mercadillo.mjs"></script>
-<script src="interactions.js?v=20261022-1" defer></script></body>
+<footer><a class="brand" href="index.html#inicio">OCTAVIA <b><span class="vrs-text"><span class="vrs-mark"><span class="vrs-v">V</span>RS</span></span><span class="brand-region"> / CATALUÑA</span></b></a><p>Una pasión que se comparte.</p><small>Club independiente de aficionados. Sin afiliación oficial con Škoda Auto.</small><a href="admin.html">Administración del mercadillo</a></footer>
+<script type="module" src="mercadillo.mjs?v=20261023-envios"></script>
+<script src="interactions.js?v=20261022-1" defer></script><script type="module" src="market-submit.mjs"></script></body>
 </html>

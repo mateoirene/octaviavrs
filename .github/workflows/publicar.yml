@@ -4,7 +4,10 @@ on:
     branches: [main]
     paths:
       - 'dist/**'
-      - 'scripts/cloudflare-target.mjs'
+      - 'scripts/**'
+      - 'server/**'
+      - 'functions/**'
+      - 'tests/**'
       - '.github/workflows/publicar.yml'
   workflow_dispatch:
 permissions:
@@ -21,9 +24,20 @@ jobs:
     steps:
       - name: Obtener la web
         uses: actions/checkout@v6
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Comprobar privacidad y moderación
+        run: node --test tests/*.test.mjs
       - name: Comprobar acceso y proyecto de destino
         id: destino
         run: node scripts/cloudflare-target.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Preparar almacenamiento del mercadillo
+        if: steps.destino.outputs.ready == 'true'
+        run: node scripts/market-storage.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Publicar en octaviaap.pages.dev

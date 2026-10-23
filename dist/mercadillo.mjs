@@ -4,7 +4,7 @@ const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300
 
 export function availableListings(items) {
   if (!Array.isArray(items)) throw new TypeError('El mercadillo debe contener una lista de anuncios.');
-  return items.filter(item => item && typeof item.title === 'string' && item.title.trim() && item.status !== 'sold');
+  return items.filter(item => item && typeof item.title === 'string' && item.title.trim() && item.status === 'approved');
 }
 
 export function filterListings(items, query = '', category = '') {
@@ -52,6 +52,12 @@ function listingCard(item) {
     link.append(image);
     card.append(link);
   }
+  for (const source of (item.images || []).slice(1)) {
+    const url = safeUrl(source, ['https:', 'http:']);
+    if (!url) continue;
+    const link = element('a', 'market-extra-photo', 'Ver otra foto ↗');
+    link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link);
+  }
   const body = element('div', 'market-card-body');
   if (item.category) body.append(element('p', 'eyebrow red', item.category));
   body.append(element('h3', '', item.title), element('p', 'market-price', formatPrice(item.price)));
@@ -93,7 +99,7 @@ export async function initMarket(root, fetcher = fetch) {
   status.textContent = 'Cargando anuncios…';
   empty.hidden = true;
   try {
-    const response = await fetcher(new URL('data/mercadillo.json', import.meta.url), { cache: 'no-cache' });
+    const response = await fetcher('/api/market/listings', { cache: 'no-cache' });
     if (!response.ok) throw new Error('No se pudo cargar el mercadillo.');
     const items = availableListings(await response.json());
     const categories = [...new Set(items.map(item => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
