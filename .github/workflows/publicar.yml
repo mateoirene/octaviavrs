@@ -30,6 +30,13 @@ jobs:
           node-version: '24'
       - name: Comprobar privacidad y moderación
         run: node --test tests/*.test.mjs
+      - name: Recuperar fotografías del circuito
+        uses: actions/cache@v4
+        with:
+          path: dist/assets/race
+          key: octavia-race-photos-20261023-v1
+      - name: Preparar fotografías y atribuciones
+        run: node scripts/prepare-race-assets.mjs
       - name: Comprobar garaje y circuito en Chrome
         run: node scripts/browser-check.mjs
       - name: Guardar vistas de comprobación
@@ -57,3 +64,7 @@ jobs:
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4'
           command: pages deploy dist --project-name=octaviaap --branch=${{ steps.destino.outputs.branch }}
+
+      - name: Verificar fotografías y acceso al circuito publicado
+        if: steps.destino.outputs.ready == 'true'
+        run: node scripts/check-racing-live.mjs

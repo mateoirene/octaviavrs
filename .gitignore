@@ -1,3 +1,6 @@
 .private/
 node_modules/
 .wrangler/
+
+dist/assets/race/
+artifacts/

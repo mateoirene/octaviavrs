@@ -46,14 +46,18 @@ try{
  await call('Network.deleteCookies',{name:'club_session',url:base});await call('Page.navigate',{url:base+'/garaje.html'});await until("document.querySelectorAll('[data-folders] article').length===1");
  assert.equal(await evaluate("document.querySelector('[data-garage-management]').hidden"),true);
  await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
+ await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
+ for(const level of ['expert','intermediate','easy']){await evaluate(`document.querySelector('[data-race-level]').value='${level}';document.querySelector('[data-race-level]').dispatchEvent(new Event('change'))`);assert.equal(await evaluate("document.querySelector('[data-race-level]').value"),level);}
  await evaluate("document.querySelector('[data-race-start]').click();window.__raceImage=document.querySelector('canvas').toDataURL();window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));");
  await wait(1800);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}))");
  assert.equal(await evaluate("document.querySelector('[data-race-start]').disabled"),true);
  assert.ok(await evaluate("document.querySelector('canvas').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));
+ const clip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,640/r.width)}})()");const preview=await call('Page.captureScreenshot',{format:'jpeg',quality:25,clip});console.log('RACE_VISUAL_PREVIEW '+preview.data);
  await evaluate("document.querySelector('[data-race-pause]').click()");assert.ok(await evaluate("document.querySelector('[data-race-status]').textContent.includes('pausa')"));
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
  await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
+ await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
  await evaluate("document.querySelector('[data-race-start]').click();document.querySelector('.race-touch-controls').scrollIntoView({block:'center'});");
  const positions=await evaluate("['accelerate','left'].map(action=>{const b=document.querySelector('[data-drive='+action+']').getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2}})");
  await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:positions.map((point,index)=>({...point,id:index+1}))});await wait(900);await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});

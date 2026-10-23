@@ -35,10 +35,10 @@ test('puntero con imagen: carga segura, luz al pulsar, formularios nativos y res
   const button = new Element(); button.interactive = true;
   const event = { target: button, pointerType: 'mouse', clientX: 200, clientY: 150, button: 0 };
   docEvents.get('pointermove')(event); assert.equal(root.classList.contains('engine-cursor-active'), false, 'No oculta el cursor antes de cargar la imagen');
-  assert.match(preload.src, /assets\/puntero-start-engine\.jpg$/); preload.onload();
+  assert.match(preload.src, /assets\/puntero-flecha\.svg$/); preload.onload();
   docEvents.get('pointermove')(event); frames.shift()();
   assert.equal(cursor.hidden, false); assert.equal(root.classList.contains('engine-cursor-active'), true);
-  assert.equal(cursor.style.transform, 'translate3d(176px,126px,0)');
+  assert.equal(cursor.style.transform, 'translate3d(197px,148px,0)');
   docEvents.get('pointerdown')(event); assert.equal(cursor.classList.contains('engine-pointer-lit'), true);
   [...timers.values()].forEach(fn => fn()); assert.equal(cursor.classList.contains('engine-pointer-lit'), false);
   const input = new Element(); input.editable = true;

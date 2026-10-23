@@ -11,7 +11,7 @@
   const preload = new Image();
   preload.onload = () => { ready = true; };
   preload.onerror = () => { ready = false; hide(); };
-  preload.src = new URL('assets/puntero-start-engine.jpg', document.baseURI).href;
+  preload.src = new URL('assets/puntero-flecha.svg', document.baseURI).href;
   if (preload.complete && preload.naturalWidth) ready = true;
   function hostFor(target) { return target?.closest?.('dialog[open]') || document.body; }
   function place(node, target) { const host = hostFor(target); if (node.parentNode !== host) host.append(node); }
@@ -23,7 +23,7 @@
     x = event.clientX; y = event.clientY;
     place(cursor, event.target); cursor.hidden = false;
     document.documentElement.classList.add('engine-cursor-active');
-    if (!frame) frame = requestAnimationFrame(() => { cursor.style.transform = `translate3d(${x - 24}px,${y - 24}px,0)`; frame = 0; });
+    if (!frame) frame = requestAnimationFrame(() => { cursor.style.transform = `translate3d(${x - 3}px,${y - 2}px,0)`; frame = 0; });
   }
   function illuminate(event, node) {
     if (!ready) return;
@@ -38,7 +38,7 @@
       marker.setAttribute('aria-hidden', 'true');
       const px = keyboard ? bounds.left + bounds.width / 2 : event.clientX;
       const py = keyboard ? bounds.top + bounds.height / 2 : event.clientY;
-      marker.style.transform = `translate3d(${px - 24}px,${py - 24}px,0)`;
+      marker.style.transform = `translate3d(${px - 3}px,${py - 2}px,0)`;
       place(marker, node); markers.add(marker);
       setTimeout(() => { marker.remove(); markers.delete(marker); }, 550);
     }
