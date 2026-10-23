@@ -40,3 +40,11 @@ CREATE TABLE IF NOT EXISTS market_review_mail (
  last_error TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS market_review_mail_status ON market_review_mail(status,created_at);
+
+
+-- El borrado definitivo elimina también las notas del historial del anuncio.
+-- Las fotografías y los avisos de correo se eliminan mediante ON DELETE CASCADE.
+CREATE TRIGGER IF NOT EXISTS market_listing_cleanup BEFORE DELETE ON market_listings
+BEGIN
+ DELETE FROM market_reviews WHERE listing_id=OLD.id;
+END;

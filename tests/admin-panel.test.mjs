@@ -33,7 +33,7 @@ test('el panel muestra pendientes, conserva notas al actualizar y permite aproba
     let body;
     if (url.endsWith('/session')) body = { email: 'admin@example.com' };
     else if (url.endsWith('/review-mail')) body = { configured: false, queued: items.length, failed: 0 };
-    else if (url.includes('/listings?')) body = items;
+    else if (url.includes('/listings?')) body = items.filter(item => item.status === new URL(url, 'https://club.example').searchParams.get('status'));
     else if (options.method === 'POST' && url.includes('/listings/')) {
       const action = JSON.parse(options.body); actions.push(action);
       items = items.filter(item => item.id !== url.split('/').pop()); body = { ok: true };
@@ -60,6 +60,24 @@ test('el panel muestra pendientes, conserva notas al actualizar y permite aproba
     assert.ok(descendants(list).some(el => el.tagName === 'TEXTAREA' && el.value === 'Mi nota sin enviar'));
     const reject = descendants(list).find(el => el.tagName === 'BUTTON' && el.textContent === 'Rechazar');
     await reject.listeners.get('click')(); assert.equal(actions[1].action, 'reject');
+    items = [
+      { ...listing('ready', 'Motor'), status: 'sold', canDelete: true, deleteAvailableAt: Math.floor(Date.now()/1000)-1 },
+      { ...listing('wait', 'Exterior'), status: 'sold', canDelete: false, deleteAvailableAt: Math.floor(Date.now()/1000)+3600 },
+    ];
+    selectors.get('[data-filter]').value = 'sold';
+    await selectors.get('[data-filter]').listeners.get('change')();
+    const ready = descendants(list).find(el => el.id === 'anuncio-ready');
+    const waiting = descendants(list).find(el => el.id === 'anuncio-wait');
+    const readyButton = descendants(ready).find(el => el.tagName === 'BUTTON' && el.textContent === 'Eliminar definitivamente');
+    const waitButton = descendants(waiting).find(el => el.tagName === 'BUTTON' && el.textContent === 'Eliminar definitivamente');
+    assert.equal(waitButton.disabled, true);
+    globalThis.window.confirm = () => false;
+    await readyButton.listeners.get('click')(); assert.equal(actions.length, 2, 'Cancelar no borra');
+    globalThis.window.confirm = () => true;
+    await readyButton.listeners.get('click')();
+    assert.equal(actions[2].action, 'delete'); assert.equal(actions[2].confirm, true);
+    assert.ok(!descendants(list).some(el => el.id === 'anuncio-ready'));
+    assert.ok(descendants(list).some(el => el.id === 'anuncio-wait'));
   } finally {
     for (const [key, value] of Object.entries(original)) { if (value === undefined) delete globalThis[key]; else globalThis[key] = value; }
   }

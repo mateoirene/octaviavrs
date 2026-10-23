@@ -16,7 +16,7 @@ async function credentials(body){const email=String(body.email||'').trim().toLow
 async function listings(db,status,privateView=false){
 const rows=(await db.prepare('SELECT * FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200').bind(status).all()).results;
 const photos=(await db.prepare('SELECT id,listing_id FROM market_photos WHERE listing_id IN (SELECT id FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200) ORDER BY position').bind(status).all()).results;
-return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note}:item;});}
+return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note,...(row.status==='sold'?{soldAt:row.updated_at,deleteAvailableAt:row.updated_at+86400,deleteWaitSeconds:Math.max(0,row.updated_at+86400-now()),canDelete:now()>=row.updated_at+86400}:{})}:item;});}
 
 export async function handleMarketRequest(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
@@ -66,7 +66,19 @@ export async function handleMarketRequest(request,env,context){try{
  if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')).run();return json({ok:true},200,{'Set-Cookie':cookie('')});}
  if(path==='/api/admin/users'&&method==='POST'){const next=await credentials(await request.json());if(await db.prepare('SELECT id FROM market_admins WHERE email=?').bind(next.email).first())fail('Esta cuenta ya tiene acceso.',409);await db.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').bind(next.id,next.email,next.digest,next.salt,now()).run();return json({email:next.email},201);}
  if(path==='/api/admin/listings'&&method==='GET'){const status=new URL(request.url).searchParams.get('status')||'pending';if(!['pending','approved','rejected','sold'].includes(status))fail('Estado no válido.');return json(await listings(db,status,true));}
- if(path.startsWith('/api/admin/listings/')&&method==='POST'){const body=await request.json();const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);return json({ok:true});}
+ if(path.startsWith('/api/admin/listings/')&&method==='POST'){const body=await request.json();
+ if(body.action==='delete'){
+ if(body.confirm!==true)fail('Confirma que quieres eliminar definitivamente este anuncio.');
+ const id=path.split('/').pop();
+ const listing=await db.prepare('SELECT status,updated_at FROM market_listings WHERE id=?').bind(id).first();
+ if(!listing)fail('El anuncio ya no existe.',404);
+ if(listing.status!=='sold')fail('Solo se pueden eliminar definitivamente artículos vendidos.',409);
+ if(now()<listing.updated_at+86400)fail('Deben pasar 24 horas desde que se marcó como vendido.',409);
+ const removed=await db.prepare("DELETE FROM market_listings WHERE id=? AND status='sold' AND updated_at<=?").bind(id,now()-86400).run();
+ if(!removed.meta.changes)fail('El anuncio ha cambiado. Actualiza la lista.',409);
+ return json({ok:true,deleted:true});
+ }
+ const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);return json({ok:true});}
  }
  return json({error:'Ruta no encontrada.'},404);
  }catch(error){if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}

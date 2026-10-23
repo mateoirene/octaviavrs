@@ -33,3 +33,9 @@ El correo lleva temática, pieza, precio, vendedor y un enlace al anuncio en el 
 Los envíos usan una clave de idempotencia por anuncio, hasta tres intentos inmediatos y registro del resultado. `sent` significa que el proveedor ha aceptado el correo, no que esté confirmado en la bandeja de entrada. Los avisos sin configurar o fallidos permanecen pendientes; se reintentan al entrar al panel o con el botón de reintento, en lotes de cinco. No hay tarea programada de reintento cuando nadie utiliza la web. Al resolverse un anuncio, no se envían sus avisos aún pendientes.
 
 El panel informa si el servicio de correo todavía no está configurado. Esa falta de configuración no bloquea los envíos de anuncios, la campana ni su aprobación.
+
+## Borrado de artículos vendidos
+
+En el panel privado, el estado Vendidos ofrece Eliminar definitivamente. Deben transcurrir 24 horas completas desde que se marcó el artículo como vendido. El tiempo se comprueba en el servidor usando el instante del cambio a vendido; no depende de la hora del navegador ni de la antigüedad del anuncio. El panel muestra cuándo se habilitará y se actualiza periódicamente.
+
+El borrado es manual y exige confirmación. Elimina el anuncio, sus fotografías, los avisos asociados y las notas de revisión mediante una operación atómica con claves foráneas y un disparador de limpieza. No permite eliminar anuncios pendientes, publicados ni rechazados. Añadir esta función no borra ningún anuncio existente automáticamente.

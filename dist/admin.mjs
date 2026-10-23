@@ -38,12 +38,18 @@ function cardFor(item) {
   const contact = node('a', 'Contacto del vendedor'); contact.href = item.contactUrl; contact.rel = 'noopener noreferrer'; card.append(contact);
   const note = node('textarea'); note.placeholder = 'Nota privada de revisión (opcional)'; note.maxLength = 500; note.setAttribute('aria-label', 'Nota privada de revisión'); note.value = noteDrafts.get(item.id) ?? item.reviewNote ?? ''; note.addEventListener('input', () => noteDrafts.set(item.id, note.value)); card.append(note);
   const actionBar = node('div'); actionBar.className = 'admin-review-actions';
-  const actions = item.status === 'pending' ? [['approve', 'Aprobar y publicar'], ['reject', 'Rechazar']] : item.status === 'approved' ? [['sold', 'Marcar vendido'], ['withdraw', 'Retirar anuncio']] : [];
+  if (item.status === 'sold') {
+    const available = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(item.deleteAvailableAt * 1000));
+    card.append(node('p', item.canDelete ? 'Ya han pasado 24 horas. Puedes eliminar definitivamente el anuncio y sus fotos.' : `El borrado definitivo estará disponible el ${available} (hora de Madrid), al cumplirse 24 horas desde la venta.`));
+  }
+  const actions = item.status === 'pending' ? [['approve', 'Aprobar y publicar'], ['reject', 'Rechazar']] : item.status === 'approved' ? [['sold', 'Marcar vendido'], ['withdraw', 'Retirar anuncio']] : item.status === 'sold' ? [['delete', 'Eliminar definitivamente']] : [];
   for (const [action, label] of actions) {
-    const button = node('button', label); button.className = action === 'approve' ? 'admin-approve' : action === 'reject' ? 'admin-reject' : ''; 
+    const button = node('button', label); button.className = action === 'approve' ? 'admin-approve' : ['reject', 'delete'].includes(action) ? 'admin-reject' : '';
+    if (action === 'delete' && !item.canDelete) { button.disabled = true; button.title = 'Disponible 24 horas después de marcarlo como vendido.'; } 
     button.addEventListener('click', async () => {
+      if (action === 'delete' && (!item.canDelete || !window.confirm(`¿Eliminar definitivamente «${item.title}» y todas sus fotos? Esta acción no se puede deshacer.`))) return;
       button.disabled = true;
-      try { await api('admin/listings/' + item.id, { action, note: note.value }); noteDrafts.delete(item.id); await refresh(); window.dispatchEvent(new Event('club-session-change')); status.textContent = action === 'approve' ? 'Anuncio publicado en el mercadillo.' : 'Anuncio actualizado.'; }
+      try { await api('admin/listings/' + item.id, { action, note: note.value, ...(action === 'delete' ? { confirm: true } : {}) }); noteDrafts.delete(item.id); await refresh(); window.dispatchEvent(new Event('club-session-change')); status.textContent = action === 'approve' ? 'Anuncio publicado en el mercadillo.' : action === 'delete' ? 'Anuncio y fotos eliminados definitivamente.' : 'Anuncio actualizado.'; }
       catch (error) { status.textContent = error.message; button.disabled = false; }
     });
     actionBar.append(button);
@@ -83,7 +89,7 @@ async function pollPending() {
     const pending = await api('admin/listings?status=pending');
     showPendingCount(pending.length);
     const editing = document.activeElement?.tagName === 'TEXTAREA';
-    if ($('[data-filter]').value === 'pending' && signature(pending) !== lastSignature && !editing) await refresh();
+    if (!editing && (($('[data-filter]').value === 'pending' && signature(pending) !== lastSignature) || $('[data-filter]').value === 'sold')) await refresh();
   } catch (error) { status.textContent = error.message; }
   finally { polling = false; }
 }
