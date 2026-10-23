@@ -41,3 +41,16 @@ test('valida fotos, consentimiento, carpeta e Instagram antes de publicar',async
  const svg=member(folder);svg.set('photos',new Blob(['<svg>bad photo</svg>'],{type:'image/svg+xml'}),'bad.svg');assert.equal((await call('members','POST',svg,true)).status,400);
  assert.equal(raw.prepare('SELECT COUNT(*) n FROM garage_members').get().n,0);
  }finally{raw.close();}});
+test('perfil del piloto: WhatsApp, foto independiente, edición y borrado',async()=>{const {raw,call}=fixture();try{
+ const folder=(await(await call('folders','POST',{name:'Pilotos'},true)).json()).id;
+ const form=member(folder,{phone:'+34 600 123 456'});form.set('profilePhoto',new Blob([new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0])],{type:'image/jpeg'}),'piloto.jpg');
+ const created=await call('members','POST',form,true);assert.equal(created.status,201);const id=(await created.json()).id;
+ let profile=(await(await call('members?folder='+folder)).json())[0];assert.equal(profile.phone,'34600123456');assert.equal(profile.whatsappUrl,'https://wa.me/34600123456');assert.equal(profile.profileImage,'/api/garage/profiles/'+id+'/photo');
+ const path=profile.profileImage.replace('/api/garage/','');assert.equal((await call(path)).status,200);
+ const edit=member(folder,{phone:'0034 611 222 333'},false);assert.equal((await call('members/'+id,'POST',edit,true)).status,200);
+ profile=(await(await call('members?folder='+folder)).json())[0];assert.equal(profile.whatsappUrl,'https://wa.me/34611222333');assert.ok(profile.profileImage);assert.equal(profile.images.length,1);
+ for(const phone of ['javascript:alert(1)','123','+34/600123456'])assert.equal((await call('members/'+id,'POST',member(folder,{phone},false),true)).status,400);
+ const remove=member(folder,{phone:'',removeProfile:'yes'},false);assert.equal((await call('members/'+id,'POST',remove,true)).status,200);
+ profile=(await(await call('members?folder='+folder)).json())[0];assert.equal(profile.whatsappUrl,null);assert.equal(profile.profileImage,null);assert.equal((await call(path)).status,404);
+ assert.equal((await call('members/'+id,'DELETE',undefined,true)).status,200);assert.equal(raw.prepare('SELECT COUNT(*) n FROM garage_profiles').get().n,0);
+ }finally{raw.close();}});

@@ -33,13 +33,15 @@ try{
  await call('Page.navigate',{url:base+'/garaje.html'});await until("document.querySelector('[data-garage-management]')?.hidden===false");
  await evaluate("document.querySelector('[data-folder-form] input').value='Carpeta de prueba';document.querySelector('[data-folder-form]').requestSubmit()");
  await until("document.querySelectorAll('[data-folders] article').length===1");
- await evaluate("const f=document.querySelector('[data-member-form]');f.elements.pilot.value='Piloto de prueba';f.elements.instagram.value='club_octavia_vrs_catalunya';f.elements.model.value='Octavia VRS MK4';f.elements.engine.value='2.0 TSI';f.elements.power.value='245 CV';f.elements.consent.checked=true;");
+ await evaluate("const f=document.querySelector('[data-member-form]');f.elements.pilot.value='Piloto de prueba';f.elements.phone.value='+34 600 123 456';f.elements.instagram.value='club_octavia_vrs_catalunya';f.elements.model.value='Octavia VRS MK4';f.elements.engine.value='2.0 TSI';f.elements.power.value='245 CV';f.elements.consent.checked=true;");
  const documentNode=await call('DOM.getDocument');const fileInput=await call('DOM.querySelector',{nodeId:documentNode.root.nodeId,selector:'[data-member-form] input[type=file]'});
  await call('DOM.setFileInputFiles',{nodeId:fileInput.nodeId,files:[resolve('dist/assets/1-66228.jpg')]});
+ const profileInput=await call('DOM.querySelector',{nodeId:documentNode.root.nodeId,selector:'[data-member-form] input[name=profilePhoto]'});await call('DOM.setFileInputFiles',{nodeId:profileInput.nodeId,files:[resolve('dist/assets/1-66228.jpg')]});
  await evaluate("document.querySelector('[data-member-form]').requestSubmit()");await until("document.querySelector('[data-garage-save-status]').textContent.includes('guardada')");
  assert.equal(await evaluate("document.querySelectorAll('.garage-member').length"),1);
  assert.ok(await evaluate("document.querySelector('.garage-member').textContent.includes('Piloto de prueba')"));
  assert.equal(raw.prepare('SELECT COUNT(*) n FROM garage_members').get().n,1);
+ assert.equal(await evaluate("document.querySelector('.garage-whatsapp').href"),'https://wa.me/34600123456');await until("document.querySelector('.garage-pilot-avatar')?.complete&&document.querySelector('.garage-pilot-avatar').naturalWidth>0");
  await mkdir('artifacts',{recursive:true});await evaluate("document.querySelector('[data-folder-content]').scrollIntoView()");
  let screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/garaje-ficha.jpg',Buffer.from(screenshot.data,'base64'));
  // Galería de eventos: crear carpeta, publicar una fotografía y consultarla.

@@ -1,9 +1,9 @@
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
 const clean = (value, label, min, max) => { const text = String(value || '').trim(); if (text.length < min || text.length > max) fail(`Revisa ${label}.`); return text; };
-async function photosFrom(form) {
-  const files = form.getAll('photos').filter(file => file.size > 0);
-  if (files.length > 3) fail('Añade como máximo tres fotos por ficha.');
+async function photosFrom(form,field="photos",maximum=3) {
+  const files = form.getAll(field).filter(file => file.size > 0);
+  if (files.length > maximum) fail('Añade como máximo tres fotos por ficha.');
   const photos = [];
   for (const file of files) {
     if (!file.arrayBuffer || file.size > 1048576 || file.size < 12) fail('Cada foto debe ocupar menos de 1 MB.');
@@ -25,8 +25,10 @@ export async function handleGarageRequest(request, db, admin) {
     const folder = url.searchParams.get('folder') || '';
     const rows = (await db.prepare('SELECT * FROM garage_members WHERE folder_id=? ORDER BY created_at DESC LIMIT 200').bind(folder).all()).results;
     const photos = (await db.prepare('SELECT p.id,p.member_id FROM garage_photos p JOIN garage_members m ON m.id=p.member_id WHERE m.folder_id=? ORDER BY p.position').bind(folder).all()).results;
-    return reply(rows.map(row => ({ id: row.id, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: photos.filter(photo => photo.member_id === row.id).map(photo => '/api/garage/photos/' + photo.id) })));
+    const profiles=(await db.prepare('SELECT p.member_id,p.phone,CASE WHEN p.data IS NOT NULL THEN 1 ELSE 0 END AS has_avatar FROM garage_profiles p JOIN garage_members m ON m.id=p.member_id WHERE m.folder_id=?').bind(folder).all()).results;
+    return reply(rows.map(row => {const profile=profiles.find(p=>p.member_id===row.id);return ({ id: row.id, phone:profile?.phone||'', whatsappUrl:profile?.phone?'https://wa.me/'+profile.phone:null,profileImage:profile?.has_avatar?'/api/garage/profiles/'+row.id+'/photo':null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: photos.filter(photo => photo.member_id === row.id).map(photo => '/api/garage/photos/' + photo.id) });}));
   }
+  if(path.startsWith('/api/garage/profiles/')&&path.endsWith('/photo')&&method==='GET'){const photo=await db.prepare('SELECT content_type,data FROM garage_profiles WHERE member_id=? AND data IS NOT NULL').bind(path.split('/')[4]).first();if(!photo)return reply({error:'Foto no disponible.'},404);return new Response(new Uint8Array(photo.data),{headers:{'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
   if (path.startsWith('/api/garage/photos/') && method === 'GET') {
     const photo = await db.prepare('SELECT content_type,data FROM garage_photos WHERE id=?').bind(path.split('/').pop()).first();
     if (!photo) return reply({ error: 'Foto no disponible.' }, 404);
@@ -58,6 +60,8 @@ export async function handleGarageRequest(request, db, admin) {
     if (instagram && !/^[A-Za-z0-9_.]{1,30}$/.test(instagram)) fail('Introduce solo el usuario de Instagram, sin la dirección web.');
     const engine = clean(form.get('engine'), 'el motor', 0, 100), power = clean(form.get('power'), 'la potencia', 0, 40), year = clean(form.get('year'), 'el año', 0, 4), gearbox = clean(form.get('gearbox'), 'el cambio', 0, 60), notes = clean(form.get('notes'), 'los detalles', 0, 2000);
     if (year && !/^\d{4}$/.test(year)) fail('El año debe tener cuatro cifras.');
+    const rawPhone=clean(form.get('phone'),'el teléfono',0,30);if(rawPhone&&!/^(?:\+|00)?[0-9 ()-]+$/.test(rawPhone))fail('Introduce un teléfono válido con prefijo internacional.');let phone=rawPhone.replace(/[^0-9]/g,'');if(rawPhone.startsWith('00'))phone=phone.slice(2);if(phone&&(!/^[1-9][0-9]{6,14}$/.test(phone)))fail('Introduce el teléfono con prefijo internacional, por ejemplo +34 600 123 456.');
+    const avatar=await photosFrom(form,'profilePhoto',1);if(avatar[0]?.data.byteLength>262144)fail('La foto de perfil debe ocupar menos de 256 KB.');
     const photos = await photosFrom(form); if (creating && !photos.length) fail('Añade al menos una foto del coche.');
     const stamp = Math.floor(Date.now()/1000);
     const statements = [creating ? db.prepare('INSERT INTO garage_members VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,folder,pilot,instagram,model,engine,power,year,gearbox,notes,stamp,stamp,admin.id) : db.prepare('UPDATE garage_members SET folder_id=?,pilot=?,instagram=?,model=?,engine=?,power=?,year=?,gearbox=?,notes=?,updated_at=?,updated_by=? WHERE id=?').bind(folder,pilot,instagram,model,engine,power,year,gearbox,notes,stamp,admin.id,id)];
@@ -65,6 +69,9 @@ export async function handleGarageRequest(request, db, admin) {
       if (!creating) statements.push(db.prepare('DELETE FROM garage_photos WHERE member_id=?').bind(id));
       photos.forEach((photo,index) => statements.push(db.prepare('INSERT INTO garage_photos VALUES(?,?,?,?,?)').bind(photo.id,id,photo.mime,photo.data,index)));
     }
+    if(avatar.length)statements.push(db.prepare('INSERT INTO garage_profiles(member_id,phone,content_type,data) VALUES(?,?,?,?) ON CONFLICT(member_id) DO UPDATE SET phone=excluded.phone,content_type=excluded.content_type,data=excluded.data').bind(id,phone,avatar[0].mime,avatar[0].data));
+    else if(form.get('removeProfile')==='yes')statements.push(db.prepare('INSERT INTO garage_profiles(member_id,phone) VALUES(?,?) ON CONFLICT(member_id) DO UPDATE SET phone=excluded.phone,content_type=NULL,data=NULL').bind(id,phone));
+    else statements.push(db.prepare('INSERT INTO garage_profiles(member_id,phone) VALUES(?,?) ON CONFLICT(member_id) DO UPDATE SET phone=excluded.phone').bind(id,phone));
     await db.batch(statements); return reply({ id }, creating ? 201 : 200);
   }
   if (path.startsWith('/api/garage/members/') && method === 'DELETE') {

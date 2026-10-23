@@ -15,11 +15,13 @@ function resetForm() {
   memberForm.reset(); memberForm.elements.id.value = ''; memberForm.elements.photos.required = true;
   if (selected) memberForm.elements.folderId.value = selected;
   $('[data-member-form-title]').textContent = 'Añadir ficha de un miembro'; $('[data-cancel-edit]').hidden = true;
+  $('[data-profile-preview]').replaceChildren();
   $('[data-photo-help]').textContent = 'Se reducirán automáticamente para que carguen rápido.';
   previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; $('[data-garage-previews]').replaceChildren();
 }
 function editMember(member) {
-  resetForm(); for (const field of ['id','folderId','pilot','instagram','model','engine','power','year','gearbox','notes']) memberForm.elements[field].value = member[field] || '';
+  resetForm(); for (const field of ['id','folderId','pilot','instagram','phone','model','engine','power','year','gearbox','notes']) memberForm.elements[field].value = member[field] || '';
+  if(member.profileImage){const avatar=element('img');avatar.src=member.profileImage;avatar.alt='Foto actual de '+member.pilot;$('[data-profile-preview]').append(avatar);}
   memberForm.elements.photos.required = false; $('[data-member-form-title]').textContent = 'Editar la ficha de ' + member.pilot; $('[data-cancel-edit]').hidden = false;
   $('[data-photo-help]').textContent = 'Conserva las fotos actuales o selecciona fotos nuevas para sustituirlas.';
   for (const src of member.images) { const image = element('img'); image.src = src; image.alt = 'Foto actual del coche'; $('[data-garage-previews]').append(image); }
@@ -30,8 +32,10 @@ function card(member) {
   const photos = element('div', '', 'garage-member-photos');
   member.images.forEach((src,index) => { const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`); const image = element('img'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy'; button.append(image); button.addEventListener('click', () => showPhoto(src,image.alt)); photos.append(button); });
   article.append(photos); const body = element('div', '', 'garage-member-body');
+  if(member.profileImage){const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';body.append(avatar);}
   body.append(element('p', 'PILOTO DEL CLUB', 'eyebrow red'), element('h3',member.pilot), element('p',member.model,'garage-model'));
   if (member.instagramUrl) { const link = element('a','@'+member.instagram+' ↗','garage-instagram'); link.href = member.instagramUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; body.append(link); }
+  if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
   const specs = element('dl','', 'garage-specs');
   for (const [label,value] of [['Motor',member.engine],['Potencia',member.power],['Año',member.year],['Cambio',member.gearbox]]) if (value) { const row = element('div'); row.append(element('dt',label),element('dd',value)); specs.append(row); }
   body.append(specs); if (member.notes) body.append(element('p',member.notes,'garage-member-notes'));
@@ -66,14 +70,14 @@ async function loadFolders() {
 }
 $('[data-back-folders]').addEventListener('click', () => { selected = ''; history.replaceState(null,'','garaje.html'); $('[data-folder-content]').hidden = true; $('[data-folders]').scrollIntoView({block:'start'}); });
 folderForm.addEventListener('submit', async event => { event.preventDefault(); const button = folderForm.querySelector('button'); button.disabled = true; try { const folder = await api('garage/folders','POST',{name:folderForm.elements.name.value}); selected = folder.id; folderForm.reset(); await loadFolders(); status.textContent = 'Carpeta creada. Ya puedes añadir sus fichas.'; } catch (error) { status.textContent = error.message; } finally { button.disabled = false; } });
-async function compress(file) {
+async function compress(file,dimension=1400,maximum=1048576) {
   if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 20*1024*1024) throw new Error('Utiliza fotos JPG, PNG o WebP de menos de 20 MB.');
-  const image = await createImageBitmap(file), ratio = Math.min(1,1400/Math.max(image.width,image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1,Math.round(image.width*ratio)); canvas.height = Math.max(1,Math.round(image.height*ratio)); canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height); image.close();
-  for (const quality of [.85,.7,.5,.3]) { const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',quality)); if (blob && blob.size <= 1048576) return blob; } throw new Error('Una foto ocupa demasiado. Elige una más pequeña.');
+  const image = await createImageBitmap(file), ratio = Math.min(1,dimension/Math.max(image.width,image.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1,Math.round(image.width*ratio)); canvas.height = Math.max(1,Math.round(image.height*ratio)); canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height); image.close();
+  for (const quality of [.85,.7,.5,.3]) { const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',quality)); if (blob && blob.size <= maximum) return blob; } throw new Error('Una foto ocupa demasiado. Elige una más pequeña.');
 }
 memberForm.elements.photos.addEventListener('change', () => { previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; $('[data-garage-previews]').replaceChildren(); for (const file of [...memberForm.elements.photos.files].slice(0,3)) { const image = element('img'); image.src = URL.createObjectURL(file); image.alt = 'Vista previa'; previewUrls.push(image.src); $('[data-garage-previews]').append(image); } });
 memberForm.addEventListener('submit', async event => { event.preventDefault(); const button = memberForm.querySelector('button[type=submit]'); button.disabled = true; saveStatus.textContent = 'Preparando la ficha…';
-  try { if (memberForm.elements.photos.files.length > 3) throw new Error('Añade como máximo tres fotos.'); const data = new FormData(memberForm); data.delete('photos'); for (const file of memberForm.elements.photos.files) data.append('photos',await compress(file),'coche.jpg'); const id = memberForm.elements.id.value; await api('garage/members'+(id?'/'+id:''),'POST',data); selected = data.get('folderId'); resetForm(); await loadFolders(); saveStatus.textContent = 'Ficha guardada y publicada en el garaje.'; }
+  try { if (memberForm.elements.photos.files.length > 3) throw new Error('Añade como máximo tres fotos.'); const data = new FormData(memberForm); data.delete('photos');data.delete('profilePhoto');const profile=memberForm.elements.profilePhoto.files[0];if(profile)data.append('profilePhoto',await compress(profile,600,262144),'perfil.jpg'); for (const file of memberForm.elements.photos.files) data.append('photos',await compress(file),'coche.jpg'); const id = memberForm.elements.id.value; await api('garage/members'+(id?'/'+id:''),'POST',data); selected = data.get('folderId'); resetForm(); await loadFolders(); saveStatus.textContent = 'Ficha guardada y publicada en el garaje.'; }
   catch (error) { saveStatus.textContent = error.message; } finally { button.disabled = false; }
 });
 $('[data-cancel-edit]').addEventListener('click',resetForm);

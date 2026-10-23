@@ -75,3 +75,8 @@ CREATE TABLE IF NOT EXISTS gallery_photos (
  caption TEXT NOT NULL DEFAULT '', content_type TEXT NOT NULL, data BLOB NOT NULL, created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS gallery_photos_folder ON gallery_photos(folder_id,created_at);
+
+CREATE TABLE IF NOT EXISTS garage_profiles (
+ member_id TEXT PRIMARY KEY REFERENCES garage_members(id) ON DELETE CASCADE,
+ phone TEXT NOT NULL DEFAULT '', content_type TEXT, data BLOB
+);
