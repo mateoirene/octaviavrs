@@ -1,0 +1,24 @@
+name: Comprobar fotos del circuito
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/comprobar-fotos-circuito.yml']
+permissions:
+  contents: read
+jobs:
+  fotos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Leer fotografías y licencias reutilizables
+        run: |
+          node --input-type=module <<'NODE'
+          const names=['Skoda Octavia IV Combi RS Auto Zuerich 2021 IMG 0574.jpg','Skoda Octavia IV Combi RS Auto Zuerich 2021 IMG 0190.jpg','Silverstone Pit Straight Panorama (14421352709).jpg'];
+          for(let i=0;i<names.length;i++){
+            const url=new URL('https://commons.wikimedia.org/w/api.php');Object.entries({action:'query',format:'json',prop:'imageinfo',titles:'File:'+names[i],iiprop:'url|extmetadata',iiurlwidth:330}).forEach(([key,value])=>url.searchParams.set(key,value));
+            const response=await fetch(url,{headers:{'User-Agent':'ClubOctaviaPreview/1.0'}});if(!response.ok)throw new Error('Wikimedia HTTP '+response.status);
+            const body=await response.json(),page=Object.values(body.query.pages)[0],info=page.imageinfo?.[0];if(!info)throw new Error('Foto no disponible: '+names[i]);
+            console.log('FOTO_INFO '+JSON.stringify({index:i,name:names[i],url:info.thumburl,original:info.url,author:info.extmetadata.Artist?.value,license:info.extmetadata.LicenseShortName?.value,licenseUrl:info.extmetadata.LicenseUrl?.value}));
+            if(i<2){const photo=await fetch(info.thumburl);if(!photo.ok)throw new Error('Foto HTTP '+photo.status);console.log('FOTO_PREVIEW_'+i+' '+Buffer.from(await photo.arrayBuffer()).toString('base64'));}
+          }
+          NODE
