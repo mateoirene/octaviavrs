@@ -53,7 +53,7 @@ try{
  assert.equal(await evaluate("document.querySelector('[data-race-start]').disabled"),true);
  const speed=await evaluate("Number(document.querySelector('canvas').dataset.speed)");assert.ok(speed>0,'El velocímetro digital sube con GAS');
  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}))");await wait(400);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}))");assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.speed)")<speed,'El velocímetro baja al frenar');
- await evaluate("document.querySelector('[data-race-music]').scrollIntoView({block:'center'})");
+ await evaluate("document.querySelector('[data-race-music]').scrollIntoView({block:'center',behavior:'instant'})");
  const musicPoint=await evaluate("(()=>{const r=document.querySelector('[data-race-music]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
  await call('Input.dispatchMouseEvent',{type:'mouseMoved',...musicPoint});
  for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
