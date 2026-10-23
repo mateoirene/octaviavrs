@@ -1,3 +1,4 @@
+import { createCarNotificationSound } from './notification-chime.mjs';
 import { setVrsText } from './branding.mjs';
 const STORAGE_KEY = 'club-notifications-read-v1';
 export function unreadNotifications(items, read) {
@@ -22,6 +23,8 @@ export async function initNotifications(doc = document) {
   try { storage = window.localStorage; } catch { storage = null; }
   let read = readIds(storage), items = [], busy = false, initialized = false, timer;
   let known = new Set();
+  const chime=createCarNotificationSound(window);let soundEnabled=true;try{soundEnabled=storage?.getItem('club-notification-sound-v1')!=='off';}catch{}
+  doc.addEventListener('pointerdown',()=>{if(soundEnabled)chime.unlock();},{passive:true});doc.addEventListener('keydown',()=>{if(soundEnabled)chime.unlock();});
   const area = doc.createElement('div');
   area.className = 'club-notifications';
   const button = doc.createElement('button');
@@ -40,7 +43,9 @@ export async function initNotifications(doc = document) {
   const status = doc.createElement('p'); status.className = 'notification-status'; status.setAttribute('role', 'status'); status.textContent = 'Buscando novedades…';
   const list = doc.createElement('ul'); list.className = 'notification-list';
   const reviewAccess = doc.createElement('a'); reviewAccess.className = 'notification-review-access'; reviewAccess.href = 'admin.html'; reviewAccess.textContent = 'Entrar para revisar y autorizar anuncios →';
-  panel.append(top, mark, status, reviewAccess, list); area.append(button, panel); masthead.append(area);
+  const soundControl=doc.createElement('button');soundControl.type='button';soundControl.className='notification-mark-read';
+  function soundLabel(){soundControl.textContent=soundEnabled?'Sonido de avisos: activado':'Sonido de avisos: apagado';soundControl.setAttribute('aria-pressed',String(soundEnabled));}soundLabel();soundControl.addEventListener('click',()=>{soundEnabled=!soundEnabled;try{storage?.setItem('club-notification-sound-v1',soundEnabled?'on':'off');}catch{}if(soundEnabled){chime.unlock();}soundLabel();});
+  panel.append(top, mark, soundControl, status, reviewAccess, list); area.append(button, panel); masthead.append(area);
   const toast = doc.createElement('div'); toast.className = 'notification-toast'; toast.setAttribute('role', 'status'); toast.hidden = true; doc.body.append(toast);
   function persist() { try { storage?.setItem(STORAGE_KEY, JSON.stringify([...read].slice(-1000))); } catch {} }
   function render() {
@@ -81,9 +86,9 @@ export async function initNotifications(doc = document) {
       const values = results.map(result => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []);
       items = buildNotifications(...values);
       const fresh = items.filter(item => !known.has(item.id) && !read.has(item.id));
-      if (initialized && fresh.length) { toast.textContent = `${fresh.length === 1 ? 'Hay una nueva notificación' : `Hay ${fresh.length} notificaciones nuevas`}. Pulsa la campana para verlas.`; toast.hidden = false; clearTimeout(timer); timer = setTimeout(() => { toast.hidden = true; }, 6500); }
+      if (initialized && fresh.length) { if(soundEnabled&&chime.play())window.dispatchEvent(new Event('club-notification-sound'));toast.textContent = `${fresh.length === 1 ? 'Hay una nueva notificación' : `Hay ${fresh.length} notificaciones nuevas`}. Pulsa la campana para verlas.`; toast.hidden = false; clearTimeout(timer); timer = setTimeout(() => { toast.hidden = true; }, 6500); }
       reviewAccess.textContent = values[2].length ? `Revisar ${values[2].length} anuncios pendientes →` : results[2].status === 'fulfilled' ? 'Abrir panel de revisión →' : 'Iniciar sesión para ver los anuncios pendientes →';
-      known = new Set(items.map(item => item.id)); initialized = true;
+      items.forEach(item=>known.add(item.id)); initialized = true;
       render(); status.textContent = items.length ? 'Novedades del club y del mercadillo.' : 'No hay novedades por ahora.';
       if (results[0].status === 'rejected' || results[1].status === 'rejected') status.textContent = 'Algunas novedades no se han podido actualizar. Volveremos a intentarlo.';
     } catch { status.textContent = 'No se han podido actualizar las notificaciones. Vuelve a abrir la campana para reintentar.'; }
