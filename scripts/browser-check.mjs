@@ -42,9 +42,22 @@ try{
  assert.equal(raw.prepare('SELECT COUNT(*) n FROM garage_members').get().n,1);
  await mkdir('artifacts',{recursive:true});await evaluate("document.querySelector('[data-folder-content]').scrollIntoView()");
  let screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/garaje-ficha.jpg',Buffer.from(screenshot.data,'base64'));
+ // Galería de eventos: crear carpeta, publicar una fotografía y consultarla.
+ await call('Page.navigate',{url:base+'/galeria.html'});await until("document.querySelector('[data-gallery-management]')?.hidden===false");
+ await evaluate("document.querySelector('[data-event-form]').elements.name.value='Ruta de prueba';document.querySelector('[data-event-form]').elements.category.value='Rutas';document.querySelector('[data-event-form]').requestSubmit()");
+ await until("document.querySelectorAll('[data-event-folders] article').length===1");
+ await evaluate("document.querySelector('[data-event-upload]').elements.consent.checked=true");
+ const galleryDoc=await call('DOM.getDocument'),galleryInput=await call('DOM.querySelector',{nodeId:galleryDoc.root.nodeId,selector:'[data-event-upload] input[type=file]'});
+ await call('DOM.setFileInputFiles',{nodeId:galleryInput.nodeId,files:[resolve('dist/assets/1-66228.jpg')]});
+ await evaluate("document.querySelector('[data-event-upload]').requestSubmit()");await until("document.querySelector('[data-gallery-upload-status]').textContent.includes('1 fotos publicadas')");
+ assert.equal(raw.prepare('SELECT COUNT(*) n FROM gallery_photos').get().n,1);
+ await evaluate("document.querySelector('[data-event-photos] button').click()");assert.equal(await evaluate("document.querySelector('[data-event-lightbox]').open"),true);await evaluate("document.querySelector('[data-event-close]').click()");
+ await evaluate("document.querySelector('[data-event-content]').scrollIntoView({behavior:'instant'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/galeria-evento.jpg',Buffer.from(screenshot.data,'base64'));
  // Visitante sin sesión: puede consultar las fichas, no gestionarlas.
  await call('Network.deleteCookies',{name:'club_session',url:base});await call('Page.navigate',{url:base+'/garaje.html'});await until("document.querySelectorAll('[data-folders] article').length===1");
  assert.equal(await evaluate("document.querySelector('[data-garage-management]').hidden"),true);
+ await call('Page.navigate',{url:base+'/galeria.html'});await until("document.querySelectorAll('[data-event-folders] article').length===1");assert.equal(await evaluate("document.querySelector('[data-gallery-management]').hidden"),true);
+ await call('Page.navigate',{url:base+'/index.html'});await until("document.querySelectorAll('#galeria .gallery-decoration').length===4");assert.equal(await evaluate("document.querySelectorAll('#galeria button,#galeria [data-image]').length"),0);assert.equal(await evaluate("document.querySelector('.gallery-access').getAttribute('href')"),'galeria.html');
  await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
  await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
  for(const level of ['expert','intermediate','easy']){await evaluate(`document.querySelector('[data-race-level]').value='${level}';document.querySelector('[data-race-level]').dispatchEvent(new Event('change'))`);assert.equal(await evaluate("document.querySelector('[data-race-level]').value"),level);}

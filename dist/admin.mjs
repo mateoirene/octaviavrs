@@ -95,6 +95,7 @@ async function pollPending() {
 }
 async function enter(user) {
   key = null; login.hidden = true; panel.hidden = false; window.dispatchEvent(new Event('club-session-change'));
+  if (new URLSearchParams(location.search).get('volver') === 'galeria') { location.assign('galeria.html#gestion'); return; }
   if (new URLSearchParams(location.search).get('volver') === 'garaje') { location.assign('garaje.html#gestion'); return; }
   $('[data-user]').textContent = user.email; await refresh(); await refreshMail(true);
 }

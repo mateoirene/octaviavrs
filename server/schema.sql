@@ -65,3 +65,13 @@ CREATE TABLE IF NOT EXISTS garage_photos (
  content_type TEXT NOT NULL, data BLOB NOT NULL, position INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS garage_photos_member ON garage_photos(member_id,position);
+
+CREATE TABLE IF NOT EXISTS gallery_folders (
+ id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE, category TEXT NOT NULL,
+ event_date TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS gallery_photos (
+ id TEXT PRIMARY KEY, folder_id TEXT NOT NULL REFERENCES gallery_folders(id) ON DELETE CASCADE,
+ caption TEXT NOT NULL DEFAULT '', content_type TEXT NOT NULL, data BLOB NOT NULL, created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS gallery_photos_folder ON gallery_photos(folder_id,created_at);

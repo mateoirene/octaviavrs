@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 const base='https://octaviaap.pages.dev';
 async function verify(){
  const index=await(await fetch(base+'/?check='+Date.now(),{cache:'no-store'})).text();
+ assert.ok(index.includes('href="galeria.html"'),'Acceso a álbumes publicado');assert.ok(!index.includes('data-image='),'Fotos decorativas sin ampliación');const gallery=await fetch(base+'/galeria.html');assert.equal(gallery.status,200);const folders=await fetch(base+'/api/gallery/folders');assert.equal(folders.status,200);assert.ok(Array.isArray(await folders.json()));
  assert.ok(index.indexOf('id="simulador"')>index.indexOf('id="mercadillo"'),'Orden mercadillo y simulador');
  const game=await(await fetch(base+'/simulador.html?check='+Date.now(),{cache:'no-store'})).text();assert.ok(game.includes('data-race-level'),'Selector de niveles publicado');
  for(const id of ['cockpit','rival','circuit']){const response=await fetch(base+'/assets/race/'+id+'.jpg');assert.equal(response.status,200,'Fotografía '+id);assert.ok(response.headers.get('content-type')?.startsWith('image/jpeg'));}
- const cursor=await fetch(base+'/assets/puntero-flecha.svg');assert.equal(cursor.status,200);assert.ok((await cursor.text()).includes('stroke="#f32440"'));
+ const cursor=await fetch(base+'/assets/puntero-flecha.svg');assert.equal(cursor.status,200);assert.ok((await cursor.text()).includes('stroke="#934954"'));
  console.log('CIRCUITO_PUBLICADO_OK: fotos locales, tres niveles, orden de portada y puntero negro/rojo.');
 }
 for(let attempt=0;attempt<5;attempt++){try{await verify();break;}catch(error){if(attempt===4)throw error;await new Promise(resolve=>setTimeout(resolve,4000));}}
