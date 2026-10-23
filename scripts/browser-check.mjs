@@ -14,7 +14,7 @@ raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('browser-admin','
 const token=crypto.randomUUID();raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update(token).digest('hex'),'browser-admin',Math.floor(Date.now()/1000)+3600);
 const prepare=sql=>{const statement=raw.prepare(sql);let args=[];const values=()=>args.map(value=>value instanceof ArrayBuffer?Buffer.from(value):value);const query={bind(...values){args=values;return query;},async first(){return statement.get(...values())||null;},async all(){return {results:statement.all(...values())};},async run(){return {meta:{changes:Number(statement.run(...values()).changes)}};}};return query;};
 const db={prepare,async batch(items){raw.exec('BEGIN');try{for(const item of items)await item.run();raw.exec('COMMIT');}catch(error){raw.exec('ROLLBACK');throw error;}}};
-const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml'};
+const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml','.mp3':'audio/mpeg'};
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://127.0.0.1');if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);const response=await handleMarketRequest(new Request(base+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{} )}),{MARKET_DB:db});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}const path=resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));if(!path.startsWith(root+'/')){res.writeHead(403);res.end();return;}const content=await readFile(path);res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'});res.end(content);}catch{res.writeHead(404);res.end('No disponible');}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
 const chromePath=['/usr/bin/google-chrome','/usr/bin/chromium','/usr/bin/chromium-browser'].find(existsSync);if(!chromePath)throw new Error('Chrome no está instalado en el entorno de comprobación.');
@@ -72,8 +72,11 @@ try{
  for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
  await wait(500);console.log('MUSIC_CHECK '+JSON.stringify(await evaluate("({status:document.querySelector('[data-race-status]').textContent,pressed:document.querySelector('[data-race-music]').getAttribute('aria-pressed'),music:document.querySelector('[data-racing-stage]').dataset.music,visibility:document.visibilityState})")));
  await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='true'");
+ await until("(()=>{const a=document.querySelector('[data-race-radio]');return a&&!a.paused&&a.currentTime>0&&a.readyState>=2})()");
+ assert.ok(await evaluate("document.querySelector('[data-race-radio]').currentSrc.endsWith('/assets/audio/radio-club.mp3')"),'La radio reproduce el MP3 enviado por el club');
  for(const type of ['mousePressed','mouseReleased'])await call('Input.dispatchMouseEvent',{type,...musicPoint,button:'left',clickCount:1});
  await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='false'");
+ assert.equal(await evaluate("document.querySelector('[data-race-radio]').paused"),true,'Apaga la reproducción de la radio');
 
  assert.ok(await evaluate("document.querySelector('canvas').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));

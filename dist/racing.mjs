@@ -1,4 +1,4 @@
-import { createMusic } from './racing-music.mjs';
+import { createMusic } from './racing-music.mjs?v=20261023-radio';
 import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs';
 const $ = selector => document.querySelector(selector);
 const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.getContext('2d');

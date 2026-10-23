@@ -1,7 +1,13 @@
-// Música instrumental original, generada localmente sin servicios externos.
+// Audio facilitado por el club. La reproducción requiere pulsar la radio.
 export function createMusic(){
- let context,master,timer,next=0,beat=0,enabled=false;const voices=new Set();
- function note(frequency,time,duration,type,volume){const oscillator=context.createOscillator(),gain=context.createGain();oscillator.type=type;oscillator.frequency.value=frequency;gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(volume,time+.012);gain.gain.exponentialRampToValueAtTime(.0001,time+duration);oscillator.connect(gain);gain.connect(master);voices.add(oscillator);oscillator.onended=()=>{voices.delete(oscillator);oscillator.disconnect();gain.disconnect();};oscillator.start(time);oscillator.stop(time+duration+.02);}
- function schedule(){while(next<context.currentTime+.18){const chord=[[130.81,164.81,196],[110,130.81,164.81],[87.31,110,130.81],[98,123.47,146.83]][Math.floor(beat/16)%4];if(beat%4===0){chord.forEach(f=>note(f*2,next,.8,'triangle',.09));note(chord[0]/2,next,.22,'sine',.24);}if(beat%2===0)note(chord[(beat/2)%3]*4,next,.13,'triangle',.09);if(beat%4===2)note(160,next,.055,'sawtooth',.045);next+=.125;beat++;}}
- return {async start(){if(!context){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)throw new Error('Audio no disponible');context=new Audio();master=context.createGain();master.gain.value=.34;master.connect(context.destination);}await context.resume();if(enabled)return;enabled=true;next=context.currentTime+.03;beat=0;schedule();timer=setInterval(schedule,80);},stop(){enabled=false;clearInterval(timer);for(const voice of voices){try{voice.stop();}catch{}}voices.clear();},get playing(){return enabled&&context?.state==='running';}};
+ const track=document.createElement('audio');
+ track.src=new URL('./assets/audio/radio-club.mp3',import.meta.url).href;
+ track.preload='none';track.loop=true;track.volume=.65;
+ track.dataset.raceRadio='';track.hidden=true;document.body.append(track);
+ let generation=0;
+ return {
+  async start(){const attempt=++generation;await track.play();if(attempt!==generation)track.pause();},
+  stop(){generation++;track.pause();},
+  get playing(){return !track.paused&&!track.ended;}
+ };
 }
