@@ -1,0 +1,42 @@
+name: Verificar mercadillo publicado
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verificar-mercadillo.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Comprobar web pública y acceso privado
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const base='https://octaviaap.pages.dev';
+          async function check(){
+            const status=await fetch(base+'/api/market/status',{cache:'no-store'});
+            assert.equal(status.status,200,'Estado del almacenamiento');
+            assert.equal((await status.json()).ready,true,'Almacenamiento disponible');
+            const listings=await fetch(base+'/api/market/listings',{cache:'no-store'});
+            assert.equal(listings.status,200,'Anuncios públicos');
+            assert.ok(Array.isArray(await listings.json()),'Lista de anuncios válida');
+            const admin=await fetch(base+'/api/admin/listings',{cache:'no-store'});
+            assert.equal(admin.status,401,'Panel privado protegido');
+            const page=await fetch(base+'/mercadillo.html',{cache:'no-store'});
+            assert.equal(page.status,200);
+            assert.ok((await page.text()).includes('data-submit-form'),'Formulario publicado');
+            const login=await fetch(base+'/admin.html',{cache:'no-store'});
+            assert.equal(login.status,200);
+            assert.ok((await login.text()).includes('data-login'),'Acceso de administración publicado');
+            const photo=await fetch(base+'/api/market/photos/00000000-0000-0000-0000-000000000000');
+            assert.equal(photo.status,404,'Fotos no existentes protegidas');
+          }
+          for(let attempt=0;attempt<5;attempt++){
+            try{await check();console.log('Mercadillo verificado: formulario, almacenamiento, anuncios y acceso privado correctos.');break;}
+            catch(error){if(attempt===4)throw error;await new Promise(resolve=>setTimeout(resolve,5000));}
+          }
+          NODE
