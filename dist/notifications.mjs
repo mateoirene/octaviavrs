@@ -6,7 +6,7 @@ export function unreadNotifications(items, read) {
 }
 export function buildNotifications(news, listings = [], pending = []) {
   return [
-    ...pending.map(item => ({ id: `pending:${item.id}`, title: 'Anuncio pendiente de revisión', message: item.title, href: 'admin.html' })),
+    ...pending.map(item => ({ id: `pending:${item.id}`, title: 'Anuncio pendiente de revisión', message: `${item.category || 'Otros'} · ${item.title}`, href: `admin.html?anuncio=${encodeURIComponent(item.id)}` })),
     ...listings.map(item => ({ id: `listing:${item.id}`, title: 'Nueva pieza en el mercadillo', message: item.title, href: 'mercadillo.html' })),
     ...news,
   ].filter((item, index, all) => item && typeof item.id === 'string' && typeof item.title === 'string' && all.findIndex(other => other.id === item.id) === index);
@@ -43,6 +43,10 @@ export async function initNotifications(doc = document) {
   const toast = doc.createElement('div'); toast.className = 'notification-toast'; toast.setAttribute('role', 'status'); toast.hidden = true; doc.body.append(toast);
   function persist() { try { storage?.setItem(STORAGE_KEY, JSON.stringify([...read].slice(-1000))); } catch {} }
   function render() {
+    const pendingCount = items.filter(item => item.id.startsWith('pending:')).length;
+    for (const indicator of doc.querySelectorAll('[data-review-count]')) {
+      indicator.hidden = pendingCount === 0; indicator.textContent = `(${pendingCount} pendientes)`;
+    }
     const count = unreadNotifications(items, read).length;
     badge.hidden = count === 0; badge.textContent = count > 99 ? '99+' : String(count);
     button.setAttribute('aria-label', count ? `Notificaciones: ${count} sin leer` : 'Notificaciones: todo leído');

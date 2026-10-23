@@ -1,3 +1,4 @@
+import { dispatchReviewMail, reviewMailStatus } from './review-mail.mjs';
 import { ACTIVATION_HASH, ADMIN_EMAIL_HASHES } from './config.mjs';
 const enc = new TextEncoder();
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(value))), x => x.toString(16).padStart(2,'0')).join('');
@@ -17,7 +18,7 @@ const rows=(await db.prepare('SELECT * FROM market_listings WHERE status=? ORDER
 const photos=(await db.prepare('SELECT id,listing_id FROM market_photos WHERE listing_id IN (SELECT id FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200) ORDER BY position').bind(status).all()).results;
 return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note}:item;});}
 
-export async function handleMarketRequest(request,env){try{
+export async function handleMarketRequest(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
@@ -43,7 +44,11 @@ export async function handleMarketRequest(request,env){try{
  const photos=form.getAll('photos');if(photos.length<1||photos.length>3)fail('Añade entre una y tres fotos.');
  const id=crypto.randomUUID(),stamp=now();const statements=[db.prepare('INSERT INTO market_listings(id,title,category,description,price,condition,compatibility,location,seller,contact_type,contact_value,contact_url,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,category,description,price,condition,compatibility,location,seller,type,value,contact,stamp,stamp)];
  for(let position=0;position<photos.length;position++){const file=photos[position];if(!file.arrayBuffer||file.size>1048576||file.size<12)fail('Cada foto debe ocupar menos de 1 MB.');const bytes=new Uint8Array(await file.arrayBuffer());const jpeg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;const webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';const mime=jpeg?'image/jpeg':png?'image/png':webp?'image/webp':null;if(!mime)fail('Solo se admiten fotos JPG, PNG o WebP.');statements.push(db.prepare('INSERT INTO market_photos VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,mime,bytes.buffer,position));}
- await db.batch(statements);return json({id,status:'pending'},201);
+ statements.push(db.prepare('INSERT INTO market_review_mail(listing_id,created_at) VALUES(?,?)').bind(id,stamp));
+ await db.batch(statements);
+ const delivery=dispatchReviewMail(db,env,id).catch(()=>({sent:false}));
+ if(context?.waitUntil)context.waitUntil(delivery);else await delivery;
+ return json({id,status:'pending'},201);
  }
  if(path==='/api/admin/setup'&&method==='POST'){
  await limit(db,request,'setup',5);const body=await request.json();if(await db.prepare('SELECT id FROM market_admins LIMIT 1').first())fail('El acceso ya está activado. Inicia sesión.',409);if(await hash(String(body.key||''))!==ACTIVATION_HASH)fail('Enlace de activación no válido.',403);const user=await credentials(body);
@@ -55,6 +60,8 @@ export async function handleMarketRequest(request,env){try{
  }
  if(path.startsWith('/api/admin/')){
  const user=await session(db,request);if(!user)fail('Inicia sesión para continuar.',401);
+ if(path==='/api/admin/review-mail'&&method==='GET')return json(await reviewMailStatus(db,env));
+ if(path==='/api/admin/review-mail/retry'&&method==='POST'){await limit(db,request,'mail-retry',10);const pending=(await db.prepare("SELECT m.listing_id FROM market_review_mail m JOIN market_listings l ON l.id=m.listing_id WHERE l.status='pending' AND m.status IN ('queued','failed') ORDER BY m.created_at LIMIT 5").all()).results;const delivery=Promise.all(pending.map(row=>dispatchReviewMail(db,env,row.listing_id))).catch(()=>[]);if(context?.waitUntil)context.waitUntil(delivery);else await delivery;return json(await reviewMailStatus(db,env));}
  if(path==='/api/admin/session'&&method==='GET')return json(user);
  if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')).run();return json({ok:true},200,{'Set-Cookie':cookie('')});}
  if(path==='/api/admin/users'&&method==='POST'){const next=await credentials(await request.json());if(await db.prepare('SELECT id FROM market_admins WHERE email=?').bind(next.email).first())fail('Esta cuenta ya tiene acceso.',409);await db.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').bind(next.id,next.email,next.digest,next.salt,now()).run();return json({email:next.email},201);}

@@ -21,3 +21,15 @@ Las fotos se reducen en el navegador a JPG de hasta 1 MB, retirando metadatos. S
 ## Comprobaciones
 
 `node --test tests/*.test.mjs` (Node 24). Las pruebas usan SQLite en memoria para verificar privacidad de las fotos pendientes, moderación, sesiones, activación única, segunda cuenta, validación, límites de intentos y preparación del almacenamiento. No se utilizan credenciales de producción.
+
+## Avisos de revisión por correo
+
+Cada envío nuevo guarda, en la misma transacción, el anuncio pendiente y un aviso en `market_review_mail`. La campana muestra los pendientes únicamente a administradores con sesión iniciada y enlaza directamente al anuncio. El mercadillo incluye acceso a revisión y filtros por temática; el panel agrupa las piezas por Motor, Llantas y neumáticos, Interior, Exterior y Otros.
+
+El envío de correo está preparado mediante Resend para el destinatario fijo `mozos.raul@gmail.com`. Requiere configurar `RESEND_API_KEY` como **secreto del entorno de producción de Cloudflare Pages** y volver a publicar. No se debe pegar esa clave en el chat ni guardarla en GitHub o en archivos públicos. `MARKET_FROM_EMAIL` permite elegir un remitente autorizado en Resend. Si no se configura, se utiliza `Club Octavia <onboarding@resend.dev>`; el remitente de pruebas de Resend solo permite enviar a la dirección verificada del titular de la cuenta, por lo que la cuenta deberá pertenecer a `mozos.raul@gmail.com`. Para otros destinatarios o un remitente propio, primero hay que verificar un dominio en Resend.
+
+El correo lleva temática, pieza, precio, vendedor y un enlace al anuncio en el panel privado. Abrir el correo no aprueba el anuncio: hay que iniciar sesión y pulsar Aprobar y publicar. No se adjuntan imágenes privadas al correo.
+
+Los envíos usan una clave de idempotencia por anuncio, hasta tres intentos inmediatos y registro del resultado. `sent` significa que el proveedor ha aceptado el correo, no que esté confirmado en la bandeja de entrada. Los avisos sin configurar o fallidos permanecen pendientes; se reintentan al entrar al panel o con el botón de reintento, en lotes de cinco. No hay tarea programada de reintento cuando nadie utiliza la web. Al resolverse un anuncio, no se envían sus avisos aún pendientes.
+
+El panel informa si el servicio de correo todavía no está configurado. Esa falta de configuración no bloquea los envíos de anuncios, la campana ni su aprobación.

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101112">
   <meta name="description" content="Mercadillo del Club Octavia VRS Cataluña. Piezas, recambios y accesorios a la venta entre miembros del club.">
   <title>Mercadillo · Club Octavia VRS Cataluña</title>
-  <link rel="stylesheet" href="style.css?v=20261023-humo-vivo">
+  <link rel="stylesheet" href="style.css?v=20261023-revision-correo">
 </head>
 <body class="market-page"><div class="smoke-backdrop" aria-hidden="true"></div>
 <header>
@@ -27,9 +27,11 @@
     <h1 id="market-title">Mercadillo<em> del club.</em></h1>
     <p>Piezas, recambios y accesorios que buscan su próximo Octavia.<br>Consulta lo que los miembros del club tienen a la venta.</p>
     <a class="button" href="#vender">Quiero vender una pieza <span aria-hidden="true">↓</span></a>
+    <div class="market-entry-actions"><a class="button market-secondary" href="#tematicas">Ver anuncios por temática ↓</a><a class="button market-secondary" href="admin.html">Revisar anuncios <span data-review-count hidden></span></a></div>
   </section>
 
   <section class="market-listings section" aria-labelledby="pieces-title" data-market>
+    <div id="tematicas" class="market-themes"><h3>Anuncios por temática</h3><div class="market-theme-buttons" role="group" aria-label="Temática de los anuncios" data-market-themes></div></div>
     <div class="section-heading">
       <div><p class="eyebrow red">EL TABLÓN DEL CLUB</p><h2 id="pieces-title">Piezas <em>en venta.</em></h2></div>
       <p data-market-status role="status" aria-live="polite">Todavía no hay piezas anunciadas.</p>
@@ -57,6 +59,6 @@
 <button class="button" type="submit">Enviar para revisión</button><p role="status" aria-live="polite" data-submit-status></p></form></section>
 </main>
 <footer><a class="brand" href="index.html#inicio">OCTAVIA <b><span class="vrs-text"><span class="vrs-mark"><span class="vrs-v">V</span>RS</span></span><span class="brand-region"> / CATALUÑA</span></b></a><p>Una pasión que se comparte.</p><small>Club independiente de aficionados. Sin afiliación oficial con Škoda Auto.</small><a href="admin.html">Administración del mercadillo</a></footer>
-<script type="module" src="mercadillo.mjs?v=20261023-envios"></script>
-<script src="interactions.js?v=20261022-1" defer></script><script type="module" src="market-submit.mjs"></script><script type="module" src="notifications.mjs?v=20261023-1"></script></body>
+<script type="module" src="mercadillo.mjs?v=20261023-tematicas"></script>
+<script src="interactions.js?v=20261022-1" defer></script><script type="module" src="market-submit.mjs"></script><script type="module" src="notifications.mjs?v=20261023-revision"></script></body>
 </html>

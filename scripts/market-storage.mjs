@@ -13,3 +13,5 @@ const project=await api('/pages/projects/octaviaap');if(project.name!=='octaviaa
 const production=project.deployment_configs?.production||{};
 if(production.d1_databases?.MARKET_DB?.id!==database.uuid){await api('/pages/projects/octaviaap','PATCH',{deployment_configs:{production:{d1_databases:{...production.d1_databases,MARKET_DB:{id:database.uuid}}}}});}
 console.log('Almacenamiento y vínculo de producción del mercadillo preparados.');
+
+console.log(production.env_vars?.RESEND_API_KEY ? 'CORREO_MERCADILLO: clave de envío configurada.' : 'CORREO_MERCADILLO: falta configurar RESEND_API_KEY en el proyecto Pages.');

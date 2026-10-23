@@ -1,3 +1,4 @@
+import { MARKET_CATEGORIES } from './market-categories.mjs';
 import { setVrsText, upperVrs } from './branding.mjs';
 
 const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
@@ -102,15 +103,27 @@ export async function initMarket(root, fetcher = fetch) {
     const response = await fetcher('/api/market/listings', { cache: 'no-cache' });
     if (!response.ok) throw new Error('No se pudo cargar el mercadillo.');
     const items = availableListings(await response.json());
-    const categories = [...new Set(items.map(item => item.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+    const categories = MARKET_CATEGORIES;
     for (const name of categories) {
       const option = element('option', '', name);
       option.value = name;
       category.append(option);
     }
-    form.hidden = items.length === 0;
+    form.hidden = false;
+    const themes = root.querySelector('[data-market-themes]');
+    const themeButtons = [];
+    for (const name of ['', ...categories]) {
+      const count = name ? items.filter(item => item.category === name).length : items.length;
+      const button = element('button', '', `${name || 'Todas'} (${count})`);
+      button.type = 'button'; button.dataset.category = name;
+      button.addEventListener('click', () => { category.value = name; render(); });
+      themeButtons.push(button); themes?.append(button);
+    }
     function render() {
       const visible = filterListings(items, search.value, category.value);
+      for (const button of themeButtons) button.setAttribute('aria-pressed', String(button.dataset.category === category.value));
+      emptyTitle.textContent = category.value ? `Todavía no hay anuncios de ${category.value.toLocaleLowerCase('es')}.` : 'El primer anuncio puede ser el tuyo.';
+      emptyCopy.textContent = 'Puedes enviar tu pieza para que Alberto o Raúl la revisen antes de publicarla.';
       grid.replaceChildren(...visible.map(listingCard));
       empty.hidden = visible.length > 0;
       if (!items.length) {

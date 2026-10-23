@@ -32,3 +32,11 @@ BEGIN
  INSERT INTO market_reviews(listing_id,old_status,new_status,actor,note,created_at)
  VALUES(NEW.id,OLD.status,NEW.status,NEW.reviewed_by,NEW.review_note,NEW.updated_at);
 END;
+
+CREATE TABLE IF NOT EXISTS market_review_mail (
+ listing_id TEXT PRIMARY KEY REFERENCES market_listings(id) ON DELETE CASCADE,
+ status TEXT NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','sent','failed','cancelled')),
+ attempts INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, sent_at INTEGER,
+ last_error TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS market_review_mail_status ON market_review_mail(status,created_at);
