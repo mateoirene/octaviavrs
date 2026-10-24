@@ -1,0 +1,6 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createRace} from '../dist/racing-physics.mjs';
+import {dashboardNavigation,steeringRotation} from '../dist/racing-dashboard.mjs';
+test('navegador comparte trazado, posición lateral y dirección con la carrera en cada nivel',()=>{for(const level of ['easy','intermediate','expert']){const race=createRace(null,level);race.distance=190;race.x=.4;const rect={x:12,y:30,w:180,h:70},nav=dashboardNavigation(race,rect),[x,y]=nav.project(nav.position);assert.ok(Math.abs(x-(rect.x+rect.w*.57))<1e-8);assert.ok(Math.abs(y-(rect.y+rect.h*.73))<1e-8);const ahead=nav.project(nav.layout.position(race.distance+20));assert.ok(ahead[1]<y);const previous=nav.project(nav.layout.position(race.distance));race.distance+=10;const next=dashboardNavigation(race,rect).project(nav.layout.position(190));assert.notDeepEqual(next,previous);race.distance+=race.trackLength;const loop=dashboardNavigation(race,rect).project(nav.layout.position(190));assert.ok(loop.every((v,i)=>Math.abs(v-next[i])<1e-6));}});
+test('volante gira a izquierda y derecha y vuelve al centro',()=>{assert.ok(steeringRotation(-1)<0);assert.ok(steeringRotation(1)>0);assert.equal(steeringRotation(0),0);assert.equal(steeringRotation(10),.9);assert.equal(steeringRotation(-10),-.9);});
