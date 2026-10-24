@@ -31,7 +31,7 @@ export async function createRacingWorld(stage){
  const fenceCanvas=document.createElement('canvas');fenceCanvas.width=fenceCanvas.height=64;const fc=fenceCanvas.getContext('2d');fc.clearRect(0,0,64,64);fc.strokeStyle='#a8b1b7';fc.lineWidth=1.4;for(let x=-64;x<128;x+=16){fc.beginPath();fc.moveTo(x,0);fc.lineTo(x+64,64);fc.stroke();fc.beginPath();fc.moveTo(x,0);fc.lineTo(x-64,64);fc.stroke();}const fenceTexture=new THREE.CanvasTexture(fenceCanvas);fenceTexture.wrapS=fenceTexture.wrapT=THREE.RepeatWrapping;fenceTexture.anisotropy=4;
  const fenceMaterial=new THREE.MeshStandardMaterial({map:fenceTexture,transparent:true,alphaTest:.12,side:THREE.DoubleSide,roughness:.65,metalness:.5,depthWrite:false});
  const tyreCanvas=document.createElement('canvas');tyreCanvas.width=128;tyreCanvas.height=1024;const tc=tyreCanvas.getContext('2d');tc.clearRect(0,0,128,1024);let seed=217;const random=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};for(let i=0;i<180;i++){const x=35+random()*58,y=random()*1024;tc.strokeStyle='rgba(20,18,17,'+(.02+random()*.12)+')';tc.lineWidth=.3+random()*2;tc.beginPath();tc.moveTo(x,y);tc.lineTo(x+random()*4,y+40+random()*220);tc.stroke();}const tyreTexture=new THREE.CanvasTexture(tyreCanvas);tyreTexture.wrapT=THREE.RepeatWrapping;const tyreMaterial=new THREE.MeshStandardMaterial({map:tyreTexture,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2});
- let root,layout,signature='',rivalMeshes=[],rivalTexture,width=1,height=1,quality=low?.65:mobile?1:1.4,slow=0,frames=0,totalFrame=0,lastRender=0,available=true;
+ let root,layout,signature='',rivalMeshes=[],rivalTexture,teslaTexture,width=1,height=1,quality=low?.65:mobile?1:1.4,slow=0,frames=0,totalFrame=0,lastRender=0,available=true;
  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();available=false;canvas.hidden=true;stage.dataset.renderer='2d-fallback';});
  const unitBox=new THREE.BoxGeometry(1,1,1),matrix=new THREE.Matrix4(),quat=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),pos=new THREE.Vector3(),scale=new THREE.Vector3();
  function mesh(geometry,material,parent=root){const item=new THREE.Mesh(geometry,material);item.receiveShadow=true;parent.add(item);return item;}
@@ -55,7 +55,14 @@ export async function createRacingWorld(stage){
   const white=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.24,metalness:.24});
   const windowMaterial=new THREE.MeshStandardMaterial({color:'#111c26',roughness:.13,metalness:.45});
   const lamp=new THREE.MeshStandardMaterial({color:'#ae1325',emissive:'#bf1427',emissiveIntensity:.6,roughness:.25});
-  function shell(rings,material){const points=[],indices=[];for(const [z,w,bottom,top] of rings)points.push(-w,bottom,z,w,bottom,z,w*.96,top,z,-w*.96,top,z);for(let i=0;i<rings.length-1;i++)for(let j=0;j<4;j++){const a=i*4+j,b=i*4+(j+1)%4,c=a+4,d=b+4;indices.push(a,c,b,b,c,d);}indices.push(0,1,2,0,2,3);const k=(rings.length-1)*4;indices.push(k,k+2,k+1,k,k+3,k+2);const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geometry.setIndex(indices);geometry.computeVertexNormals();const item=mesh(geometry,material,g);item.castShadow=true;return item;}
+  function shell(rings,material){
+   const curve=new THREE.CatmullRomCurve3(rings.map(([z,w,b,t])=>new THREE.Vector3(w,b,t)),false,'centripetal');
+   const positions=[],indices=[],profile=[[-.82,0],[.82,0],[1,.15],[1,.65],[.88,1],[-.88,1],[-1,.65],[-1,.15]],steps=48;
+   // Rounded cross-sections and longitudinal interpolation replace the six flat box-like panels.
+   for(let i=0;i<=steps;i++){const u=i/steps,v=curve.getPoint(u),index=u*(rings.length-1),j=Math.min(rings.length-2,Math.floor(index)),f=index-j,z=THREE.MathUtils.lerp(rings[j][0],rings[j+1][0],f);for(const [x,y] of profile)positions.push(x*v.x,v.y+y*(v.z-v.y),z);}
+   for(let i=0;i<steps;i++)for(let j=0;j<8;j++){const a=i*8+j,b=i*8+(j+1)%8,c=a+8,d=b+8;indices.push(a,c,b,b,c,d);}
+   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();const item=mesh(geometry,material,g);item.castShadow=true;return item;
+  }
   shell([[-2.347,.66,.36,.57],[-2.04,.85,.28,.74],[-1.3,.9245,.27,.85],[.7,.9245,.27,.92],[1.8,.88,.3,.91],[2.347,.76,.38,.72]],white);
   // Smooth sloping sedan roof, dark panoramic glass, no estate roof rails/spoiler/exhausts.
   shell([[-1.28,.75,.81,.85],[-.55,.70,.84,1.36],[.18,.70,.85,1.443],[.85,.68,.89,1.38],[1.62,.75,.9,.96]],windowMaterial);
@@ -64,8 +71,12 @@ export async function createRacingWorld(stage){
   for(const side of [-1,1]){localBox(g,side*.62,.79,2.225,.39,.075,.10,lamp,false);localBox(g,side*.78,.69,2.12,.075,.20,.12,lamp,false);localBox(g,side*.63,.64,-2.17,.36,.065,.1,paintWhite,false);}
   localBox(g,0,.34,2.20,1.35,.13,.12,dark,false);
   const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#10151d';ctx.fillRect(0,0,512,128);ctx.strokeStyle='#c5cbd0';ctx.lineWidth=7;ctx.strokeRect(5,5,502,118);ctx.textAlign='center';ctx.font='bold 82px Arial';ctx.shadowColor='#b9eaff';ctx.shadowBlur=15;ctx.fillStyle='#edfbff';ctx.fillText('ALBERTO',256,94);
-  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;const plate=mesh(new THREE.PlaneGeometry(.65,.163),new THREE.MeshStandardMaterial({map:texture,emissiveMap:texture,emissive:'#d6f1ff',emissiveIntensity:1.7,roughness:.4}),g);plate.position.set(0,.57,2.351);plate.name='Matrícula luminosa ALBERTO';
+  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;const plate=mesh(new THREE.PlaneGeometry(teslaTexture?.445:.65,teslaTexture?.155:.163),new THREE.MeshStandardMaterial({map:texture,emissiveMap:texture,emissive:'#d6f1ff',emissiveIntensity:1.7,roughness:.4}),g);plate.position.set(0,teslaTexture?.735:.57,teslaTexture?2.415:2.351);plate.name='Matrícula luminosa ALBERTO';
   const badge=mesh(new THREE.PlaneGeometry(.22,.08),signTexture('T'),g);badge.position.set(0,.87,2.23);
+  if(teslaTexture){
+   const rear=mesh(new THREE.PlaneGeometry(2.26,2.26*teslaTexture.image.height/teslaTexture.image.width),new THREE.MeshBasicMaterial({map:teslaTexture,transparent:true,alphaTest:.15,side:THREE.FrontSide}),g);
+   rear.position.set(0,.752,2.41);rear.name='Vista trasera detallada Model 3 Standard';
+  }
   return g;
  }
  function build(race){
@@ -89,9 +100,10 @@ export async function createRacingWorld(stage){
   instanceBoxes(lights,steel);
   for(let i=0;i<race.rivals.length;i++){if(race.rivals[i].model==='tesla-model-3'){const tesla=teslaModel3();root.add(tesla);rivalMeshes.push(tesla);continue;}const group=new THREE.Group(),body=mesh(new THREE.BoxGeometry(1.83,.9,4.1),new THREE.MeshStandardMaterial({color:'#285c8b',roughness:.42,metalness:.38}),group);body.position.y=.65;body.castShadow=true;localBox(group,0,1.25,-.25,1.65,.45,2.5,glass);for(const x of [-.86,.86])for(const z of [-1.35,1.35]){const wheel=mesh(new THREE.CylinderGeometry(.33,.33,.22,12),rubber,group);wheel.rotation.z=Math.PI/2;wheel.position.set(x,.33,z);}const plane=mesh(new THREE.PlaneGeometry(1.95,1.95*.743),new THREE.MeshBasicMaterial({map:rivalTexture,transparent:true,alphaTest:.08,side:THREE.FrontSide}),group);plane.position.set(0,.76,2.075);plane.visible=!!rivalTexture;root.add(group);rivalMeshes.push(group);}
   mergeStatic();
-  stage.dataset.teslaTribute='ALBERTO';stage.dataset.teslaColor='white';stage.dataset.teslaDimensions='4.694x1.849x1.443';stage.dataset.track3d='ready';stage.dataset.track3dLevel=race.difficulty;stage.dataset.track3dStructures=String(root.children.length);signature=race.difficulty;
+  stage.dataset.teslaAppearance=teslaTexture?'detailed-transparent-rear':'rounded-3d';stage.dataset.teslaTribute='ALBERTO';stage.dataset.teslaColor='white';stage.dataset.teslaDimensions='4.694x1.849x1.443';stage.dataset.track3d='ready';stage.dataset.track3dLevel=race.difficulty;stage.dataset.track3dStructures=String(root.children.length);signature=race.difficulty;
  }
  try{rivalTexture=await loader.loadAsync('assets/rival-octavia-azul.png');rivalTexture.colorSpace=THREE.SRGBColorSpace;}catch{}
+ try{teslaTexture=await loader.loadAsync('assets/tesla-model3-alberto.png');teslaTexture.colorSpace=THREE.SRGBColorSpace;teslaTexture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());}catch{}
  function resize(w,h){width=w;height=h;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,quality));renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(76)/2)/(w/h)));camera.setViewOffset(w,h,0,h*.19,w,h);camera.updateProjectionMatrix();}
  function render(race){if(!available)return false;if(signature!==race.difficulty)build(race);const {p,t,r}=layout.frame(race.distance),offset=race.x*race.settings.roadHalf-.35;camera.position.set(p[0]+r[0]*offset,p[1]+1.22,p[2]+r[2]*offset);const ahead=layout.frame(race.distance+32);camera.up.set(0,1,0);camera.lookAt(ahead.p[0]+ahead.r[0]*offset,ahead.p[1]+1.18,ahead.p[2]+ahead.r[2]*offset);sun.target.position.set(p[0],p[1],p[2]);sun.position.set(p[0]-65,p[1]+105,p[2]+45);sun.target.updateMatrixWorld();
   for(let i=0;i<rivalMeshes.length;i++){const car=race.rivals[i],f=layout.frame(car.distance),group=rivalMeshes[i];group.position.set(f.p[0]+f.r[0]*car.x*race.settings.roadHalf,f.p[1]+.03,f.p[2]+f.r[2]*car.x*race.settings.roadHalf);group.rotation.y=Math.atan2(-f.t[0],-f.t[2]);}
