@@ -1,9 +1,11 @@
+import {drawCarFire} from './racing-fire2d.mjs';
+import {teslaFireTime} from './racing-cinematic-state.mjs?v=20261024-teslafuego';
 import {createRaceSummary} from './racing-summary.mjs?v=20261024-resumen';
-import {drawAerialFallback,drawAerialCars} from './racing-aerial.mjs?v=20261024-vistaaerea';
+import {drawAerialFallback,drawAerialCars} from './racing-aerial.mjs?v=20261024-teslafuego';
 import {createRaceResults} from './racing-results.mjs?v=20261024-pilotos';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
-import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-3d';
-import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-teslarojo';
+import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-teslafuego';
+import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-teslafuego';
 const $ = selector => document.querySelector(selector);
 const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.getContext('2d');
 const start=$('[data-race-start]'),pause=$('[data-race-pause]'),overlay=$('[data-race-overlay]'),status=$('[data-race-status]');
@@ -72,7 +74,7 @@ function road(){
  }
  const cars=race.rivals.map(rival=>({...rival,z:((rival.distance-race.distance)%race.trackLength+race.trackLength)%race.trackLength})).filter(car=>car.z>1&&car.z<1000).sort((a,b)=>b.z-a.z);
  for(const car of cars){const segment=segments[Math.min(104,Math.floor((car.z+fraction)/SEGMENT_LENGTH))];if(!segment)continue;const scale=focal/car.z,w=2.05*scale,h=1.25*scale,y=horizon+cameraHeight*scale,x=segment.p2.x+(car.x*race.settings.roadHalf)*scale;
-  ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(x,y,w*.6,h*.15,0,0,Math.PI*2);ctx.fill();if(car.model==='tesla-model-3'){drawTeslaRear(x,y,w);continue;}if(photos.rival){const rw=w*1.14,rh=rw*photos.rival.height/photos.rival.width;ctx.drawImage(photos.rival,x-rw/2,y-rh,rw,rh);continue;}rect(x-w*.46,y-h*.7,w*.92,h*.7,car.color);polygon([[x-w*.46,y-h*.7],[x-w*.3,y-h],[x+w*.3,y-h],[x+w*.46,y-h*.7]],car.color);rect(x-w*.28,y-h*.92,w*.56,h*.3,'#172b3f');rect(x-w*.49,y-h*.31,w*.25,h*.1,'#ff3548');rect(x+w*.24,y-h*.31,w*.25,h*.1,'#ff3548');rect(x-w*.35,y-h*.09,w*.7,h*.09,'#141b23');
+  ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(x,y,w*.6,h*.15,0,0,Math.PI*2);ctx.fill();if(car.model==='tesla-model-3'){drawTeslaRear(x,y,w);drawCarFire(ctx,x,y,w,teslaFireTime(race));continue;}if(photos.rival){const rw=w*1.14,rh=rw*photos.rival.height/photos.rival.width;ctx.drawImage(photos.rival,x-rw/2,y-rh,rw,rh);continue;}rect(x-w*.46,y-h*.7,w*.92,h*.7,car.color);polygon([[x-w*.46,y-h*.7],[x-w*.3,y-h],[x+w*.3,y-h],[x+w*.46,y-h*.7]],car.color);rect(x-w*.28,y-h*.92,w*.56,h*.3,'#172b3f');rect(x-w*.49,y-h*.31,w*.25,h*.1,'#ff3548');rect(x+w*.24,y-h*.31,w*.25,h*.1,'#ff3548');rect(x-w*.35,y-h*.09,w*.7,h*.09,'#141b23');
  }
  ctx.restore();
 }
@@ -170,5 +172,5 @@ new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFr
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
 if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261024-aereaterreno').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+ import('./racing-world3d.mjs?v=20261024-teslafuego').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
 }else stage.dataset.renderer='2d-fallback';

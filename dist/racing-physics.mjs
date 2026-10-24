@@ -43,7 +43,7 @@ export function stepRace(state,input,delta) {
     rival.distance += rival.speed*dt;
     if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }
   }
-  state.position = 1 + state.rivals.filter(rival=>rival.distance>state.distance).length;
+  state.position = 1 + state.rivals.filter(rival=>!rival.retired&&rival.distance>state.distance).length;
   let lap = false;
   if (state.distance >= (state.completedLaps+1)*state.trackLength) {
     const time = state.elapsed-state.lapStarted; state.lapTimes.push(time); state.lapStarted=state.elapsed;

@@ -8,3 +8,5 @@ export function advanceOvertakeSequence(sequence,position,phase,dt){
  else if(sequence.active){sequence.elapsed=Math.min(OVERTAKE_SEQUENCE_SECONDS,sequence.elapsed+Math.max(0,dt));if(sequence.elapsed>=OVERTAKE_SEQUENCE_SECONDS)sequence.active=false;}
  return trigger;
 }
+export function igniteTesla(race){const car=race.rivals?.find(item=>item.model==='tesla-model-3');if(!car)return null;if(!Number.isFinite(race.teslaFireStartedAt))race.teslaFireStartedAt=race.elapsed;car.retired=true;car.speed=0;return car;}
+export function teslaFireTime(race){return Number.isFinite(race.teslaFireStartedAt)?Math.max(0,race.elapsed-race.teslaFireStartedAt):null;}
