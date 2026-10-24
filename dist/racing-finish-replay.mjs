@@ -1,4 +1,4 @@
-import {drawSideWheels} from './racing-wheels.mjs?v=20261024-ruedas';
+import {drawSideWheels} from './racing-wheels.mjs?v=20261024-ruedas2';
 export function raceWinner(race,pilot){
  if(race.phase!=='finished')throw new Error('La carrera todavía no ha terminado.');
  const candidates=[{player:true,index:-1,pilot:String(pilot),model:'octavia',time:race.elapsed}];

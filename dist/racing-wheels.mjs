@@ -1,7 +1,7 @@
 // Centres measured on the actual lateral photographs, in source pixels.
 export const SIDE_WHEELS={
- 'tesla-model-3':[{x:352.73,y:579.51,radius:155.87},{x:1576.63,y:587.38,radius:154.67}],
- octavia:[{x:439.05,y:578.04,radius:159.69},{x:1610.95,y:580.64,radius:159.57}],
+ 'tesla-model-3':[{x:351,y:593,radius:145},{x:1578,y:597,radius:144}],
+ octavia:[{x:437,y:597,radius:143},{x:1617,y:600,radius:142}],
 };
 export function rollingAngle(distance,radius){return -(distance+8)/radius;}
 export function photoWheelPose(wheel,trim,carLength){const scale=carLength/(trim.right-trim.left);return {x:(wheel.x-trim.left)/(trim.right-trim.left)-.5,y:.5-(wheel.y-trim.top)/(trim.bottom-trim.top),radius:wheel.radius*.84*scale,rollingRadius:wheel.radius*scale};}

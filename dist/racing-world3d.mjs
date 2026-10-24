@@ -1,4 +1,4 @@
-import {SIDE_WHEELS,rollingAngle,photoWheelPose} from './racing-wheels.mjs?v=20261024-ruedas';
+import {SIDE_WHEELS,rollingAngle,photoWheelPose} from './racing-wheels.mjs?v=20261024-ruedas2';
 import {createCarFire} from './racing-fire3d.mjs';
 import {teslaFireTime} from './racing-cinematic-state.mjs?v=20261024-teslafuego';
 import {HDRLoader} from './vendor/HDRLoader.js';
