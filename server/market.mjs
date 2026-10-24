@@ -1,3 +1,4 @@
+import {handleClubRequest} from './club.mjs';
 import {handlePushRequest,recordClubEvent} from './push.mjs';
 import {handleRacingRequest} from './racing.mjs';
 import { handleGalleryRequest } from './gallery.mjs';
@@ -39,6 +40,7 @@ export async function handleMarketRequest(request,env,context){try{
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
  if(Number(request.headers.get('content-length')||0)>4*1024*1024)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>4*1024*1024){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
+ if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,'club-management',60);return await handleClubRequest(request,db,await session(db,request),context);}
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,await session(db,request));}
  if(path.startsWith('/api/gallery/'))return await announceMutation(request,await handleGalleryRequest(request,db,await session(db,request)),db,context);

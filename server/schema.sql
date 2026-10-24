@@ -113,3 +113,20 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
  id TEXT PRIMARY KEY, admin_id TEXT NOT NULL REFERENCES market_admins(id) ON DELETE CASCADE,
  endpoint TEXT NOT NULL, created_at INTEGER NOT NULL, last_status TEXT NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS club_events (
+ id TEXT PRIMARY KEY,event_date TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL,
+ location TEXT NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,
+ info_url TEXT NOT NULL,map_url TEXT NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,updated_by TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS club_events_date ON club_events(event_date,start_time);
+INSERT INTO club_events SELECT 'calcotada-vrs-2027','2027-01-23','4.ª edición Calçotada VRS','Nos vemos en la próxima quedada del CLUB OCTAVIA VRS CATALUÑA para compartir nuestra pasión por los coches.','Embolic by moon','13:00','17:00','https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTg5Mzk3OTk0MDQ4NTgx?story_media_id=3991193257735061550_62570715173&dlrf=MXBqcDN2czQwd2R0NQ==','https://maps.app.goo.gl/Eatg8mFQYyJ1DGB56?g_st=aw',0,0,'initial-calendar' WHERE NOT EXISTS(SELECT 1 FROM market_settings WHERE key='calendar-seeded-v1') ON CONFLICT(id) DO NOTHING;
+INSERT INTO market_settings(key,value) VALUES('calendar-seeded-v1','yes') ON CONFLICT(key) DO NOTHING;
+CREATE TABLE IF NOT EXISTS club_directory_lists (
+ id TEXT PRIMARY KEY,name TEXT NOT NULL COLLATE NOCASE UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('collaborators','interest')),created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS club_directory_links (
+ id TEXT PRIMARY KEY,list_id TEXT NOT NULL REFERENCES club_directory_lists(id) ON DELETE CASCADE,
+ name TEXT NOT NULL,url TEXT NOT NULL,description TEXT NOT NULL,platform TEXT NOT NULL,created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS club_directory_links_list ON club_directory_links(list_id,created_at);

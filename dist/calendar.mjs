@@ -23,125 +23,23 @@ export function nextUpcoming(events, today) {
   return [...events].filter(event => event.date >= today).sort((a, b) => a.date.localeCompare(b.date))[0] || null;
 }
 
-if (typeof document !== 'undefined') {
-  const root = document.querySelector('[data-club-calendar]');
-  const data = document.getElementById('club-events');
-  if (root && data) {
-    let events;
-    try { events = JSON.parse(data.textContent); } catch { events = null; }
-    if (Array.isArray(events)) {
-      const now = new Date();
-      const today = calendarToday(now);
-      const upcoming = nextUpcoming(events, today);
-      const initial = upcoming?.date || today;
-      let year = Number(initial.slice(0, 4));
-      let month = Number(initial.slice(5, 7));
-      let selectedDate = upcoming?.date || null;
-      const table = root.querySelector('[data-calendar-days]');
-      const monthTitle = root.querySelector('[data-calendar-month]');
-      const status = root.querySelector('[data-calendar-status]');
-      const list = root.querySelector('[data-calendar-events]');
-      const agendaTitle = root.querySelector('[data-agenda-title]');
-      const nextButton = root.querySelector('[data-calendar-next-event]');
-      const monthFormat = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-      const dayFormat = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-      const labelDate = date => dayFormat.format(new Date(date + 'T12:00:00Z'));
-      const element = (tag, className, text) => {
-        const node = document.createElement(tag);
-        if (className) node.className = className;
-        if (text) setVrsText(node, text);
-        return node;
-      };
-      function eventCard(event) {
-        const article = element('article', 'calendar-event-card');
-        const time = element('time', 'event-date', labelDate(event.date));
-        time.dateTime = event.date;
-        const title = element('h4', '', event.title);
-        article.append(time, title, element('p', '', event.description));
-        const details = element('dl', 'event-facts');
-        for (const [name, value] of [['Lugar', event.location || 'Pendiente de confirmar'], ['Hora', event.time || 'Pendiente de confirmar']]) {
-          const row = element('div');
-          const detail = element('dd', '', value);
-          if (name === 'Lugar' && event.mapUrl) {
-            try {
-              const url = new URL(event.mapUrl);
-              if (url.protocol === 'https:') {
-                const link = element('a', 'event-map-link');
-                link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-                link.setAttribute('aria-label', `Ver ${value} en Google Maps (abre en otra pestaña)`);
-                link.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
-                link.append(element('span', '', value));
-                detail.replaceChildren(link);
-              }
-            } catch { /* Mantener el nombre del lugar si el enlace no es válido. */ }
-          }
-          row.append(element('dt', '', name), detail);
-          details.append(row);
-        }
-        article.append(details);
-        const actions = element('div', 'event-actions');
-        if (event.url) {
-          const link = element('a', 'event-social', 'Ver información en Instagram ↗');
-          link.href = event.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-          actions.append(link);
-        }
-        if (event.calendarUrl) {
-          const save = element('a', 'calendar-save', 'Guardar fecha en mi calendario ↓');
-          save.href = event.calendarUrl; save.download = event.id + '.ics';
-          actions.append(save);
-        }
-        article.append(actions);
-        return article;
-      }
-      function render() {
-        const monthName = monthFormat.format(new Date(Date.UTC(year, month - 1, 1)));
-        const name=element('span','calendar-month-name',new Intl.DateTimeFormat('es-ES',{month:'long',timeZone:'UTC'}).format(new Date(Date.UTC(year,month-1,1)))+' de');monthTitle.replaceChildren(name,document.createTextNode(' '),element('span','calendar-year',String(year)));
-        const dates = new Set(events.map(event => event.date));
-        const fragment = document.createDocumentFragment();
-        const cells = monthCells(year, month);
-        for (let index = 0; index < cells.length; index += 7) {
-          const row = element('tr');
-          for (const date of cells.slice(index, index + 7)) {
-            const cell = element('td');
-            if (date) {
-              const content = element(dates.has(date) ? 'button' : 'span', 'calendar-day', String(Number(date.slice(-2))));
-              if (date === today) content.setAttribute('aria-current', 'date');
-              if (dates.has(date)) {
-                content.type = 'button'; content.dataset.calendarDate = date;
-                content.classList.add('has-event');
-                content.setAttribute('aria-label', labelDate(date) + ': ' + events.filter(event => event.date === date).map(event => upperVrs(event.title)).join(', '));
-                content.setAttribute('aria-pressed', String(date === selectedDate));
-              }
-              cell.append(content);
-            } else cell.className = 'calendar-empty';
-            row.append(cell);
-          }
-          fragment.append(row);
-        }
-        table.replaceChildren(fragment);
-        const monthEvents = eventsFor(events, year, month);
-        status.textContent = monthEvents.length ? `${monthEvents.length} ${monthEvents.length === 1 ? 'quedada anunciada' : 'quedadas anunciadas'} en ${monthName}.` : `Sin quedadas anunciadas en ${monthName}.`;
-        agendaTitle.textContent = selectedDate ? 'Quedada seleccionada' : 'Eventos de este mes';
-        const shown = eventsFor(events, year, month, selectedDate);
-        list.replaceChildren(...shown.map(eventCard));
-        if (!shown.length) {
-          list.append(element('p', 'calendar-no-events', 'Este mes no hay quedadas anunciadas. Las nuevas fechas aparecerán aquí cuando el club las confirme.'));
-        }
-      }
-      root.querySelector('[data-calendar-prev]').addEventListener('click', () => { ({ year, month } = shiftMonth(year, month, -1)); selectedDate = null; render(); });
-      root.querySelector('[data-calendar-next]').addEventListener('click', () => { ({ year, month } = shiftMonth(year, month, 1)); selectedDate = null; render(); });
-      root.querySelector('[data-calendar-today]').addEventListener('click', () => { year = Number(today.slice(0,4)); month = Number(today.slice(5,7)); selectedDate = null; render(); });
-      nextButton.disabled = !upcoming;
-      nextButton.addEventListener('click', () => { if (!upcoming) return; year = Number(upcoming.date.slice(0, 4)); month = Number(upcoming.date.slice(5, 7)); selectedDate = upcoming.date; render(); });
-      table.addEventListener('click', event => {
-        const button = event.target.closest('[data-calendar-date]');
-        if (!button || !table.contains(button)) return;
-        selectedDate = button.dataset.calendarDate;
-        render();
-        table.querySelector(`[data-calendar-date="${selectedDate}"]`)?.focus({ preventScroll: true });
-      });
-      for (const selector of ['[data-calendar-prev]', '[data-calendar-next]', '[data-calendar-today]']) root.querySelector(selector).disabled = false;
-      render();
-    }
-  }
+export function nextMadridMidnight(now=new Date()) {const initial=calendarToday(now);let low=now.getTime(),high=low+27*3600000;while(high-low>250){const middle=Math.floor((low+high)/2);if(calendarToday(new Date(middle))===initial)low=middle;else high=middle;}return high;}
+export async function initCalendar(doc=document){
+ const root=doc.querySelector('[data-club-calendar]');if(!root)return;
+ let today=calendarToday(),year=Number(today.slice(0,4)),month=Number(today.slice(5,7)),selectedDate=today,followingToday=true,events=[],admin=false,rolloverTimer;
+ const table=root.querySelector('[data-calendar-days]'),monthTitle=root.querySelector('[data-calendar-month]'),status=root.querySelector('[data-calendar-status]'),list=root.querySelector('[data-calendar-events]'),agendaTitle=root.querySelector('[data-agenda-title]'),nextButton=root.querySelector('[data-calendar-next-event]'),dialog=doc.querySelector('[data-event-dialog]'),form=dialog.querySelector('form'),formStatus=dialog.querySelector('[data-event-save-status]');
+ const monthFormat=new Intl.DateTimeFormat('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}),dayFormat=new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}),labelDate=date=>dayFormat.format(new Date(date+'T12:00:00Z'));
+ const element=(tag,className,text)=>{const node=doc.createElement(tag);if(className)node.className=className;if(text)setVrsText(node,text);return node;};
+ async function api(path,method='GET',body){const response=await fetch('/api/club/'+path,{method,cache:'no-store',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});const data=await response.json();if(!response.ok)throw Error(data.error||'No se pudo completar la operación.');return data;}
+ function openEditor(date,event=null){if(!admin)return;if(!event&&date<today){status.textContent='Selecciona hoy o una fecha futura para crear un evento.';return;}form.reset();form.elements.id.value=event?.id||'';form.elements.date.value=event?.date||date;form.elements.date.min=event&&event.date<today?event.date:today;for(const key of ['title','description','location','startTime','endTime','url','mapUrl'])form.elements[key].value=event?.[key]||'';dialog.querySelector('h2').textContent=event?'Editar evento':'Nuevo evento del club';formStatus.textContent='';dialog.showModal();form.elements.title.focus();}
+ function eventCard(event){const article=element('article','calendar-event-card'),time=element('time','event-date',labelDate(event.date));time.dateTime=event.date;article.append(time,element('h4','',event.title),element('p','',event.description));const details=element('dl','event-facts');for(const [name,value]of [['Lugar',event.location||'Pendiente de confirmar'],['Hora',event.time||'Pendiente de confirmar']]){const row=element('div'),detail=element('dd','',value);if(name==='Lugar'&&event.mapUrl){const link=element('a','event-map-link');link.href=event.mapUrl;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label','Ver '+value+' en Google Maps (abre en otra pestaña)');link.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';link.append(element('span','',value));detail.replaceChildren(link);}row.append(element('dt','',name),detail);details.append(row);}article.append(details);const actions=element('div','event-actions');if(event.url){const link=element('a','event-social','Más información ↗');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';actions.append(link);}if(event.calendarUrl){const save=element('a','calendar-save','Guardar fecha en mi calendario ↓');save.href=event.calendarUrl;save.download=event.id+'.ics';actions.append(save);}if(admin){const edit=element('button','calendar-manage-event','Editar evento'),remove=element('button','calendar-manage-event','Eliminar evento');edit.type=remove.type='button';edit.dataset.eventEdit=event.id;remove.dataset.eventDelete=event.id;edit.addEventListener('click',()=>openEditor(event.date,event));remove.addEventListener('click',async()=>{if(!confirm('¿Eliminar el evento «'+event.title+'»?'))return;remove.disabled=true;try{await api('events/'+encodeURIComponent(event.id),'DELETE');await loadEvents();window.dispatchEvent(new Event('club-session-change'));}catch(error){status.textContent=error.message;remove.disabled=false;}});actions.append(edit,remove);}article.append(actions);return article;}
+ function render(){root.dataset.calendarToday=today;root.dataset.calendarMonth=`${year}-${pad(month)}`;const monthName=monthFormat.format(new Date(Date.UTC(year,month-1,1)));monthTitle.replaceChildren(element('span','calendar-month-name',new Intl.DateTimeFormat('es-ES',{month:'long',timeZone:'UTC'}).format(new Date(Date.UTC(year,month-1,1)))+' de'),doc.createTextNode(' '),element('span','calendar-year',String(year)));root.querySelector('[data-calendar-today-label]').textContent='Hoy: '+labelDate(today)+' · Cataluña';const dates=new Set(events.map(e=>e.date)),fragment=doc.createDocumentFragment(),cells=monthCells(year,month);for(let index=0;index<cells.length;index+=7){const row=element('tr');for(const date of cells.slice(index,index+7)){const cell=element('td');if(date){const content=element('button','calendar-day',String(Number(date.slice(-2))));content.type='button';content.dataset.calendarDate=date;content.setAttribute('aria-pressed',String(date===selectedDate));if(date===today)content.setAttribute('aria-current','date');if(dates.has(date))content.classList.add('has-event');content.setAttribute('aria-label',(date===today?'Hoy, ':'')+labelDate(date)+(dates.has(date)?': '+events.filter(e=>e.date===date).map(e=>upperVrs(e.title)).join(', '):admin&&date>=today?': añadir evento':''));cell.append(content);}else cell.className='calendar-empty';row.append(cell);}fragment.append(row);}table.replaceChildren(fragment);const monthEvents=eventsFor(events,year,month);status.textContent=monthEvents.length?`${monthEvents.length} ${monthEvents.length===1?'quedada anunciada':'quedadas anunciadas'} en ${monthName}.`:`Sin quedadas anunciadas en ${monthName}.`;agendaTitle.textContent=selectedDate?'Eventos del '+labelDate(selectedDate):'Eventos de este mes';const shown=eventsFor(events,year,month,selectedDate);list.replaceChildren(...shown.map(eventCard));if(!shown.length)list.append(element('p','calendar-no-events',selectedDate?'No hay eventos en el día seleccionado.':'No hay eventos anunciados este mes.'));if(admin){const add=element('button','calendar-add-event','Añadir evento'+(selectedDate?' este día':''));add.type='button';add.dataset.calendarAdd='';add.disabled=!!selectedDate&&selectedDate<today;add.addEventListener('click',()=>openEditor(selectedDate||(`${year}-${pad(month)}-01`<today?today:`${year}-${pad(month)}-01`)));list.append(add);}const upcoming=nextUpcoming(events,today);nextButton.disabled=!upcoming;root.querySelector('[data-calendar-upcoming]').textContent=upcoming?'Próxima quedada: '+labelDate(upcoming.date)+' · '+upcoming.title:'Todavía no hay próximas quedadas anunciadas.';root.querySelector('[data-calendar-manage-help]').hidden=!admin;root.querySelector('[data-calendar-login]').hidden=admin;}
+ async function loadEvents(){try{const data=await api('events');if(!Array.isArray(data))throw Error('El calendario no se pudo cargar.');events=data;root.dataset.calendarLoaded='true';render();}catch(error){render();status.textContent='No se han podido actualizar los eventos. '+error.message;}}
+ function syncDate(){const next=calendarToday();if(next!==today){today=next;if(followingToday){year=Number(today.slice(0,4));month=Number(today.slice(5,7));selectedDate=today;}render();}clearTimeout(rolloverTimer);rolloverTimer=setTimeout(syncDate,Math.max(50,nextMadridMidnight()-Date.now()+50));}
+ root.querySelector('[data-calendar-prev]').addEventListener('click',()=>{({year,month}=shiftMonth(year,month,-1));selectedDate=null;followingToday=false;render();});root.querySelector('[data-calendar-next]').addEventListener('click',()=>{({year,month}=shiftMonth(year,month,1));selectedDate=null;followingToday=false;render();});root.querySelector('[data-calendar-today]').addEventListener('click',()=>{today=calendarToday();year=Number(today.slice(0,4));month=Number(today.slice(5,7));selectedDate=today;followingToday=true;render();});nextButton.addEventListener('click',()=>{const upcoming=nextUpcoming(events,today);if(!upcoming)return;year=Number(upcoming.date.slice(0,4));month=Number(upcoming.date.slice(5,7));selectedDate=upcoming.date;followingToday=false;render();});
+ table.addEventListener('click',event=>{const button=event.target.closest('[data-calendar-date]');if(!button||!table.contains(button))return;selectedDate=button.dataset.calendarDate;followingToday=selectedDate===today;render();table.querySelector(`[data-calendar-date="${selectedDate}"]`)?.focus({preventScroll:true});if(admin&&!events.some(e=>e.date===selectedDate))openEditor(selectedDate);});
+ dialog.querySelector('[data-event-close]').addEventListener('click',()=>dialog.close());form.addEventListener('submit',async event=>{event.preventDefault();const button=form.querySelector('[type=submit]');button.disabled=true;formStatus.textContent='Guardando evento…';try{const fields=Object.fromEntries(new FormData(form)),id=fields.id,saved=await api('events'+(id?'/'+encodeURIComponent(id):''),'POST',fields);year=Number(saved.date.slice(0,4));month=Number(saved.date.slice(5,7));selectedDate=saved.date;followingToday=selectedDate===today;await loadEvents();dialog.close();status.textContent='Evento guardado y publicado en el calendario.';window.dispatchEvent(new Event('club-session-change'));}catch(error){formStatus.textContent=error.message;}finally{button.disabled=false;}});
+ async function access(){try{const response=await fetch('/api/admin/session',{cache:'no-store'});admin=response.ok&&!!(await response.json()).id;}catch{admin=false;}render();}
+ for(const selector of ['[data-calendar-prev]','[data-calendar-next]','[data-calendar-today]'])root.querySelector(selector).disabled=false;render();syncDate();setInterval(()=>{syncDate();},60000);doc.addEventListener('visibilitychange',()=>{if(!doc.hidden){syncDate();void loadEvents();}});window.addEventListener('focus',syncDate);window.addEventListener('club-session-change',()=>void access());await Promise.all([loadEvents(),access()]);
 }
+if(typeof document!=='undefined')void initCalendar();
