@@ -2,6 +2,7 @@ import { setVrsText, upperVrs } from './branding.mjs';
 
 const pad = number => String(number).padStart(2, '0');
 export const dateKey = (year, month, day) => `${year}-${pad(month)}-${pad(day)}`;
+export function calendarToday(now=new Date()) {const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);const value=type=>parts.find(p=>p.type===type).value;return `${value('year')}-${value('month')}-${value('day')}`;}
 export function shiftMonth(year, month, step) {
   const date = new Date(Date.UTC(year, month - 1 + step, 1));
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1 };
@@ -30,7 +31,7 @@ if (typeof document !== 'undefined') {
     try { events = JSON.parse(data.textContent); } catch { events = null; }
     if (Array.isArray(events)) {
       const now = new Date();
-      const today = dateKey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      const today = calendarToday(now);
       const upcoming = nextUpcoming(events, today);
       const initial = upcoming?.date || today;
       let year = Number(initial.slice(0, 4));
@@ -94,7 +95,7 @@ if (typeof document !== 'undefined') {
       }
       function render() {
         const monthName = monthFormat.format(new Date(Date.UTC(year, month - 1, 1)));
-        monthTitle.textContent = monthName;
+        const name=element('span','calendar-month-name',new Intl.DateTimeFormat('es-ES',{month:'long',timeZone:'UTC'}).format(new Date(Date.UTC(year,month-1,1)))+' de');monthTitle.replaceChildren(name,document.createTextNode(' '),element('span','calendar-year',String(year)));
         const dates = new Set(events.map(event => event.date));
         const fragment = document.createDocumentFragment();
         const cells = monthCells(year, month);
@@ -129,7 +130,7 @@ if (typeof document !== 'undefined') {
       }
       root.querySelector('[data-calendar-prev]').addEventListener('click', () => { ({ year, month } = shiftMonth(year, month, -1)); selectedDate = null; render(); });
       root.querySelector('[data-calendar-next]').addEventListener('click', () => { ({ year, month } = shiftMonth(year, month, 1)); selectedDate = null; render(); });
-      root.querySelector('[data-calendar-today]').addEventListener('click', () => { year = now.getFullYear(); month = now.getMonth() + 1; selectedDate = null; render(); });
+      root.querySelector('[data-calendar-today]').addEventListener('click', () => { year = Number(today.slice(0,4)); month = Number(today.slice(5,7)); selectedDate = null; render(); });
       nextButton.disabled = !upcoming;
       nextButton.addEventListener('click', () => { if (!upcoming) return; year = Number(upcoming.date.slice(0, 4)); month = Number(upcoming.date.slice(5, 7)); selectedDate = upcoming.date; render(); });
       table.addEventListener('click', event => {
