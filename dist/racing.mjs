@@ -1,3 +1,4 @@
+import {createRaceSummary} from './racing-summary.mjs?v=20261024-resumen';
 import {drawAerialFallback,drawAerialCars} from './racing-aerial.mjs?v=20261024-vistaaerea';
 import {createRaceResults} from './racing-results.mjs?v=20261024-pilotos';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
@@ -8,6 +9,7 @@ const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.g
 const start=$('[data-race-start]'),pause=$('[data-race-pause]'),overlay=$('[data-race-overlay]'),status=$('[data-race-status]');
 const levelPicker=$('[data-race-level]');
 const cinematic=createOvertakeCinematic(stage);
+const finalSummary=createRaceSummary(document.querySelector('[data-race-final-summary]'));
 const results=createRaceResults(document.querySelector('[data-race-results-root]'),levelPicker);
 results.input.addEventListener('input',()=>results.input.setCustomValidity(''));
 function loadBest(level){try{const saved=Number(localStorage.getItem('octavia-mk4-best-lap-v2-'+level));return saved>0&&Number.isFinite(saved)?saved:null;}catch{return null;}}
@@ -134,15 +136,16 @@ function draw(){canvas.dataset.sceneryDistance=race.distance.toFixed(2);canvas.d
  if(aerialView){let project;if(world3d){road();if(world3d&&stage.dataset.renderer==='webgl2')project=p=>world3d.projectAerial(p);}if(!project)project=drawAerialFallback(ctx,race,width,height);const cars=drawAerialCars(ctx,race,width,height,project);stage.dataset.aerialCars=String(cars.length);stage.dataset.aerialPositions=JSON.stringify(cars.map(c=>c.point.map(v=>+v.toFixed(2))));stage.dataset.raceView='aerial';rect(0,0,width,44,'#101820e8');text('VISTA AÉREA · '+race.settings.name.toUpperCase(),12,19,Math.max(10,Math.min(13,width*.025)));text('VUELTA '+Math.min(3,race.completedLaps+1)+'/3 · '+Math.round(race.speed*3.6)+' km/h',width-12,19,11,'#fff','right');text('TIEMPO '+lapTime(race.elapsed),12,36,10,'#c8e4f2');text('POS '+race.position+'/'+(race.rivals.length+1),width-12,36,10,'#ffcc42','right');}
  else{road();cockpit();cinematic.draw(ctx,width,height);hud();stage.dataset.raceView='cockpit';}
 }
-for(const button of document.querySelectorAll('button[data-race-view]'))button.addEventListener('click',()=>{aerialView=button.dataset.raceView==='aerial';stage.classList.toggle('is-aerial',aerialView);for(const item of document.querySelectorAll('button[data-race-view]'))item.setAttribute('aria-pressed',String(item===button));draw();stage.focus({preventScroll:true});});
+function selectRaceView(aerial){aerialView=aerial;stage.classList.toggle('is-aerial',aerialView);for(const item of document.querySelectorAll('button[data-race-view]'))item.setAttribute('aria-pressed',String((item.dataset.raceView==='aerial')===aerialView));}
+for(const button of document.querySelectorAll('button[data-race-view]'))button.addEventListener('click',()=>{selectRaceView(button.dataset.raceView==='aerial');draw();stage.focus({preventScroll:true});});
 
 function setOverlay(title,copy){overlay.replaceChildren();const strong=document.createElement('strong'),span=document.createElement('span');strong.textContent=title;span.textContent=copy;overlay.append(strong,span);overlay.hidden=false;}
 function updateUi(){results.lock(['running','paused'].includes(race.phase));levelPicker.disabled=['running','paused'].includes(race.phase);pause.disabled=!['running','paused'].includes(race.phase);pause.textContent=race.phase==='paused'?'Continuar':'Pausa';start.textContent=race.phase==='running'?'Motor en marcha':race.phase==='paused'?'Continuar carrera':race.phase==='finished'?'Volver a correr':'Arrancar y salir a pista';start.disabled=race.phase==='running';if(race.phase==='running')overlay.hidden=true;}
-function begin(){if(!['running','paused'].includes(race.phase)&&!results.enter()){status.textContent='Escribe tu nombre o alias antes de empezar.';return;}if(race.phase==='finished'){race=createRace(storedBest,levelPicker.value);cinematic.reset();}race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
+function begin(){if(!['running','paused'].includes(race.phase)&&!results.enter()){status.textContent='Escribe tu nombre o alias antes de empezar.';return;}if(race.phase==='finished'){race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();}race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
 function togglePause(){if(race.phase==='running'){race.phase='paused';clearControls();setOverlay('CARRERA EN PAUSA','Pulsa «Continuar» cuando estés listo.');status.textContent='Carrera en pausa.';}else if(race.phase==='paused')begin();updateUi();}
 start.addEventListener('click',begin);pause.addEventListener('click',togglePause);
-levelPicker.addEventListener('change',()=>{storedBest=loadBest(levelPicker.value);race=createRace(storedBest,levelPicker.value);cinematic.reset();$('[data-race-level-description]').textContent=race.settings.description;clearControls();setOverlay('CIRCUITO '+race.settings.name.toUpperCase(),race.settings.description);status.textContent='Circuito '+race.settings.name+' seleccionado. Récord independiente para este nivel.';updateUi();draw();});
-$('[data-race-reset]').addEventListener('click',()=>{race=createRace(storedBest,levelPicker.value);cinematic.reset();clearControls();setOverlay('LISTO PARA SALIR','Arranca el motor y entra al circuito.');status.textContent='Carrera reiniciada. Tu récord se conserva.';updateUi();draw();});
+levelPicker.addEventListener('change',()=>{storedBest=loadBest(levelPicker.value);race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();$('[data-race-level-description]').textContent=race.settings.description;clearControls();setOverlay('CIRCUITO '+race.settings.name.toUpperCase(),race.settings.description);status.textContent='Circuito '+race.settings.name+' seleccionado. Récord independiente para este nivel.';updateUi();draw();});
+$('[data-race-reset]').addEventListener('click',()=>{race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();clearControls();setOverlay('LISTO PARA SALIR','Arranca el motor y entra al circuito.');status.textContent='Carrera reiniciada. Tu récord se conserva.';updateUi();draw();});
 window.addEventListener('keydown',event=>{if(event.ctrlKey||event.metaKey||event.altKey||event.repeat&&event.code==='KeyP')return;if(event.code==='KeyP'&&['running','paused'].includes(race.phase)){event.preventDefault();togglePause();return;}if(mapping[event.code]&&(race.phase==='running'||document.activeElement===stage)){event.preventDefault();keys.add(event.code);}});
 window.addEventListener('keyup',event=>keys.delete(event.code));
 for(const button of document.querySelectorAll('[data-drive]')){
@@ -158,9 +161,9 @@ function frame(timestamp){const dt=last?Math.min(.15,(timestamp-last)/1000):0;la
  const input=controls(),result={lap:false,finished:false};let remaining=dt;while(remaining>0){const slice=Math.min(.05,remaining),event=stepRace(race,input,slice);result.lap ||= event.lap;result.finished ||= event.finished;remaining-=slice;}
  if(cinematic.update(race,dt))status.textContent='TESLA MODEL 3 FUERA DE CARRERA';
  if(result.lap){storedBest=race.bestLap;try{localStorage.setItem('octavia-mk4-best-lap-v2-'+race.difficulty,String(storedBest));}catch{}status.textContent=`Vuelta ${race.completedLaps}: ${lapTime(race.lapTimes.at(-1))}. Mejor vuelta: ${lapTime(race.bestLap)}.`;}
- if(result.finished){results.finish(race);clearControls();setOverlay(`META · ${race.position}.º PUESTO`,`Tiempo total ${lapTime(race.elapsed)} · Mejor vuelta ${lapTime(race.bestLap)}`);status.textContent=`Carrera terminada. Puesto ${race.position} de ${race.rivals.length+1}. Tiempo total ${lapTime(race.elapsed)}. Mejor vuelta ${lapTime(race.bestLap)}.`;updateUi();}
+ if(result.finished){selectRaceView(true);results.finish(race);clearControls();setOverlay(`META · ${race.position}.º PUESTO`,`Tiempo total ${lapTime(race.elapsed)} · Mejor vuelta ${lapTime(race.bestLap)}`);status.textContent=`Carrera terminada. Puesto ${race.position} de ${race.rivals.length+1}. Tiempo total ${lapTime(race.elapsed)}. Mejor vuelta ${lapTime(race.bestLap)}.`;updateUi();}
  if(gain){gain.gain.setTargetAtTime(sound&&race.phase==='running'?.025:0,audio.currentTime,.06);oscillator.frequency.setTargetAtTime(32+race.speed*3.2,audio.currentTime,.08);}
- if(race.phase==='running'||result.finished)draw();requestAnimationFrame(frame);
+ if(race.phase==='running'||result.finished)draw();if(result.finished){finalSummary.show(race,results.input.value,canvas,stage.dataset.renderer==='webgl2'?world3d?.canvas:null);status.textContent+=' Puedes ver la vista aérea y los tiempos en el resumen final.';}requestAnimationFrame(frame);
 }
 new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFrame(frame);
 
