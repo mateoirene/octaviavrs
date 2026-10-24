@@ -1,16 +1,20 @@
+import {createFinishReplay,drawCompatibleFinish} from './racing-finish-replay.mjs?v=20261024-meta';
 import {drawCarFire} from './racing-fire2d.mjs';
 import {teslaFireTime} from './racing-cinematic-state.mjs?v=20261024-teslafuego';
 import {createRaceSummary} from './racing-summary.mjs?v=20261024-resumen';
 import {drawAerialFallback,drawAerialCars} from './racing-aerial.mjs?v=20261024-teslafuego';
 import {createRaceResults} from './racing-results.mjs?v=20261024-pilotos';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
-import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-teslafuego';
+import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-meta';
 import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-blancoreal';
 const $ = selector => document.querySelector(selector);
 const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.getContext('2d');
 const start=$('[data-race-start]'),pause=$('[data-race-pause]'),overlay=$('[data-race-overlay]'),status=$('[data-race-status]');
 const levelPicker=$('[data-race-level]');
 const cinematic=createOvertakeCinematic(stage);
+const finishReplay=createFinishReplay(stage);
+const replayButton=document.querySelector('[data-race-replay]');
+replayButton.addEventListener('click',()=>finishReplay.start(race,results.input.value));
 const finalSummary=createRaceSummary(document.querySelector('[data-race-final-summary]'));
 const results=createRaceResults(document.querySelector('[data-race-results-root]'),levelPicker);
 results.input.addEventListener('input',()=>results.input.setCustomValidity(''));
@@ -19,6 +23,7 @@ let storedBest=loadBest(levelPicker.value);
 let race=createRace(storedBest,levelPicker.value),width=1000,height=620,last=0,sound=false,audio,oscillator,gain;
 const music=createMusic(),musicButton=$('[data-race-music]');
 const photos={};let grain,world3d,aerialView=false;
+for(const [id,src]of [['teslaSide','assets/tesla-model3-lateral.png'],['octaviaSide','assets/octavia-vrs-lateral.png']]){const photo=new Image();photo.onload=()=>photos[id]=photo;photo.src=src;}
 const teslaPhoto=new Image();teslaPhoto.onload=()=>{photos.tesla=teslaPhoto;canvas.dataset.teslaReady='true';draw();};teslaPhoto.src='assets/tesla-model3-alberto-blanco.png';
 const circuitReference=new Image();circuitReference.onload=()=>{photos.stadium=circuitReference;canvas.dataset.sceneryReady='true';draw();};circuitReference.src='assets/circuito-estadio.jpg';
 const photoReady=Promise.all(['cockpit','rival','circuit'].map(id=>new Promise(resolve=>{const photo=new Image();photo.onload=()=>{photos[id]=photo;canvas.dataset[id+'Ready']='true';draw();resolve();};photo.onerror=()=>resolve();photo.src=id==='cockpit'?'assets/cockpit-frontal.jpg':id==='rival'?'assets/rival-octavia-azul.png':'assets/race/'+id+'.jpg';})));
@@ -134,20 +139,20 @@ function hud(){
  if(Math.abs(race.x)>1&&race.phase==='running')text('FUERA DE PISTA',width*.5,height*.39,size,'#ffe69c','center');
  if(race.hit>0){ctx.strokeStyle='#ff335b99';ctx.lineWidth=12;ctx.strokeRect(6,6,width-12,height-12);}
 }
-function draw(){canvas.dataset.sceneryDistance=race.distance.toFixed(2);canvas.dataset.speed=String(Math.round(race.speed*3.6));ctx.clearRect(0,0,width,height);
+function draw(){if(finishReplay.active)return;canvas.dataset.sceneryDistance=race.distance.toFixed(2);canvas.dataset.speed=String(Math.round(race.speed*3.6));ctx.clearRect(0,0,width,height);
  if(aerialView){let project;if(world3d){road();if(world3d&&stage.dataset.renderer==='webgl2')project=p=>world3d.projectAerial(p);}if(!project)project=drawAerialFallback(ctx,race,width,height);const cars=drawAerialCars(ctx,race,width,height,project);stage.dataset.aerialCars=String(cars.length);stage.dataset.aerialPositions=JSON.stringify(cars.map(c=>c.point.map(v=>+v.toFixed(2))));stage.dataset.raceView='aerial';rect(0,0,width,44,'#101820e8');text('VISTA AÉREA · '+race.settings.name.toUpperCase(),12,19,Math.max(10,Math.min(13,width*.025)));text('VUELTA '+Math.min(3,race.completedLaps+1)+'/3 · '+Math.round(race.speed*3.6)+' km/h',width-12,19,11,'#fff','right');text('TIEMPO '+lapTime(race.elapsed),12,36,10,'#c8e4f2');text('POS '+race.position+'/'+(race.rivals.length+1),width-12,36,10,'#ffcc42','right');}
  else{road();cockpit();cinematic.draw(ctx,width,height);hud();stage.dataset.raceView='cockpit';}
 }
 function selectRaceView(aerial){aerialView=aerial;stage.classList.toggle('is-aerial',aerialView);for(const item of document.querySelectorAll('button[data-race-view]'))item.setAttribute('aria-pressed',String((item.dataset.raceView==='aerial')===aerialView));}
-for(const button of document.querySelectorAll('button[data-race-view]'))button.addEventListener('click',()=>{selectRaceView(button.dataset.raceView==='aerial');draw();stage.focus({preventScroll:true});});
+for(const button of document.querySelectorAll('button[data-race-view]'))button.addEventListener('click',()=>{finishReplay.stop();selectRaceView(button.dataset.raceView==='aerial');draw();stage.focus({preventScroll:true});});
 
 function setOverlay(title,copy){overlay.replaceChildren();const strong=document.createElement('strong'),span=document.createElement('span');strong.textContent=title;span.textContent=copy;overlay.append(strong,span);overlay.hidden=false;}
 function updateUi(){results.lock(['running','paused'].includes(race.phase));levelPicker.disabled=['running','paused'].includes(race.phase);pause.disabled=!['running','paused'].includes(race.phase);pause.textContent=race.phase==='paused'?'Continuar':'Pausa';start.textContent=race.phase==='running'?'Motor en marcha':race.phase==='paused'?'Continuar carrera':race.phase==='finished'?'Volver a correr':'Arrancar y salir a pista';start.disabled=race.phase==='running';if(race.phase==='running')overlay.hidden=true;}
-function begin(){if(!['running','paused'].includes(race.phase)&&!results.enter()){status.textContent='Escribe tu nombre o alias antes de empezar.';return;}if(race.phase==='finished'){race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();}race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
+function begin(){if(!['running','paused'].includes(race.phase)&&!results.enter()){status.textContent='Escribe tu nombre o alias antes de empezar.';return;}if(race.phase==='finished'){race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();finishReplay.stop();replayButton.hidden=true;}race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
 function togglePause(){if(race.phase==='running'){race.phase='paused';clearControls();setOverlay('CARRERA EN PAUSA','Pulsa «Continuar» cuando estés listo.');status.textContent='Carrera en pausa.';}else if(race.phase==='paused')begin();updateUi();}
 start.addEventListener('click',begin);pause.addEventListener('click',togglePause);
-levelPicker.addEventListener('change',()=>{storedBest=loadBest(levelPicker.value);race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();$('[data-race-level-description]').textContent=race.settings.description;clearControls();setOverlay('CIRCUITO '+race.settings.name.toUpperCase(),race.settings.description);status.textContent='Circuito '+race.settings.name+' seleccionado. Récord independiente para este nivel.';updateUi();draw();});
-$('[data-race-reset]').addEventListener('click',()=>{race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();clearControls();setOverlay('LISTO PARA SALIR','Arranca el motor y entra al circuito.');status.textContent='Carrera reiniciada. Tu récord se conserva.';updateUi();draw();});
+levelPicker.addEventListener('change',()=>{storedBest=loadBest(levelPicker.value);race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();finishReplay.stop();replayButton.hidden=true;$('[data-race-level-description]').textContent=race.settings.description;clearControls();setOverlay('CIRCUITO '+race.settings.name.toUpperCase(),race.settings.description);status.textContent='Circuito '+race.settings.name+' seleccionado. Récord independiente para este nivel.';updateUi();draw();});
+$('[data-race-reset]').addEventListener('click',()=>{race=createRace(storedBest,levelPicker.value);cinematic.reset();finalSummary.hide();finishReplay.stop();replayButton.hidden=true;clearControls();setOverlay('LISTO PARA SALIR','Arranca el motor y entra al circuito.');status.textContent='Carrera reiniciada. Tu récord se conserva.';updateUi();draw();});
 window.addEventListener('keydown',event=>{if(event.ctrlKey||event.metaKey||event.altKey||event.repeat&&event.code==='KeyP')return;if(event.code==='KeyP'&&['running','paused'].includes(race.phase)){event.preventDefault();togglePause();return;}if(mapping[event.code]&&(race.phase==='running'||document.activeElement===stage)){event.preventDefault();keys.add(event.code);}});
 window.addEventListener('keyup',event=>keys.delete(event.code));
 for(const button of document.querySelectorAll('[data-drive]')){
@@ -165,12 +170,12 @@ function frame(timestamp){const dt=last?Math.min(.15,(timestamp-last)/1000):0;la
  if(result.lap){storedBest=race.bestLap;try{localStorage.setItem('octavia-mk4-best-lap-v2-'+race.difficulty,String(storedBest));}catch{}status.textContent=`Vuelta ${race.completedLaps}: ${lapTime(race.lapTimes.at(-1))}. Mejor vuelta: ${lapTime(race.bestLap)}.`;}
  if(result.finished){selectRaceView(true);results.finish(race);clearControls();setOverlay(`META · ${race.position}.º PUESTO`,`Tiempo total ${lapTime(race.elapsed)} · Mejor vuelta ${lapTime(race.bestLap)}`);status.textContent=`Carrera terminada. Puesto ${race.position} de ${race.rivals.length+1}. Tiempo total ${lapTime(race.elapsed)}. Mejor vuelta ${lapTime(race.bestLap)}.`;updateUi();}
  if(gain){gain.gain.setTargetAtTime(sound&&race.phase==='running'?.025:0,audio.currentTime,.06);oscillator.frequency.setTargetAtTime(32+race.speed*3.2,audio.currentTime,.08);}
- if(race.phase==='running'||result.finished)draw();if(result.finished){finalSummary.show(race,results.input.value,canvas,stage.dataset.renderer==='webgl2'?world3d?.canvas:null);status.textContent+=' Puedes ver la vista aérea y los tiempos en el resumen final.';}requestAnimationFrame(frame);
+ if(race.phase==='running'||result.finished||stage.dataset.raceView==='finish-replay'&&!finishReplay.active)draw();if(result.finished){finalSummary.show(race,results.input.value,canvas,stage.dataset.renderer==='webgl2'?world3d?.canvas:null);status.textContent+=' Se muestra la llegada del ganador y después el resumen final.';finishReplay.start(race,results.input.value);replayButton.hidden=false;}if(finishReplay.active){const shot=finishReplay.advance(dt);ctx.clearRect(0,0,width,height);if(shot){stage.dataset.raceView='finish-replay';let rendered=false;try{rendered=!!world3d?.render(race,{replay:shot});}catch{}if(!rendered)drawCompatibleFinish(ctx,width,height,shot,photos);}else draw();}requestAnimationFrame(frame);
 }
 new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFrame(frame);
 
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
 if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261024-blancoreal').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+ import('./racing-world3d.mjs?v=20261024-meta').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
 }else stage.dataset.renderer='2d-fallback';

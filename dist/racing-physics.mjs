@@ -41,6 +41,7 @@ export function stepRace(state,input,delta) {
   state.collisionCooldown = Math.max(0,state.collisionCooldown-dt); state.hit = Math.max(0,state.hit-dt);
   for (const rival of state.rivals) {
     rival.distance += rival.speed*dt;
+    if(!rival.retired&&!Number.isFinite(rival.finishTime)&&rival.distance>=state.trackLength*3&&rival.speed>0)rival.finishTime=state.elapsed-(rival.distance-state.trackLength*3)/rival.speed;
     if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }
   }
   state.position = 1 + state.rivals.filter(rival=>!rival.retired&&rival.distance>state.distance).length;
@@ -48,7 +49,7 @@ export function stepRace(state,input,delta) {
   if (state.distance >= (state.completedLaps+1)*state.trackLength) {
     const time = state.elapsed-state.lapStarted; state.lapTimes.push(time); state.lapStarted=state.elapsed;
     state.bestLap = state.bestLap===null ? time : Math.min(state.bestLap,time); state.completedLaps++; lap=true;
-    if(state.completedLaps>=3){state.phase='finished';state.speed=0;}
+    if(state.completedLaps>=3){state.phase='finished';state.speed=0;state.position=1+state.rivals.filter(car=>!car.retired&&Number.isFinite(car.finishTime)&&car.finishTime<state.elapsed-1e-6).length;}
   }
   return {lap,finished:state.phase==='finished'};
 }
