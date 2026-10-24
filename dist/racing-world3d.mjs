@@ -1,4 +1,4 @@
-import {RGBELoader} from './vendor/RGBELoader.js';
+import {HDRLoader} from './vendor/HDRLoader.js';
 import * as THREE from './vendor/three.module.js';
 import {createCircuitLayout} from './circuit-layout.mjs';
 const textureRoot='assets/track3d/';
@@ -27,7 +27,7 @@ export async function createRacingWorld(stage){
  const seats=new THREE.MeshStandardMaterial({color:'#683d3a',roughness:.93});
  const rubber=new THREE.MeshStandardMaterial({color:'#232425',roughness:1});
  // Cielo HDR fotográfico y entorno de iluminación/reflejos en espacio lineal.
- const hdr=await new RGBELoader().loadAsync(textureRoot+'sky.hdr');hdr.mapping=THREE.EquirectangularReflectionMapping;scene.background=hdr;scene.backgroundIntensity=.8;scene.backgroundRotation.y=.6;const pmrem=new THREE.PMREMGenerator(renderer);const environment=pmrem.fromEquirectangular(hdr);scene.environment=environment.texture;scene.environmentIntensity=.7;scene.environmentRotation.y=.6;pmrem.dispose();stage.dataset.sky3d='photographic-hdr';
+ const hdr=await new HDRLoader().loadAsync(textureRoot+'sky.hdr');hdr.mapping=THREE.EquirectangularReflectionMapping;scene.background=hdr;scene.backgroundIntensity=.8;scene.backgroundRotation.y=.6;const pmrem=new THREE.PMREMGenerator(renderer);const environment=pmrem.fromEquirectangular(hdr);scene.environment=environment.texture;scene.environmentIntensity=.7;scene.environmentRotation.y=.6;pmrem.dispose();stage.dataset.sky3d='photographic-hdr';
  const fenceCanvas=document.createElement('canvas');fenceCanvas.width=fenceCanvas.height=64;const fc=fenceCanvas.getContext('2d');fc.clearRect(0,0,64,64);fc.strokeStyle='#a8b1b7';fc.lineWidth=1.4;for(let x=-64;x<128;x+=16){fc.beginPath();fc.moveTo(x,0);fc.lineTo(x+64,64);fc.stroke();fc.beginPath();fc.moveTo(x,0);fc.lineTo(x-64,64);fc.stroke();}const fenceTexture=new THREE.CanvasTexture(fenceCanvas);fenceTexture.wrapS=fenceTexture.wrapT=THREE.RepeatWrapping;fenceTexture.anisotropy=4;
  const fenceMaterial=new THREE.MeshStandardMaterial({map:fenceTexture,transparent:true,alphaTest:.12,side:THREE.DoubleSide,roughness:.65,metalness:.5,depthWrite:false});
  const tyreCanvas=document.createElement('canvas');tyreCanvas.width=128;tyreCanvas.height=1024;const tc=tyreCanvas.getContext('2d');tc.clearRect(0,0,128,1024);let seed=217;const random=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};for(let i=0;i<180;i++){const x=35+random()*58,y=random()*1024;tc.strokeStyle='rgba(20,18,17,'+(.02+random()*.12)+')';tc.lineWidth=.3+random()*2;tc.beginPath();tc.moveTo(x,y);tc.lineTo(x+random()*4,y+40+random()*220);tc.stroke();}const tyreTexture=new THREE.CanvasTexture(tyreCanvas);tyreTexture.wrapT=THREE.RepeatWrapping;const tyreMaterial=new THREE.MeshStandardMaterial({map:tyreTexture,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2});
