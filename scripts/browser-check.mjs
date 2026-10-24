@@ -108,6 +108,17 @@ try{
  console.log('GRAPHICS_3D_OK '+JSON.stringify(await evaluate("({...document.querySelector('[data-racing-stage]').dataset})")));
  await evaluate("document.querySelector('[data-race-pause]').click()");assert.ok(await evaluate("document.querySelector('[data-race-status]').textContent.includes('pausa')"));
  const pausedScenery=await evaluate("document.querySelector('[data-race-canvas]').dataset.sceneryDistance");await wait(300);assert.equal(await evaluate("document.querySelector('[data-race-canvas]').dataset.sceneryDistance"),pausedScenery,'El paisaje se detiene con la carrera en pausa');
+ // Cámara aérea del mismo escenario, sin crear una segunda carrera ni otro WebGLRenderer.
+ await evaluate("document.querySelector('[data-race-view=aerial]').click()");
+ assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.raceView"),'aerial');
+ assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.aerialCars"),'4');
+ assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.renderer"),'webgl2');
+ const aerialStopped=await evaluate("document.querySelector('[data-racing-stage]').dataset.aerialPositions");await wait(300);assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.aerialPositions"),aerialStopped);
+ await evaluate("document.querySelector('[data-race-pause]').click();window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}))");
+ await until("document.querySelector('[data-racing-stage]').dataset.aerialPositions!=="+JSON.stringify(aerialStopped));
+ await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}));document.querySelector('[data-race-pause]').click()");
+ const aerialClip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,800/r.width)}})()");const aerialPreview=await call('Page.captureScreenshot',{format:'jpeg',quality:65,clip:aerialClip});console.log('AERIAL_PREVIEW '+aerialPreview.data);await writeFile('artifacts/circuito-aereo.jpg',Buffer.from(aerialPreview.data,'base64'));
+ await evaluate("document.querySelector('[data-race-view=cockpit]').click()");assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.raceView"),'cockpit');console.log('VISTA_AEREA_OK: mismo circuito WebGL2, cuatro coches, movimiento real, pausa y retorno al salpicadero.');
  // Ejecuta la secuencia de adelantamiento sobre el renderizador real y comprueba su retirada.
  await evaluate("(async()=>{const stage=document.querySelector('[data-racing-stage]'),host=document.createElement('div');Object.assign(host.style,{position:'absolute',inset:0,zIndex:8});stage.append(host);const {createOvertakeCinematic}=await import('./racing-cinematic.mjs?v=20261024-explosion');window.__cinematicHost=host;window.__cinematic=createOvertakeCinematic(host);window.__cinematic.update({position:1,phase:'running'},0);window.__cinematic.update({position:2,phase:'running'},0);})()");
  await until("window.__cinematicHost.dataset.mirror3d==='ready'");
@@ -141,5 +152,6 @@ try{
  await until("document.querySelector('[data-results-status]').textContent.includes('guardado')");
  await call('Page.reload');await until("document.querySelector('[data-results-body]')?.textContent.includes('Piloto Registro')");
  assert.equal(await evaluate("document.querySelector('[data-pilot-name]').value"),'Piloto Registro');console.log('TIEMPOS_PILOTO_OK: alias obligatorio, resultado compartido y conservación al recargar.');
+ await evaluate("document.querySelector('[data-race-view=aerial]').click()");assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.aerialCars"),'4');
  console.log('NAVEGADOR_OK: carpeta, foto real, ficha pública, gestión privada, circuito, pausa y controles multitáctiles.');
 }finally{socket?.close();chrome.kill('SIGTERM');await new Promise(resolve=>server.close(resolve));raw.close();await rm(profile,{recursive:true,force:true}).catch(()=>{});}
