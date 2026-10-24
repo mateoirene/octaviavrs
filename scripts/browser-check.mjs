@@ -72,6 +72,7 @@ try{
 
  await call('Page.navigate',{url:base+'/simulador.html?quality=low'});await until("document.querySelector('[data-race-canvas]')?.width>300");
  await until("document.querySelector('[data-race-canvas]').dataset.sceneryReady==='true'");
+ await until("document.querySelector('[data-racing-stage]').dataset.renderer==='webgl2'");
  await until("document.querySelector('[data-race-canvas]').dataset.cockpitReady==='true'&&document.querySelector('[data-race-canvas]').dataset.rivalReady==='true'&&document.querySelector('[data-race-canvas]').dataset.circuitReady==='true'");
  const transparentRival=await evaluate("new Promise((resolve,reject)=>{const image=new Image();image.onerror=()=>reject(new Error('No carga el coche azul'));image.onload=()=>{const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const x=c.getContext('2d');x.drawImage(image,0,0);resolve([[0,0],[c.width-1,0],[0,c.height-1],[c.width-1,c.height-1]].every(([a,b])=>x.getImageData(a,b,1,1).data[3]===0))};image.src='assets/rival-octavia-azul.png';})");assert.equal(transparentRival,true,'El rival azul no tiene fondo opaco');
  for(const level of ['expert','intermediate','easy']){await evaluate(`document.querySelector('[data-race-level]').value='${level}';document.querySelector('[data-race-level]').dispatchEvent(new Event('change'))`);assert.equal(await evaluate("document.querySelector('[data-race-level]').value"),level);}
@@ -103,6 +104,7 @@ try{
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
  await call('Page.navigate',{url:base+'/simulador.html?quality=low'});await until("document.querySelector('[data-race-canvas]')?.width>300");
  await until("document.querySelector('[data-race-canvas]').dataset.sceneryReady==='true'");
+ await until("document.querySelector('[data-racing-stage]').dataset.renderer==='webgl2'");
  await until("document.querySelector('[data-race-canvas]').dataset.cockpitReady==='true'&&document.querySelector('[data-race-canvas]').dataset.rivalReady==='true'&&document.querySelector('[data-race-canvas]').dataset.circuitReady==='true'");
  await evaluate("document.querySelector('[data-race-start]').click();document.querySelector('.race-touch-controls').scrollIntoView({block:'center'});");
  const positions=await evaluate("['accelerate','left'].map(action=>{const b=document.querySelector('[data-drive='+action+']').getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2}})");
@@ -110,6 +112,8 @@ try{
  assert.equal(await evaluate("document.querySelectorAll('.is-held').length"),0,'Libera los controles multitáctiles');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-movil.jpg',Buffer.from(screenshot.data,'base64'));
  const mobileClip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()");const mobilePreview=await call('Page.captureScreenshot',{format:'jpeg',quality:35,clip:mobileClip});console.log('RACE_MOBILE_PREVIEW '+mobilePreview.data);
+ await call('Page.navigate',{url:base+'/simulador.html?render=2d'});await until("document.querySelector('[data-racing-stage]')?.dataset.renderer==='2d-fallback'");await until("document.querySelector('[data-race-canvas]').dataset.cockpitReady==='true'");
+ await evaluate("document.querySelector('[data-race-start]').click();window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}))");await until("Number(document.querySelector('[data-race-canvas]').dataset.speed)>0");await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}));document.querySelector('[data-race-reset]').click()");assert.equal(await evaluate("Number(document.querySelector('[data-race-canvas]').dataset.speed)"),0);console.log('FALLBACK_2D_OK: conducción y reinicio conservados.');
  assert.deepEqual(errors,[],'Sin errores JavaScript en garaje ni circuito');
  console.log('NAVEGADOR_OK: carpeta, foto real, ficha pública, gestión privada, circuito, pausa y controles multitáctiles.');
 }finally{socket?.close();chrome.kill('SIGTERM');await new Promise(resolve=>server.close(resolve));raw.close();await rm(profile,{recursive:true,force:true}).catch(()=>{});}
