@@ -9,5 +9,5 @@ jobs:
       - name: Consultar mapas PBR y motor
         run: |
           node --input-type=module <<'NODE'
-          for(const url of ['https://api.polyhaven.com/files/asphalt_02','https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js']){const r=await fetch(url,{signal:AbortSignal.timeout(30000)});console.log('RESOURCE_HTTP '+r.status);if(url.includes('polyhaven')){const j=await r.json();for(const k of ['diff','nor_gl','rough'])console.log(k+' '+JSON.stringify(j[k]?.['1k']));}}
+          for(const url of ['https://api.polyhaven.com/files/asphalt_02','https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js']){const r=await fetch(url,{signal:AbortSignal.timeout(30000)});console.log('RESOURCE_HTTP '+r.status);if(url.includes('polyhaven')){const j=await r.json();console.log('ALL_KEYS '+JSON.stringify(Object.keys(j)));for(const k of Object.keys(j))console.log(k+' '+JSON.stringify(j[k]?.['1k']));}}
           NODE
