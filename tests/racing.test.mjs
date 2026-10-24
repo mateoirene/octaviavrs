@@ -23,6 +23,6 @@ test('Tesla blanco ALBERTO acompaña a los dos Octavia y participa en clasificac
   const tesla=race.rivals.find(car=>car.model==='tesla-model-3');assert.equal(tesla.name,'ALBERTO');assert.equal(tesla.color,'#ffffff');
   race.phase='running';stepRace(race,{},.05);assert.ok(tesla.distance>50);assert.equal(race.position,4);
   race.distance=500;stepRace(race,{},.05);assert.equal(race.position,1);
-  assert.equal(createRace(null,level).rivals.find(car=>car.model==='tesla-model-3').distance,50);
+  assert.equal(createRace(null,level).rivals.find(car=>car.model==='tesla-model-3').distance,110);
  }
 });

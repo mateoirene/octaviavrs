@@ -1,7 +1,8 @@
-import {lapTime,LEVELS} from './racing-physics.mjs';
+import {circuitName} from './racing-circuits.mjs?v=20261024-tour1';
+import {lapTime,LEVELS} from './racing-physics.mjs?v=20261024-tour1';
 export function finalRaceSummary(race,pilot){
  if(race.phase!=='finished'||race.completedLaps!==3||race.lapTimes.length!==3)throw new Error('Termina la carrera para ver el resumen.');
- return {pilot:String(pilot),level:LEVELS[race.difficulty].name,position:race.position,participants:race.rivals.length+1,total:race.elapsed,best:Math.min(...race.lapTimes),laps:[...race.lapTimes]};
+ return {pilot:String(pilot),level:(race.circuit&&race.circuit!=='club'?circuitName(race.circuit)+' · ':'')+LEVELS[race.difficulty].name,position:race.position,participants:race.rivals.length+1,total:race.elapsed,best:Math.min(...race.lapTimes),laps:[...race.lapTimes]};
 }
 export function createRaceSummary(panel){
  const image=panel.querySelector('[data-summary-image]');

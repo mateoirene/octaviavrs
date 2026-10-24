@@ -87,3 +87,12 @@ CREATE TABLE IF NOT EXISTS racing_results (
  laps_json TEXT NOT NULL, position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 4), created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS racing_results_level ON racing_results(level,total_ms,created_at);
+
+-- Metadatos separados: conserva todos los tiempos históricos sin ALTER ni borrados.
+CREATE TABLE IF NOT EXISTS racing_entries (
+ result_id TEXT PRIMARY KEY REFERENCES racing_results(id) ON DELETE CASCADE,
+ racer_id TEXT NOT NULL, circuit TEXT NOT NULL, car TEXT NOT NULL,
+ paint TEXT NOT NULL, mode TEXT NOT NULL CHECK(mode IN ('free','championship'))
+);
+CREATE INDEX IF NOT EXISTS racing_entries_circuit ON racing_entries(circuit,result_id);
+CREATE INDEX IF NOT EXISTS racing_entries_racer ON racing_entries(racer_id,mode,circuit);

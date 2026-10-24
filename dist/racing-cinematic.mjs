@@ -1,4 +1,4 @@
-import {createOvertakeSequence,advanceOvertakeSequence,igniteTesla} from './racing-cinematic-state.mjs?v=20261024-teslafuego';
+import {createOvertakeSequence,advanceOvertakeSequence,igniteTesla,teslaLeaderOvertake} from './racing-cinematic-state.mjs?v=20261024-tour1';
 export function createOvertakeCinematic(stage){
  let sequence=createOvertakeSequence(),mirror,world,ready=false;
  const panel=document.createElement('div');panel.className='race-mirror-cinematic';panel.hidden=true;
@@ -10,7 +10,7 @@ export function createOvertakeCinematic(stage){
 
  return {
   reset(){sequence=createOvertakeSequence();panel.hidden=true;stage.dataset.overtakeCinematic='idle';},
-  update(race,dt){if(race.phase==='finished'){sequence.active=false;panel.hidden=true;return false;}const triggered=advanceOvertakeSequence(sequence,race.position,race.phase,dt);if(triggered){igniteTesla(race);stage.dataset.burningVehicle='tesla-model-3';stage.dataset.overtakeCinematic='fire';stage.dispatchEvent(new CustomEvent('race-overtake-cinematic'));}if(!sequence.active){panel.hidden=true;if(sequence.played)stage.dataset.overtakeCinematic='complete';return triggered;}stage.dataset.overtakeCinematic=sequence.elapsed<1.25?'fire':'mirror';panel.hidden=sequence.elapsed<1.25||!ready;if(!panel.hidden)world.render(sequence.elapsed-1.25);return triggered;},
+  update(race,dt){if(race.phase==='finished'){sequence.active=false;panel.hidden=true;return false;}const triggered=advanceOvertakeSequence(sequence,race.position,race.phase,dt,race.rivals?teslaLeaderOvertake(sequence,race):undefined);if(triggered){igniteTesla(race);stage.dataset.burningVehicle='tesla-model-3';stage.dataset.overtakeCinematic='fire';stage.dispatchEvent(new CustomEvent('race-overtake-cinematic'));}if(!sequence.active){panel.hidden=true;if(sequence.played)stage.dataset.overtakeCinematic='complete';return triggered;}stage.dataset.overtakeCinematic=sequence.elapsed<1.25?'fire':'mirror';panel.hidden=sequence.elapsed<1.25||!ready;if(!panel.hidden)world.render(sequence.elapsed-1.25);return triggered;},
   draw(){},
   dispose(){blink.cancel();world?.dispose();panel.remove();}
  };

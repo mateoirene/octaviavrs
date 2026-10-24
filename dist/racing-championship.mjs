@@ -1,0 +1,33 @@
+import {CIRCUITS,CIRCUIT_BY_ID,circuitName,POINTS,SKODA_PAINTS} from './racing-circuits.mjs?v=20261024-tour1';
+import {createCircuitLayout} from './circuit-layout.mjs?v=20261024-tour1';
+const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
+const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
+export function nextChampionshipCircuit(progress){const wins=new Set(progress.filter(row=>row.position===1).map(row=>row.circuit));return CIRCUITS.find(c=>!wins.has(c.id))||null;}
+export function createCircuitCompetition(root,level){
+ const select=root.querySelector('[data-race-circuit]'),mode=root.querySelector('[data-race-mode]'),car=root.querySelector('[data-skoda-name]'),paint=root.querySelector('[data-skoda-paint]'),next=root.querySelector('[data-championship-next]'),message=root.querySelector('[data-championship-status]'),body=root.querySelector('[data-championship-body]');
+ let racer=read('club-racer-id-v1','');if(!/^[0-9a-f-]{36}$/i.test(racer)){racer=crypto.randomUUID();save('club-racer-id-v1',racer);}
+ const profile=read('club-skoda-profile-v1',{});car.value=profile.car||'Mi Octavia VRS';paint.value=Object.hasOwn(SKODA_PAINTS,profile.paint)?profile.paint:'blue';
+ for(const c of CIRCUITS){const option=document.createElement('option');option.value=c.id;option.textContent=c.name;select.append(option);}
+ let progress=[],generation=0,locked=false,lastWon=false;
+ const localKey=()=>`club-championship-progress-v1-${racer}-${level.value}`;
+ function currentProgress(){return [...progress,...read(localKey(),[])];}
+ function announceChange(){root.dispatchEvent(new CustomEvent('race-circuit-change',{bubbles:true}));}
+ function preview(){const id=select.value,c=CIRCUIT_BY_ID[id],layout=createCircuitLayout(level.value,c?.length||3600,id),points=Array.from({length:257},(_,i)=>layout.position(i/256*layout.length)),xs=points.map(p=>p[0]),zs=points.map(p=>p[2]),minX=Math.min(...xs),minZ=Math.min(...zs),scale=Math.min(264/(Math.max(...xs)-minX),144/(Math.max(...zs)-minZ));root.querySelector('[data-circuit-path]').setAttribute('d',points.map((p,i)=>(i?'L':'M')+(18+(p[0]-minX)*scale).toFixed(1)+','+(18+(p[2]-minZ)*scale).toFixed(1)).join(' ')+' Z');root.querySelector('[data-circuit-preview]').setAttribute('aria-label','Recorrido de '+circuitName(id));root.querySelector('[data-circuit-description]').textContent=c?c.name+' · '+(c.length/1000).toFixed(3)+' km · 3 vueltas'+(id==='hanoi'?' · recreación inspirada en Hanói.':' · trazado geográfico adaptado al juego.'):'Trazado original del club · tres niveles de dificultad.';}
+ function update(){const target=nextChampionshipCircuit(currentProgress()),targetIndex=target?CIRCUITS.indexOf(target):CIRCUITS.length;for(const option of select.options){const index=CIRCUITS.findIndex(c=>c.id===option.value);option.disabled=mode.value==='championship'&&(option.value==='club'||index>targetIndex);}
+  if(select.selectedOptions[0]?.disabled)select.value=target?.id||CIRCUITS[0].id;
+  next.hidden=mode.value!=='championship';next.disabled=locked||!currentProgress().some(row=>row.circuit===select.value&&row.position===1)||!target;next.textContent=target?'Siguiente prueba · '+target.name:'Campeonato completado';
+  message.textContent=mode.value==='championship'?(target?'Campeonato · '+targetIndex+' de '+CIRCUITS.length+' pruebas ganadas. Gana en '+target.name+' para avanzar.':'¡Has ganado las '+CIRCUITS.length+' pruebas del campeonato!'):'Carrera libre: elige cualquier pista. Los tiempos se guardan por circuito y dificultad.';preview();
+ }
+ async function refresh(){const gen=++generation;try{const response=await fetch('/api/racing/championship?level='+level.value+'&racer='+encodeURIComponent(racer),{signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error();const data=await response.json();if(gen!==generation)return;progress=data.progress;root.querySelector('[data-championship-connection]').textContent='';body.replaceChildren();for(const [i,row]of data.standings.entries()){const tr=document.createElement('tr');for(const value of [i+1,row.pilot,row.car,row.points,row.wins+'/'+CIRCUITS.length]){const td=document.createElement('td');td.textContent=String(value);tr.append(td);}body.append(tr);}if(!data.standings.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='El campeonato espera su primer piloto.';tr.append(td);body.append(tr);}if(!locked)update();}catch{if(gen===generation)root.querySelector('[data-championship-connection]').textContent='Clasificación sin conexión. El progreso de este dispositivo se conserva.';}}
+ for(const input of [car,paint])input.addEventListener('change',()=>{save('club-skoda-profile-v1',{car:car.value.trim(),paint:paint.value});announceChange();});
+ mode.addEventListener('change',()=>{lastWon=false;update();announceChange();});select.addEventListener('change',()=>{lastWon=false;update();announceChange();});
+ level.addEventListener('change',()=>{lastWon=false;progress=[];update();void refresh();});
+ next.addEventListener('click',()=>{if(next.disabled)return;const target=nextChampionshipCircuit(currentProgress());if(target){select.value=target.id;lastWon=false;update();announceChange();document.querySelector('[data-race-start]').scrollIntoView({block:'center',behavior:'smooth'});}});
+ root.querySelector('[data-championship-refresh]').addEventListener('click',()=>void refresh());window.addEventListener('race-result-saved',()=>void refresh());window.addEventListener('online',()=>void refresh());update();void refresh();
+ return {circuit:()=>select.value,
+  configure(race){race.circuit=select.value;race.racerId=racer;race.raceMode=mode.value;race.playerCar=car.value.trim()||'Mi Octavia VRS';race.playerPaint=paint.value;},
+  validate(){if(!/^[\p{L}\p{N} ._'’\-]{2,48}$/u.test(car.value.trim())){car.setCustomValidity('Pon un nombre para tu Škoda de 2 a 48 letras o números.');car.reportValidity();return false;}car.setCustomValidity('');return true;},
+  lock(value){locked=value;for(const el of [select,mode,car,paint])el.disabled=value;next.disabled=value||!currentProgress().some(row=>row.circuit===select.value&&row.position===1)||!nextChampionshipCircuit(currentProgress());},
+  finish(race){if(race.raceMode!=='championship')return;lastWon=race.position===1;if(lastWon){const saved=read(localKey(),[]).filter(c=>c.circuit!==race.circuit);saved.push({circuit:race.circuit,position:1});save(localKey(),saved);}update();if(!lastWon)message.textContent='Has sumado '+POINTS[race.position]+' puntos. Gana esta prueba para pasar a la siguiente.';},
+ };
+}

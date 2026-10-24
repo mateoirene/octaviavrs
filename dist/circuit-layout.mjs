@@ -1,3 +1,4 @@
+import {CIRCUIT_BY_ID} from './racing-circuits.mjs?v=20261024-tour1';
 // Trazado 3D cerrado, parametrizado en metros de recorrido. También lo usa la física.
 const cache=new Map();
 const controls={
@@ -6,8 +7,8 @@ const controls={
  expert:[[0,0,0],[0,0,-140],[-50,1,-240],[25,2,-330],[-25,3,-410],[140,4,-490],[330,7,-460],[470,9,-330],[380,7,-210],[490,4,-100],[410,2,30],[490,1,140],[320,-1,280],[180,-2,225],[75,-1,290],[0,0,170]],
 };
 const interpolate=(a,b,c,d,t)=>.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t);
-export function createCircuitLayout(level='easy',length=3600){
- const key=level+':'+length;if(cache.has(key))return cache.get(key);const points=controls[level]||controls.easy,n=points.length,count=2048,raw=[];let total=0;
+export function createCircuitLayout(level='easy',length=3600,circuit='club'){
+ const key=level+':'+length+':'+circuit;if(cache.has(key))return cache.get(key);const points=CIRCUIT_BY_ID[circuit]?.points||controls[level]||controls.easy,n=points.length,count=2048,raw=[];let total=0;
  for(let i=0;i<=count;i++){const t=i/count*n,j=Math.floor(t)%n,f=t-Math.floor(t);const p=[0,1,2].map(k=>interpolate(points[(j+n-1)%n][k],points[j][k],points[(j+1)%n][k],points[(j+2)%n][k],f));if(i)total+=Math.hypot(...p.map((v,k)=>v-raw[i-1].p[k]));raw.push({p,s:total});}
  const scale=length/total;for(const row of raw){row.s*=scale;row.p=row.p.map(v=>v*scale);}
  function position(distance){const s=((distance%length)+length)%length;let a=0,b=count;while(b-a>1){const m=(a+b)>>1;if(raw[m].s<=s)a=m;else b=m;}const t=(s-raw[a].s)/(raw[b].s-raw[a].s||1);return raw[a].p.map((v,k)=>v+(raw[b].p[k]-v)*t);}

@@ -11,6 +11,7 @@ async function verify(){
  for(const path of ['racing-world3d.mjs','circuit-layout.mjs','vendor/three.module.js','vendor/three.core.js','vendor/HDRLoader.js','assets/track3d/asphalt-color.jpg','assets/track3d/asphalt-normal.jpg','assets/track3d/asphalt-rough.jpg','assets/track3d/sky.hdr']){const resource=await fetch(base+'/'+path);assert.equal(resource.status,200,'Recurso 3D '+path);assert.ok((await resource.arrayBuffer()).byteLength>500,'Recurso completo '+path);}
  const radio=await fetch(base+'/assets/audio/radio-club.mp3');assert.equal(radio.status,200,'Audio del club publicado');assert.ok((await radio.arrayBuffer()).byteLength>100000,'MP3 completo');
  const cursor=await fetch(base+'/assets/puntero-flecha.svg');assert.equal(cursor.status,200);assert.ok((await cursor.text()).includes('stroke="#934954"'));
+ const championship=await fetch(base+'/api/racing/championship?level=easy');assert.equal(championship.status,200);const tour=await championship.json();assert.equal(tour.rounds,25);assert.ok(Array.isArray(tour.standings));assert.ok(game.includes('data-race-circuit'));assert.ok(game.includes('data-race-mode'));console.log('CAMPEONATO_PUBLICADO_OK: 25 pistas y clasificación compartida disponibles.');
  console.log('CIRCUITO_PUBLICADO_OK: fotos locales, tres niveles, orden de portada y puntero negro/rojo.');
 }
 for(let attempt=0;attempt<5;attempt++){try{await verify();break;}catch(error){if(attempt===4)throw error;await new Promise(resolve=>setTimeout(resolve,4000));}}

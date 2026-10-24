@@ -1,4 +1,5 @@
-import { createCircuitLayout } from './circuit-layout.mjs';
+import {CIRCUIT_BY_ID} from './racing-circuits.mjs?v=20261024-tour1';
+import { createCircuitLayout } from './circuit-layout.mjs?v=20261024-tour1';
 export const SEGMENT_LENGTH = 18;
 export const MAX_SPEED = 69;
 export const LEVELS = {
@@ -6,23 +7,24 @@ export const LEVELS = {
  intermediate: { name:'Intermedio', description:'Enlazadas, frenadas más exigentes y rivales rápidos.', roadHalf:6, grip:.85, offroad:22, rivals:[58,62], sections:[[20,0],[24,.8],[12,0],[20,-.65],[14,0],[28,1.05],[12,0],[24,-.95],[14,0],[12,0]] },
  expert: { name:'Experto', description:'Chicanes cerradas, pista estrecha y rivales al límite.', roadHalf:4.8, grip:1.18, offroad:30, rivals:[64,67], sections:[[12,0],[18,1.5],[8,-1.4],[10,0],[20,-1.55],[8,1.6],[14,0],[24,1.35],[12,-1.65],[12,0],[20,-1.35],[12,1.5],[12,0]] },
 };
-export function buildTrack(level='easy') {
+export function buildTrack(level='easy',circuit='club') {
   const sections = (LEVELS[level]||LEVELS.easy).sections;
   const track = [];
   for (const [count, curve] of sections) for (let i=0;i<count;i++) {
     const blend = Math.min(1, i/6, (count-1-i)/6);
     track.push({ index:track.length, curve:curve*Math.max(0,blend), length:SEGMENT_LENGTH });
   }
-  const layout=createCircuitLayout(level,track.length*SEGMENT_LENGTH);
+  if(CIRCUIT_BY_ID[circuit]){track.length=0;for(let i=0;i<CIRCUIT_BY_ID[circuit].length/SEGMENT_LENGTH;i++)track.push({index:i,curve:0,length:SEGMENT_LENGTH});}
+  const layout=createCircuitLayout(level,track.length*SEGMENT_LENGTH,circuit);
   for(let i=0;i<track.length;i++)track[i].curve=(i===0||i===track.length-1)?0:Math.max(-1.8,Math.min(1.8,layout.curvature(i*SEGMENT_LENGTH)*220));
   return track;
 }
 export const TRACK = buildTrack();
 export const TRACK_LENGTH = TRACK.length * SEGMENT_LENGTH;
-export function createRace(bestLap = null, level = 'easy') {
+export function createRace(bestLap = null, level = 'easy', circuit = 'club') {
   const difficulty = LEVELS[level] ? level : 'easy';
-  const settings = LEVELS[difficulty], track = buildTrack(difficulty);
-  return { difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:50,speed:settings.rivals[0]-2,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
+  const settings = LEVELS[difficulty], track = buildTrack(difficulty,circuit);
+  return { circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:settings.rivals[0]-2,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
 }
 export function stepRace(state,input,delta) {
   if (state.phase !== 'running') return {lap:false,finished:false};
@@ -40,6 +42,7 @@ export function stepRace(state,input,delta) {
   state.distance += state.speed*dt; state.elapsed += dt;
   state.collisionCooldown = Math.max(0,state.collisionCooldown-dt); state.hit = Math.max(0,state.hit-dt);
   for (const rival of state.rivals) {
+    if(state.circuit!=='club'&&!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
     rival.distance += rival.speed*dt;
     if(!rival.retired&&!Number.isFinite(rival.finishTime)&&rival.distance>=state.trackLength*3&&rival.speed>0)rival.finishTime=state.elapsed-(rival.distance-state.trackLength*3)/rival.speed;
     if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }
