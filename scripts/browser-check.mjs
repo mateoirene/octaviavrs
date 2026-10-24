@@ -98,6 +98,8 @@ try{
  assert.ok(await evaluate("document.querySelector('[data-race-canvas]').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));
  const clip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,640/r.width)}})()");const preview=await call('Page.captureScreenshot',{format:'jpeg',quality:25,clip});console.log('RACE_VISUAL_PREVIEW '+preview.data);
+ assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.teslaTribute"),'ALBERTO');
+ assert.equal(await evaluate("document.querySelector('[data-racing-stage]').dataset.teslaColor"),'white');
  console.log('GRAPHICS_3D_OK '+JSON.stringify(await evaluate("({...document.querySelector('[data-racing-stage]').dataset})")));
  await evaluate("document.querySelector('[data-race-pause]').click()");assert.ok(await evaluate("document.querySelector('[data-race-status]').textContent.includes('pausa')"));
  const pausedScenery=await evaluate("document.querySelector('[data-race-canvas]').dataset.sceneryDistance");await wait(300);assert.equal(await evaluate("document.querySelector('[data-race-canvas]').dataset.sceneryDistance"),pausedScenery,'El paisaje se detiene con la carrera en pausa');

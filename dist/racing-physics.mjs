@@ -22,7 +22,7 @@ export const TRACK_LENGTH = TRACK.length * SEGMENT_LENGTH;
 export function createRace(bestLap = null, level = 'easy') {
   const difficulty = LEVELS[level] ? level : 'easy';
   const settings = LEVELS[difficulty], track = buildTrack(difficulty);
-  return { difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:3,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,color:'#e6e8ec'}] };
+  return { difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:50,speed:settings.rivals[0]-2,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
 }
 export function stepRace(state,input,delta) {
   if (state.phase !== 'running') return {lap:false,finished:false};
