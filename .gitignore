@@ -7,3 +7,6 @@ artifacts/
 
 dist/vendor/
 dist/assets/track3d/
+
+# Fotografías web codificadas en Chrome durante la preparación de la publicación.
+dist/assets/galeria-*.jpg

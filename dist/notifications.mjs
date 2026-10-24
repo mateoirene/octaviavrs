@@ -1,4 +1,4 @@
-import {initClubContact} from './contact.mjs?v=20261024';
+import {initClubContact} from './contact.mjs?v=20261025';
 import {initPushControls} from './push-client.mjs?v=20261024';
 import { createCarNotificationSound } from './notification-chime.mjs';
 import { setVrsText } from './branding.mjs';
