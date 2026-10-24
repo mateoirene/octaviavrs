@@ -130,3 +130,11 @@ CREATE TABLE IF NOT EXISTS club_directory_links (
  name TEXT NOT NULL,url TEXT NOT NULL,description TEXT NOT NULL,platform TEXT NOT NULL,created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS club_directory_links_list ON club_directory_links(list_id,created_at);
+
+CREATE TABLE IF NOT EXISTS club_social_lists (
+ id TEXT PRIMARY KEY,name TEXT NOT NULL COLLATE NOCASE UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('collaborators','interest')),created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS club_social_links (
+ id TEXT PRIMARY KEY,list_id TEXT NOT NULL REFERENCES club_social_lists(id) ON DELETE CASCADE,
+ name TEXT NOT NULL,url TEXT NOT NULL,description TEXT NOT NULL,platform TEXT NOT NULL,created_at INTEGER NOT NULL
+);
