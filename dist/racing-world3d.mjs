@@ -75,5 +75,5 @@ export async function createRacingWorld(stage){
   const now=performance.now();if(race.phase==='running'&&lastRender){const dt=now-lastRender;totalFrame+=dt;frames++;if(dt>45)slow++;if(frames>=90){if(slow>50&&quality>.65){quality=Math.max(.65,quality-.2);resize(width,height);}stage.dataset.frameMs3d=(totalFrame/frames).toFixed(1);frames=slow=totalFrame=0;}}lastRender=now;
   renderer.render(scene,camera);stage.dataset.renderer='webgl2';stage.dataset.quality3d=quality.toFixed(2);stage.dataset.drawCalls3d=String(renderer.info.render.calls);stage.dataset.triangles3d=String(renderer.info.render.triangles);stage.dataset.worldDistance=race.distance.toFixed(2);return true;
  }
- stage.dataset.pbr='color-normal-roughness';return {render,resize,canvas};
+ stage.dataset.pbr='color-normal-roughness';return {render,resize,canvas,dispose(){available=false;const geometries=new Set(),materials=new Set(),textures=new Set(loaded);scene.traverse(item=>{if(item.geometry)geometries.add(item.geometry);if(item.material)materials.add(item.material);});for(const material of materials){for(const value of Object.values(material))if(value?.isTexture)textures.add(value);material.dispose();}for(const geometry of geometries)geometry.dispose();for(const texture of textures)texture.dispose();hdr.dispose();environment.dispose();renderer.dispose();canvas.remove();}};
 }
