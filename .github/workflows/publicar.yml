@@ -37,6 +37,15 @@ jobs:
           key: octavia-race-photos-20261023-v1
       - name: Preparar fotografías y atribuciones
         run: node scripts/prepare-race-assets.mjs
+      - name: Recuperar motor y materiales 3D
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist/vendor
+            dist/assets/track3d
+          key: octavia-track3d-three0180-asphalt02-v1
+      - name: Preparar motor local y materiales PBR
+        run: node scripts/prepare-track3d.mjs
       - name: Comprobar garaje y circuito en Chrome
         run: node scripts/browser-check.mjs
       - name: Guardar vistas de comprobación

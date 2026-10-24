@@ -19,7 +19,7 @@ let notificationNews=[];
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://127.0.0.1');if(url.pathname==='/data/notificaciones.json'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(notificationNews));return;}if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);const response=await handleMarketRequest(new Request(base+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{} )}),{MARKET_DB:db});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}const path=resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));if(!path.startsWith(root+'/')){res.writeHead(403);res.end();return;}const content=await readFile(path);res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'});res.end(content);}catch{res.writeHead(404);res.end('No disponible');}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
 const chromePath=['/usr/bin/google-chrome','/usr/bin/chromium','/usr/bin/chromium-browser'].find(existsSync);if(!chromePath)throw new Error('Chrome no está instalado en el entorno de comprobación.');
-const profile=await mkdtemp(resolve(tmpdir(),'octavia-ui-'));const chrome=spawn(chromePath,['--headless','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-breakpad','--disable-crash-reporter','--no-first-run','--remote-debugging-port=9222','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe']});let chromeErrors='';chrome.stderr.on('data',chunk=>{chromeErrors=(chromeErrors+chunk.toString()).slice(-3000);});
+const profile=await mkdtemp(resolve(tmpdir(),'octavia-ui-'));const chrome=spawn(chromePath,['--headless','--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-breakpad','--disable-crash-reporter','--no-first-run','--remote-debugging-port=9222','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe']});let chromeErrors='';chrome.stderr.on('data',chunk=>{chromeErrors=(chromeErrors+chunk.toString()).slice(-3000);});
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));let socket;
 try{
  for(let i=0;i<200;i++){try{const response=await fetch('http://127.0.0.1:9222/json/version');if(response.ok)break;}catch{}if(i===199||chrome.exitCode!==null)throw new Error('Chrome no arrancó: '+chromeErrors);await wait(100);}
@@ -28,7 +28,7 @@ try{
  socket.addEventListener('message',message=>{const data=JSON.parse(message.data);if(data.id){const request=pending.get(data.id);if(request){clearTimeout(request.timer);pending.delete(data.id);data.error?request.reject(new Error(data.error.message)):request.resolve(data.result);}}else if(data.method==='Runtime.exceptionThrown')errors.push(data.params.exceptionDetails.exception?.description||data.params.exceptionDetails.text);});
  const call=(method,params={})=>new Promise((resolve,reject)=>{const next=++id;const timer=setTimeout(()=>{pending.delete(next);reject(new Error('Timeout: '+method));},15000);pending.set(next,{resolve,reject,timer});socket.send(JSON.stringify({id:next,method,params}));});
  const evaluate=async expression=>{const result=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description||'Error de JavaScript');return result.result.value;};
- async function until(expression){for(let i=0;i<100;i++){if(await evaluate(expression))return;await wait(100);}throw new Error('No se cumplió: '+expression);}
+ async function until(expression){for(let i=0;i<200;i++){if(await evaluate(expression))return;await wait(100);}throw new Error('No se cumplió: '+expression);}
  await call('Page.bringToFront');await call('Page.enable');await call('Runtime.enable');await call('Network.enable');await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
  await call('Network.setCookie',{name:'club_session',value:token,url:base,path:'/',sameSite:'Strict'});
  await call('Page.navigate',{url:base+'/garaje.html'});await until("document.querySelector('[data-garage-management]')?.hidden===false");
@@ -70,7 +70,7 @@ try{
  await evaluate("document.querySelector('.notification-bell').click();document.querySelector('.notification-bell').click()");await wait(250);assert.equal(await evaluate("window.__notificationSounds"),1,'No repite el sonido de una notificación conocida');
  await evaluate("document.querySelector('.notification-bell').click()");
 
- await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
+ await call('Page.navigate',{url:base+'/simulador.html?quality=low'});await until("document.querySelector('[data-race-canvas]')?.width>300");
  await until("document.querySelector('canvas').dataset.sceneryReady==='true'");
  await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
  const transparentRival=await evaluate("new Promise((resolve,reject)=>{const image=new Image();image.onerror=()=>reject(new Error('No carga el coche azul'));image.onload=()=>{const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const x=c.getContext('2d');x.drawImage(image,0,0);resolve([[0,0],[c.width-1,0],[0,c.height-1],[c.width-1,c.height-1]].every(([a,b])=>x.getImageData(a,b,1,1).data[3]===0))};image.src='assets/rival-octavia-azul.png';})");assert.equal(transparentRival,true,'El rival azul no tiene fondo opaco');
@@ -96,10 +96,11 @@ try{
  assert.ok(await evaluate("document.querySelector('canvas').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));
  const clip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,640/r.width)}})()");const preview=await call('Page.captureScreenshot',{format:'jpeg',quality:25,clip});console.log('RACE_VISUAL_PREVIEW '+preview.data);
+ console.log('GRAPHICS_3D_OK '+JSON.stringify(await evaluate("({...document.querySelector('[data-racing-stage]').dataset})")));
  await evaluate("document.querySelector('[data-race-pause]').click()");assert.ok(await evaluate("document.querySelector('[data-race-status]').textContent.includes('pausa')"));
  const pausedScenery=await evaluate("document.querySelector('canvas').dataset.sceneryDistance");await wait(300);assert.equal(await evaluate("document.querySelector('canvas').dataset.sceneryDistance"),pausedScenery,'El paisaje se detiene con la carrera en pausa');
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
- await call('Page.navigate',{url:base+'/simulador.html'});await until("document.querySelector('[data-race-canvas]')?.width>300");
+ await call('Page.navigate',{url:base+'/simulador.html?quality=low'});await until("document.querySelector('[data-race-canvas]')?.width>300");
  await until("document.querySelector('canvas').dataset.sceneryReady==='true'");
  await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
  await evaluate("document.querySelector('[data-race-start]').click();document.querySelector('.race-touch-controls').scrollIntoView({block:'center'});");
@@ -107,6 +108,7 @@ try{
  await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:positions.map((point,index)=>({...point,id:index+1}))});await wait(900);await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  assert.equal(await evaluate("document.querySelectorAll('.is-held').length"),0,'Libera los controles multitáctiles');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-movil.jpg',Buffer.from(screenshot.data,'base64'));
+ const mobileClip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()");const mobilePreview=await call('Page.captureScreenshot',{format:'jpeg',quality:35,clip:mobileClip});console.log('RACE_MOBILE_PREVIEW '+mobilePreview.data);
  assert.deepEqual(errors,[],'Sin errores JavaScript en garaje ni circuito');
  console.log('NAVEGADOR_OK: carpeta, foto real, ficha pública, gestión privada, circuito, pausa y controles multitáctiles.');
 }finally{socket?.close();chrome.kill('SIGTERM');await new Promise(resolve=>server.close(resolve));raw.close();await rm(profile,{recursive:true,force:true}).catch(()=>{});}

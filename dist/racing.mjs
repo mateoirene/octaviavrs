@@ -1,5 +1,5 @@
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
-import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs';
+import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-3d';
 const $ = selector => document.querySelector(selector);
 const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.getContext('2d');
 const start=$('[data-race-start]'),pause=$('[data-race-pause]'),overlay=$('[data-race-overlay]'),status=$('[data-race-status]');
@@ -8,7 +8,7 @@ function loadBest(level){try{const saved=Number(localStorage.getItem('octavia-mk
 let storedBest=loadBest(levelPicker.value);
 let race=createRace(storedBest,levelPicker.value),width=1000,height=620,last=0,sound=false,audio,oscillator,gain;
 const music=createMusic(),musicButton=$('[data-race-music]');
-const photos={};let grain;
+const photos={};let grain,world3d;
 const circuitReference=new Image();circuitReference.onload=()=>{photos.stadium=circuitReference;canvas.dataset.sceneryReady='true';draw();};circuitReference.src='assets/circuito-estadio.jpg';
 const photoReady=Promise.all(['cockpit','rival','circuit'].map(id=>new Promise(resolve=>{const photo=new Image();photo.onload=()=>{photos[id]=photo;canvas.dataset[id+'Ready']='true';draw();resolve();};photo.onerror=()=>resolve();photo.src=id==='cockpit'?'assets/cockpit-frontal.jpg':id==='rival'?'assets/rival-octavia-azul.png':'assets/race/'+id+'.jpg';})));
 void photoReady;
@@ -17,11 +17,12 @@ const keys=new Set(),touches=new Map();
 const mapping={ArrowUp:'accelerate',KeyW:'accelerate',ArrowDown:'brake',KeyS:'brake',Space:'brake',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
 function controls(){const held=new Set([...keys].map(key=>mapping[key]).concat([...touches.values()]));return {accelerate:held.has('accelerate'),brake:held.has('brake'),left:held.has('left'),right:held.has('right')};}
 function clearControls(){keys.clear();touches.clear();document.querySelectorAll('[data-drive]').forEach(button=>button.classList.remove('is-held'));}
-function resize(){const bounds=stage.getBoundingClientRect();width=Math.max(300,bounds.width);height=Math.max(280,bounds.height);const ratio=Math.min(1.7,window.devicePixelRatio||1);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);ctx.setTransform(ratio,0,0,ratio,0,0);draw();}
+function resize(){const bounds=stage.getBoundingClientRect();width=Math.max(300,bounds.width);height=Math.max(280,bounds.height);const ratio=Math.min(1.7,window.devicePixelRatio||1);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);ctx.setTransform(ratio,0,0,ratio,0,0);if(world3d)world3d.resize(width,height);draw();}
 function polygon(points,color){ctx.fillStyle=color;ctx.beginPath();points.forEach(([x,y],index)=>index?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fill();}
 function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h);}
 function text(value,x,y,size=14,color='#fff',align='left'){ctx.fillStyle=color;ctx.font=`700 ${size}px Arial,sans-serif`;ctx.textAlign=align;ctx.fillText(value,x,y);}
 function road(){
+ if(world3d){try{if(world3d.render(race))return;}catch{world3d.canvas.hidden=true;world3d=null;stage.dataset.renderer='2d-fallback';}}
  const horizon=height*.31,focal=width*.7,cameraHeight=1.3;
  const sky=ctx.createLinearGradient(0,0,0,horizon);sky.addColorStop(0,'#1e5b85');sky.addColorStop(1,'#e8d6b3');rect(0,0,width,height,sky);
  ctx.fillStyle='#7997a1';ctx.beginPath();ctx.moveTo(0,horizon);for(let x=0;x<=width+20;x+=20)ctx.lineTo(x,horizon-20-Math.sin(x/90+race.distance/800)*18-Math.sin(x/43)*13);ctx.lineTo(width,horizon+20);ctx.closePath();ctx.fill();
@@ -104,7 +105,7 @@ function cockpit(){
  text('VRS',width*.91,height*.94,Math.max(9,width*.018),'#c1cedc','center');
 }
 function hud(){
- if(photos.stadium){const photo=photos.stadium,w=Math.min(width*.35,240),h=w*20/photo.width;ctx.drawImage(photo,0,photo.height-20,photo.width,20,width-w-8,height*.49,w,h);}
+ if(!world3d&&photos.stadium){const photo=photos.stadium,w=Math.min(width*.35,240),h=w*20/photo.width;ctx.drawImage(photo,0,photo.height-20,photo.width,20,width-w-8,height*.49,w,h);}
  const size=Math.max(11,Math.min(18,width*.017));rect(width*.12,height*.14,width*.76,size*3.5,'#07111edb');
  text(`VUELTA ${Math.min(3,race.completedLaps+1)}/3`,width*.15,height*.14+size*1.3,size);
  text(`POS ${race.position}/3`,width*.85,height*.14+size*1.3,size,'#ff8e9e','right');
@@ -142,3 +143,7 @@ function frame(timestamp){const dt=last?Math.min(.05,(timestamp-last)/1000):0;la
 new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFrame(frame);
 
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
+
+if(new URLSearchParams(location.search).get('render')!=='2d'){
+ import('./racing-world3d.mjs?v=20261024-1').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(()=>{stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+}else stage.dataset.renderer='2d-fallback';

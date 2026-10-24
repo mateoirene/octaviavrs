@@ -1,0 +1,50 @@
+name: Verificar circuito 3D antes de publicar
+on:
+  push:
+    branches: [circuito-3d-20261024]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: octavia-validacion-graficos-3d
+  cancel-in-progress: false
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: '71fb53fce0685a83a5b15712414cfc25'
+    steps:
+      - name: Obtener la web
+        uses: actions/checkout@v6
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Comprobar privacidad y moderación
+        run: node --test tests/*.test.mjs
+      - name: Recuperar fotografías del circuito
+        uses: actions/cache@v4
+        with:
+          path: dist/assets/race
+          key: octavia-race-photos-20261023-v1
+      - name: Preparar fotografías y atribuciones
+        run: node scripts/prepare-race-assets.mjs
+      - name: Recuperar motor y materiales 3D
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist/vendor
+            dist/assets/track3d
+          key: octavia-track3d-three0180-asphalt02-v1
+      - name: Preparar motor local y materiales PBR
+        run: node scripts/prepare-track3d.mjs
+      - name: Comprobar garaje y circuito en Chrome
+        run: node scripts/browser-check.mjs
+      - name: Guardar vistas de comprobación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vistas-garaje-circuito
+          path: artifacts/*.jpg
+          if-no-files-found: ignore

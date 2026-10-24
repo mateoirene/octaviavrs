@@ -1,3 +1,4 @@
+import { createCircuitLayout } from './circuit-layout.mjs';
 export const SEGMENT_LENGTH = 18;
 export const MAX_SPEED = 69;
 export const LEVELS = {
@@ -12,6 +13,8 @@ export function buildTrack(level='easy') {
     const blend = Math.min(1, i/6, (count-1-i)/6);
     track.push({ index:track.length, curve:curve*Math.max(0,blend), length:SEGMENT_LENGTH });
   }
+  const layout=createCircuitLayout(level,track.length*SEGMENT_LENGTH);
+  for(let i=0;i<track.length;i++)track[i].curve=(i===0||i===track.length-1)?0:Math.max(-1.8,Math.min(1.8,layout.curvature(i*SEGMENT_LENGTH)*220));
   return track;
 }
 export const TRACK = buildTrack();
