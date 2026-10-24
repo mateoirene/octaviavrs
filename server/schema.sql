@@ -96,3 +96,20 @@ CREATE TABLE IF NOT EXISTS racing_entries (
 );
 CREATE INDEX IF NOT EXISTS racing_entries_circuit ON racing_entries(circuit,result_id);
 CREATE INDEX IF NOT EXISTS racing_entries_racer ON racing_entries(racer_id,mode,circuit);
+
+CREATE TABLE IF NOT EXISTS garage_moderation (
+ member_id TEXT PRIMARY KEY REFERENCES garage_members(id) ON DELETE CASCADE,
+ status TEXT NOT NULL CHECK(status IN ('pending','approved','rejected')),
+ note TEXT NOT NULL DEFAULT '', submitted_at INTEGER NOT NULL,
+ reviewed_by TEXT, reviewed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS garage_moderation_pending ON garage_moderation(status,submitted_at);
+CREATE TABLE IF NOT EXISTS club_notifications (
+ id TEXT PRIMARY KEY, title TEXT NOT NULL, message TEXT NOT NULL, href TEXT NOT NULL,
+ audience TEXT NOT NULL CHECK(audience IN ('public','admin')), kind TEXT NOT NULL DEFAULT 'news', created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS push_keys (id TEXT PRIMARY KEY, public_key TEXT NOT NULL, private_jwk TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+ id TEXT PRIMARY KEY, admin_id TEXT NOT NULL REFERENCES market_admins(id) ON DELETE CASCADE,
+ endpoint TEXT NOT NULL, created_at INTEGER NOT NULL, last_status TEXT NOT NULL DEFAULT ''
+);

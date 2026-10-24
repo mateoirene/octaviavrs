@@ -1,3 +1,5 @@
+import {initClubContact} from './contact.mjs?v=20261024';
+import {initPushControls} from './push-client.mjs?v=20261024';
 import { createCarNotificationSound } from './notification-chime.mjs';
 import { setVrsText } from './branding.mjs';
 const STORAGE_KEY = 'club-notifications-read-v1';
@@ -17,6 +19,7 @@ function readIds(storage) {
   catch { return new Set(); }
 }
 export async function initNotifications(doc = document) {
+  initClubContact(doc);
   const masthead = doc.querySelector('.masthead');
   if (!masthead) return;
   let storage;
@@ -45,7 +48,7 @@ export async function initNotifications(doc = document) {
   const reviewAccess = doc.createElement('a'); reviewAccess.className = 'notification-review-access'; reviewAccess.href = 'admin.html'; reviewAccess.textContent = 'Entrar para revisar y autorizar anuncios →';
   const soundControl=doc.createElement('button');soundControl.type='button';soundControl.className='notification-mark-read';
   function soundLabel(){soundControl.textContent=soundEnabled?'Sonido de avisos: activado':'Sonido de avisos: apagado';soundControl.setAttribute('aria-pressed',String(soundEnabled));}soundLabel();soundControl.addEventListener('click',()=>{soundEnabled=!soundEnabled;try{storage?.setItem('club-notification-sound-v1',soundEnabled?'on':'off');}catch{}if(soundEnabled){chime.unlock();}soundLabel();});
-  panel.append(top, mark, soundControl, status, reviewAccess, list); area.append(button, panel); masthead.append(area);
+  const garageReviewAccess=doc.createElement('a');garageReviewAccess.className='notification-review-access';garageReviewAccess.href='garaje.html#revisiones';garageReviewAccess.textContent='Revisar fichas del garaje →';garageReviewAccess.hidden=true;panel.append(top, mark, soundControl, status, reviewAccess,garageReviewAccess, list);initPushControls(panel,doc); area.append(button, panel); masthead.append(area);
   const toast = doc.createElement('div'); toast.className = 'notification-toast'; toast.setAttribute('role', 'status'); toast.hidden = true; doc.body.append(toast);
   function persist() { try { storage?.setItem(STORAGE_KEY, JSON.stringify([...read].slice(-1000))); } catch {} }
   function render() {
@@ -81,10 +84,10 @@ export async function initNotifications(doc = document) {
   async function refresh() {
     if (busy) return; busy = true;
     try {
-      const results = await Promise.allSettled([load('data/notificaciones.json'), load('/api/market/listings'), load('/api/admin/listings?status=pending')]);
+      const results = await Promise.allSettled([load('data/notificaciones.json'), load('/api/market/listings'), load('/api/admin/listings?status=pending'),load('/api/club/notifications'),load('/api/garage/members?review=pending')]);
       if (results[0].status === 'rejected' && results[1].status === 'rejected') throw new Error('Sin conexión');
       const values = results.map(result => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []);
-      items = buildNotifications(...values);
+      const garagePending=values[4].map(item=>({id:'garage-pending:'+item.id,title:'Ficha del garaje pendiente de revisión',message:item.pilot+' · '+item.model,href:'garaje.html#revisiones'}));items = buildNotifications([...garagePending,...values[3],...values[0]],values[1],values[2]);garageReviewAccess.hidden=results[4].status!=='fulfilled';garageReviewAccess.textContent=values[4].length?'Revisar '+values[4].length+' fichas del garaje pendientes →':'Abrir revisión de fichas del garaje →';
       const fresh = items.filter(item => !known.has(item.id) && !read.has(item.id));
       if (initialized && fresh.length) { if(soundEnabled&&chime.play())window.dispatchEvent(new Event('club-notification-sound'));toast.textContent = `${fresh.length === 1 ? 'Hay una nueva notificación' : `Hay ${fresh.length} notificaciones nuevas`}. Pulsa la campana para verlas.`; toast.hidden = false; clearTimeout(timer); timer = setTimeout(() => { toast.hidden = true; }, 6500); }
       reviewAccess.textContent = values[2].length ? `Revisar ${values[2].length} anuncios pendientes →` : results[2].status === 'fulfilled' ? 'Abrir panel de revisión →' : 'Iniciar sesión para ver los anuncios pendientes →';
@@ -94,9 +97,9 @@ export async function initNotifications(doc = document) {
     } catch { status.textContent = 'No se han podido actualizar las notificaciones. Vuelve a abrir la campana para reintentar.'; }
     finally { busy = false; }
   }
-  window.addEventListener('club-session-change', () => { items = items.filter(item => !item.id.startsWith('pending:')); render(); void refresh(); });
+  window.addEventListener('club-session-change', () => { items = items.filter(item => !item.id.startsWith('pending:')&&!item.id.startsWith('garage-pending:')&&item.audience!=='admin'); render(); void refresh(); });
   doc.addEventListener('visibilitychange', () => { if (!doc.hidden) void refresh(); });
   setInterval(() => { if (!doc.hidden) void refresh(); }, 60000);
-  await refresh();
+  await refresh();if(new URLSearchParams(location.search).get('avisos')==='1')setOpen(true);
 }
 if (typeof document !== 'undefined') void initNotifications();

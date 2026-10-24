@@ -10,6 +10,7 @@ const digest=async value=>Buffer.from(await crypto.subtle.digest('SHA-256',new T
 writeFileSync(join(directory,'racing.mjs'),`export {handleRacingRequest} from ${JSON.stringify(new URL('../server/racing.mjs',import.meta.url).href)};`);
 writeFileSync(join(directory,'gallery.mjs'),readFileSync(new URL('../server/gallery.mjs',import.meta.url)));
 writeFileSync(join(directory,'garage.mjs'),readFileSync(new URL('../server/garage.mjs',import.meta.url)));
+writeFileSync(join(directory,'push.mjs'),readFileSync(new URL('../server/push.mjs',import.meta.url)));
 writeFileSync(join(directory,'review-mail.mjs'),readFileSync(new URL('../server/review-mail.mjs',import.meta.url)));
 writeFileSync(join(directory,'market.mjs'),readFileSync(new URL('../server/market.mjs',import.meta.url)));
 writeFileSync(join(directory,'config.mjs'),`export const ACTIVATION_HASH=${JSON.stringify(await digest('test-only-activation'))};export const ADMIN_EMAIL_HASHES=${JSON.stringify([await digest('first@example.com'),await digest('second@example.com')])};`);

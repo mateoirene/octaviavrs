@@ -14,7 +14,7 @@ $('[data-garage-lightbox]').addEventListener('click', event => { if (event.targe
 function resetForm() {
   memberForm.reset(); memberForm.elements.id.value = ''; memberForm.elements.photos.required = true;
   if (selected) memberForm.elements.folderId.value = selected;
-  $('[data-member-form-title]').textContent = 'Añadir ficha de un miembro'; $('[data-cancel-edit]').hidden = true;
+  $('[data-member-form-title]').textContent = admin?'Añadir ficha de un miembro':'Envía tu ficha al club'; $('[data-cancel-edit]').hidden = true;
   $('[data-profile-preview]').replaceChildren();
   $('[data-photo-help]').textContent = 'Se reducirán automáticamente para que carguen rápido.';
   previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; $('[data-garage-previews]').replaceChildren();
@@ -47,12 +47,12 @@ async function openFolder(id, updateUrl = true) {
   selected = id; const folder = folders.find(item => item.id === id); if (!folder) { selected = ''; $('[data-folder-content]').hidden = true; return; }
   if (updateUrl) history.replaceState(null,'','garaje.html?carpeta='+encodeURIComponent(id));
   $('[data-folder-content]').hidden = false; $('[data-folder-title]').textContent = folder.name; status.textContent = 'Cargando fichas…';
-  try { const members = await api('garage/members?folder='+encodeURIComponent(id)); $('[data-members]').replaceChildren(...members.map(card)); status.textContent = members.length ? `${members.length} fichas en ${folder.name}.` : 'Esta carpeta aún no tiene fichas.'; if (admin) memberForm.elements.folderId.value = id; }
+  try { const members = await api('garage/members?folder='+encodeURIComponent(id)); $('[data-members]').replaceChildren(...members.map(card)); status.textContent = members.length ? `${members.length} fichas en ${folder.name}.` : 'Esta carpeta aún no tiene fichas.'; memberForm.elements.folderId.value = id; }
   catch (error) { status.textContent = error.message; }
 }
 async function loadFolders() {
   folders = await api('garage/folders'); const grid = $('[data-folders]'); grid.replaceChildren();
-  const oldFolder = memberForm.elements.folderId.value; memberForm.elements.folderId.replaceChildren();
+  const oldFolder = memberForm.elements.folderId.value; memberForm.elements.folderId.replaceChildren();if(!admin){const option=element('option','Que el club elija la carpeta');option.value='';memberForm.elements.folderId.append(option);}
   for (const folder of folders) {
     const option = element('option',folder.name); option.value = folder.id; memberForm.elements.folderId.append(option);
     const tile = element('article','','garage-folder'), button = element('button'); button.type = 'button';
@@ -77,12 +77,16 @@ async function compress(file,dimension=1400,maximum=1048576) {
 }
 memberForm.elements.photos.addEventListener('change', () => { previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; $('[data-garage-previews]').replaceChildren(); for (const file of [...memberForm.elements.photos.files].slice(0,3)) { const image = element('img'); image.src = URL.createObjectURL(file); image.alt = 'Vista previa'; previewUrls.push(image.src); $('[data-garage-previews]').append(image); } });
 memberForm.addEventListener('submit', async event => { event.preventDefault(); const button = memberForm.querySelector('button[type=submit]'); button.disabled = true; saveStatus.textContent = 'Preparando la ficha…';
-  try { if (memberForm.elements.photos.files.length > 3) throw new Error('Añade como máximo tres fotos.'); const data = new FormData(memberForm); data.delete('photos');data.delete('profilePhoto');const profile=memberForm.elements.profilePhoto.files[0];if(profile)data.append('profilePhoto',await compress(profile,600,262144),'perfil.jpg'); for (const file of memberForm.elements.photos.files) data.append('photos',await compress(file),'coche.jpg'); const id = memberForm.elements.id.value; await api('garage/members'+(id?'/'+id:''),'POST',data); selected = data.get('folderId'); resetForm(); await loadFolders(); saveStatus.textContent = 'Ficha guardada y publicada en el garaje.'; }
+  try { if (memberForm.elements.photos.files.length > 3) throw new Error('Añade como máximo tres fotos.'); const data = new FormData(memberForm); data.delete('photos');data.delete('profilePhoto');const profile=memberForm.elements.profilePhoto.files[0];if(profile)data.append('profilePhoto',await compress(profile,600,262144),'perfil.jpg'); for (const file of memberForm.elements.photos.files) data.append('photos',await compress(file),'coche.jpg'); const id = memberForm.elements.id.value; const saved=await api(admin?'garage/members'+(id?'/'+id:''):'garage/submit','POST',data); selected = data.get('folderId'); resetForm(); await loadFolders(); saveStatus.textContent = saved.status==='approved'?'Ficha guardada y publicada en el garaje.':'Ficha enviada. Queda pendiente de revisión; todavía no se ha publicado.';if(admin)void loadReviews();window.dispatchEvent(new Event('club-session-change')); }
   catch (error) { saveStatus.textContent = error.message; } finally { button.disabled = false; }
 });
+async function loadReviews(){if(!admin)return;const target=$('[data-garage-review-list]'),note=$('[data-garage-review-status]');note.textContent='Cargando fichas para revisar…';try{const state=$('[data-garage-review-filter]').value,items=await api('garage/members?review='+state);target.replaceChildren();for(const member of items){const article=card(member);if(state==='pending'){const controls=element('div','','garage-page-actions'),folder=element('select'),reviewNote=element('textarea');folder.setAttribute('aria-label','Carpeta de publicación');for(const item of folders){const option=element('option',item.name);option.value=item.id;folder.append(option);}folder.value=member.folderId;reviewNote.maxLength=500;reviewNote.placeholder='Nota privada de revisión (opcional)';article.append(folder,reviewNote);for(const [action,label]of [['approve','Aprobar y publicar'],['reject','Rechazar ficha']]){const button=element('button',label);button.type='button';button.dataset.garageReviewAction=action;button.addEventListener('click',async()=>{for(const b of controls.querySelectorAll('button'))b.disabled=true;try{await api('garage/reviews/'+member.id,'POST',{action,folderId:folder.value,note:reviewNote.value});await loadFolders();await loadReviews();window.dispatchEvent(new Event('club-session-change'));}catch(error){note.textContent=error.message;for(const b of controls.querySelectorAll('button'))b.disabled=false;}});controls.append(button);}article.append(controls);}else if(member.reviewNote)article.append(element('p','Nota privada: '+member.reviewNote));target.append(article);}note.textContent=items.length?items.length+' fichas '+(state==='pending'?'pendientes de revisión.':'en este estado.'):'No hay fichas en este estado.';}catch(error){note.textContent=error.message;}}
+$('[data-garage-review-filter]').addEventListener('change',()=>void loadReviews());$('[data-garage-review-refresh]').addEventListener('click',()=>void loadReviews());
 $('[data-cancel-edit]').addEventListener('click',resetForm);
 try { const user = await api('admin/session'); admin = !!user.id; } catch { admin = false; }
-$('[data-garage-management]').hidden = !admin;
+$('[data-garage-management]').hidden = !admin;$('[data-garage-reviews]').hidden=!admin;memberForm.elements.folderId.required=admin;memberForm.elements.removeProfile.closest('label').hidden=!admin;memberForm.elements.removeProfile.disabled=!admin;$('[data-member-save]').textContent=admin?'Guardar y publicar ficha':'Enviar para revisión';$('[data-member-submission-help]').textContent=admin?'Puedes añadir una ficha directamente o revisar las enviadas por los miembros en Revisiones. Las publicaciones serán públicas.':'Rellena tu ficha completa. Solo se publicará cuando un administrador la apruebe.';
 $('[data-garage-login]').href = admin ? '#gestion' : 'admin.html?volver=garaje';
 $('[data-garage-login]').textContent = admin ? 'Gestionar carpetas y fichas ↓' : 'Entrar para gestionar el garaje';
-try { await loadFolders(); } catch (error) { status.textContent = error.message; }
+try { await loadFolders();if(admin)await loadReviews(); } catch (error) { status.textContent = error.message; }
+
+setInterval(()=>{if(admin&&!document.hidden&&!$('[data-garage-review-list]').contains(document.activeElement))void loadReviews();},60000);

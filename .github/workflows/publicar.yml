@@ -65,6 +65,11 @@ jobs:
         run: node scripts/market-storage.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Sincronizar avisos push del club
+        if: steps.destino.outputs.ready == 'true'
+        run: node scripts/push-news.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Publicar en octaviaap.pages.dev
         if: steps.destino.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v4

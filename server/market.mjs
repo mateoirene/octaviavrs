@@ -1,3 +1,4 @@
+import {handlePushRequest,recordClubEvent} from './push.mjs';
 import {handleRacingRequest} from './racing.mjs';
 import { handleGalleryRequest } from './gallery.mjs';
 import { handleGarageRequest } from './garage.mjs';
@@ -21,6 +22,17 @@ const rows=(await db.prepare('SELECT * FROM market_listings WHERE status=? ORDER
 const photos=(await db.prepare('SELECT id,listing_id FROM market_photos WHERE listing_id IN (SELECT id FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200) ORDER BY position').bind(status).all()).results;
 return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note,...(row.status==='sold'?{soldAt:row.updated_at,deleteAvailableAt:row.updated_at+86400,deleteWaitSeconds:Math.max(0,row.updated_at+86400-now()),canDelete:now()>=row.updated_at+86400}:{})}:item;});}
 
+async function announceMutation(request,response,db,context){
+ if(!response.ok||request.method==='GET')return response;
+ try{const path=new URL(request.url).pathname,data=await response.clone().json();let event;
+ if(path.startsWith('/api/garage/')){
+  if(path==='/api/garage/submit')event={id:'garage-pending:'+data.id,title:'Ficha del garaje pendiente de revisión',href:'garaje.html#revisiones',audience:'admin',kind:'pending-garage'};
+  else if(path.startsWith('/api/garage/reviews/'))event={id:'garage-review:'+data.id+':'+data.status,title:data.status==='approved'?'Nueva ficha publicada en el garaje':'Ficha del garaje revisada',href:data.status==='approved'?'garaje.html':'garaje.html#revisiones',audience:data.status==='approved'?'public':'admin'};
+  else event={id:crypto.randomUUID(),title:data.status==='pending'?'Ficha en revisión actualizada':'Garaje actualizado',href:data.status==='pending'?'garaje.html#revisiones':'garaje.html',audience:data.status==='pending'?'admin':'public'};
+ }else if(path.startsWith('/api/gallery/'))event={id:crypto.randomUUID(),title:'Novedades en la galería del club',href:'galeria.html'};
+ if(event)await recordClubEvent(db,event,context);
+ }catch{}return response;
+}
 export async function handleMarketRequest(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
@@ -28,8 +40,9 @@ export async function handleMarketRequest(request,env,context){try{
  if(Number(request.headers.get('content-length')||0)>4*1024*1024)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>4*1024*1024){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
- if(path.startsWith('/api/gallery/'))return await handleGalleryRequest(request,db,await session(db,request));
- if(path.startsWith('/api/garage/'))return await handleGarageRequest(request,db,await session(db,request));
+ if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,await session(db,request));}
+ if(path.startsWith('/api/gallery/'))return await announceMutation(request,await handleGalleryRequest(request,db,await session(db,request)),db,context);
+ if(path.startsWith('/api/garage/')){if(path==='/api/garage/submit'&&method==='POST')await limit(db,request,'garage-submission',4);return await announceMutation(request,await handleGarageRequest(request,db,await session(db,request)),db,context);}
  if(path==='/api/market/status'&&method==='GET')return json({ready:true,initialized:!!await db.prepare('SELECT id FROM market_admins LIMIT 1').first()});
  if(path==='/api/market/listings'&&method==='GET')return json(await listings(db,'approved'));
  if(path.startsWith('/api/market/photos/')&&method==='GET'){
@@ -54,6 +67,7 @@ export async function handleMarketRequest(request,env,context){try{
  await db.batch(statements);
  const delivery=dispatchReviewMail(db,env,id).catch(()=>({sent:false}));
  if(context?.waitUntil)context.waitUntil(delivery);else await delivery;
+ await recordClubEvent(db,{id:'pending:'+id,title:'Nuevo anuncio pendiente',href:'admin.html',audience:'admin',kind:'pending-market'},context).catch(()=>{});
  return json({id,status:'pending'},201);
  }
  if(path==='/api/admin/setup'&&method==='POST'){
@@ -84,7 +98,7 @@ export async function handleMarketRequest(request,env,context){try{
  if(!removed.meta.changes)fail('El anuncio ha cambiado. Actualiza la lista.',409);
  return json({ok:true,deleted:true});
  }
- const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);return json({ok:true});}
+ const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);await recordClubEvent(db,{id:body.action==='approve'?'listing:'+path.split('/').pop():crypto.randomUUID(),title:body.action==='approve'?'Nueva pieza publicada en el mercadillo':'Anuncio del mercadillo revisado',href:body.action==='approve'?'mercadillo.html':'admin.html',audience:body.action==='approve'?'public':'admin'},context).catch(()=>{});return json({ok:true});}
  }
  return json({error:'Ruta no encontrada.'},404);
  }catch(error){if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}
