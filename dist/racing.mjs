@@ -5,7 +5,7 @@ import {drawAerialFallback,drawAerialCars} from './racing-aerial.mjs?v=20261024-
 import {createRaceResults} from './racing-results.mjs?v=20261024-pilotos';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
 import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-teslafuego';
-import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-teslafuego';
+import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-blancoreal';
 const $ = selector => document.querySelector(selector);
 const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.getContext('2d');
 const start=$('[data-race-start]'),pause=$('[data-race-pause]'),overlay=$('[data-race-overlay]'),status=$('[data-race-status]');
@@ -19,7 +19,7 @@ let storedBest=loadBest(levelPicker.value);
 let race=createRace(storedBest,levelPicker.value),width=1000,height=620,last=0,sound=false,audio,oscillator,gain;
 const music=createMusic(),musicButton=$('[data-race-music]');
 const photos={};let grain,world3d,aerialView=false;
-const teslaPhoto=new Image();teslaPhoto.onload=()=>{photos.tesla=teslaPhoto;canvas.dataset.teslaReady='true';draw();};teslaPhoto.src='assets/tesla-model3-alberto.png';
+const teslaPhoto=new Image();teslaPhoto.onload=()=>{photos.tesla=teslaPhoto;canvas.dataset.teslaReady='true';draw();};teslaPhoto.src='assets/tesla-model3-alberto-blanco.png';
 const circuitReference=new Image();circuitReference.onload=()=>{photos.stadium=circuitReference;canvas.dataset.sceneryReady='true';draw();};circuitReference.src='assets/circuito-estadio.jpg';
 const photoReady=Promise.all(['cockpit','rival','circuit'].map(id=>new Promise(resolve=>{const photo=new Image();photo.onload=()=>{photos[id]=photo;canvas.dataset[id+'Ready']='true';draw();resolve();};photo.onerror=()=>resolve();photo.src=id==='cockpit'?'assets/cockpit-frontal.jpg':id==='rival'?'assets/rival-octavia-azul.png':'assets/race/'+id+'.jpg';})));
 void photoReady;
@@ -85,7 +85,7 @@ function drawTeslaRear(x,y,w){
  polygon([[x-w*.4,y-h*.63],[x-w*.28,y-h*.9],[x+w*.28,y-h*.9],[x+w*.4,y-h*.63]],'#1c2931');
  rect(x-w*.46,y-h*.49,w*.24,h*.055,'#bb182b');rect(x+w*.22,y-h*.49,w*.24,h*.055,'#bb182b');
  rect(x-w*.4,y-h*.1,w*.8,h*.09,'#161a1e');rect(x-w*.22,y-h*.3,w*.44,h*.15,'#10151d');
- if(w>24){ctx.save();ctx.shadowColor='#c9eeff';ctx.shadowBlur=Math.min(5,w*.03);text('ALBERTO',x,y-h*.19,w*.085,'#e7f8ff','center');ctx.restore();}
+ if(w>24){ctx.save();ctx.shadowColor='#ffffff';ctx.shadowBlur=Math.min(5,w*.03);text('ALBERTO',x,y-h*.19,w*.085,'#ffffff','center');ctx.restore();}
 }
 function photographicCockpit(){
  const photo=photos.cockpit,iw=Math.max(width,height*1.3),ih=iw*.5,left=(width-iw)*.3,top=height*.53-ih*.055;
@@ -172,5 +172,5 @@ new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFr
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
 if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261024-teslafuego').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+ import('./racing-world3d.mjs?v=20261024-blancoreal').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
 }else stage.dataset.renderer='2d-fallback';

@@ -57,8 +57,8 @@ export async function createRacingWorld(stage){
  function teslaModel3(){
   // Metres: Model 3 standard sedan, 4.694 long, 1.849 wide, 1.443 tall.
   const g=new THREE.Group();g.name='Tesla Model 3 blanco · ALBERTO';
-  const white=new THREE.MeshStandardMaterial({color:'#ffffff',roughness:.24,metalness:.24});
-  const windowMaterial=new THREE.MeshStandardMaterial({color:'#111c26',roughness:.13,metalness:.45});
+  const white=new THREE.MeshPhysicalMaterial({color:'#fffefa',roughness:.32,metalness:0,clearcoat:.55,clearcoatRoughness:.19,envMapIntensity:.25});
+  const windowMaterial=new THREE.MeshPhysicalMaterial({color:'#1b1b1b',roughness:.23,metalness:0,clearcoat:.5,clearcoatRoughness:.2,envMapIntensity:.12});
   const lamp=new THREE.MeshStandardMaterial({color:'#ae1325',emissive:'#bf1427',emissiveIntensity:.6,roughness:.25});
   function shell(rings,material){
    const curve=new THREE.CatmullRomCurve3(rings.map(([z,w,b,t])=>new THREE.Vector3(w,b,t)),false,'centripetal');
@@ -75,8 +75,8 @@ export async function createRacingWorld(stage){
   for(const x of [-.88,.88])for(const z of [-1.44,1.435]){const wheel=mesh(new THREE.CylinderGeometry(.335,.335,.22,16),rubber,g);wheel.rotation.z=Math.PI/2;wheel.position.set(x,.335,z);const hub=mesh(new THREE.CylinderGeometry(.235,.235,.225,12),dark,g);hub.rotation.z=Math.PI/2;hub.position.copy(wheel.position);}
   for(const side of [-1,1]){localBox(g,side*.62,.79,2.225,.39,.075,.10,lamp,false);localBox(g,side*.78,.69,2.12,.075,.20,.12,lamp,false);localBox(g,side*.63,.64,-2.17,.36,.065,.1,paintWhite,false);}
   localBox(g,0,.34,2.20,1.35,.13,.12,dark,false);
-  const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#10151d';ctx.fillRect(0,0,512,128);ctx.strokeStyle='#c5cbd0';ctx.lineWidth=7;ctx.strokeRect(5,5,502,118);ctx.textAlign='center';ctx.font='bold 82px Arial';ctx.shadowColor='#b9eaff';ctx.shadowBlur=15;ctx.fillStyle='#edfbff';ctx.fillText('ALBERTO',256,94);
-  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;const plate=mesh(new THREE.PlaneGeometry(teslaTexture?.445:.65,teslaTexture?.155:.163),new THREE.MeshStandardMaterial({map:texture,emissiveMap:texture,emissive:'#d6f1ff',emissiveIntensity:1.7,roughness:.4}),g);plate.position.set(0,teslaTexture?.735:.57,teslaTexture?2.415:2.351);plate.name='Matrícula luminosa ALBERTO';
+  const c=document.createElement('canvas');c.width=512;c.height=128;const ctx=c.getContext('2d');ctx.fillStyle='#10151d';ctx.fillRect(0,0,512,128);ctx.strokeStyle='#c5cbd0';ctx.lineWidth=7;ctx.strokeRect(5,5,502,118);ctx.textAlign='center';ctx.font='bold 82px Arial';ctx.shadowColor='#ffffff';ctx.shadowBlur=15;ctx.fillStyle='#ffffff';ctx.fillText('ALBERTO',256,94);
+  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;const plate=mesh(new THREE.PlaneGeometry(teslaTexture?.445:.65,teslaTexture?.155:.163),new THREE.MeshStandardMaterial({map:texture,emissiveMap:texture,emissive:'#ffffff',emissiveIntensity:1.2,roughness:.4}),g);plate.position.set(0,teslaTexture?.735:.57,teslaTexture?2.415:2.351);plate.name='Matrícula luminosa ALBERTO';
   const badge=mesh(new THREE.PlaneGeometry(.22,.08),signTexture('T'),g);badge.position.set(0,.87,2.23);
   if(teslaTexture){
    const rear=mesh(new THREE.PlaneGeometry(2.26,2.26*teslaTexture.image.height/teslaTexture.image.width),new THREE.MeshBasicMaterial({map:teslaTexture,transparent:true,alphaTest:.15,side:THREE.FrontSide}),g);
@@ -108,10 +108,10 @@ export async function createRacingWorld(stage){
   mergeStatic();
   const teslaIndex=race.rivals.findIndex(car=>car.model==='tesla-model-3');teslaFire=teslaIndex>=0?createCarFire(rivalMeshes[teslaIndex]):null;
   playerMesh=rivalMeshes[0].clone(true);playerMesh.name='Octavia del piloto · vista aérea';playerMesh.visible=false;root.add(playerMesh);aerialBounds=circuitBounds(layout);
-  stage.dataset.teslaAppearance=teslaTexture?'detailed-transparent-rear':'rounded-3d';stage.dataset.teslaTribute='ALBERTO';stage.dataset.teslaColor='white';stage.dataset.teslaDimensions='4.694x1.849x1.443';stage.dataset.track3d='ready';stage.dataset.track3dLevel=race.difficulty;stage.dataset.track3dStructures=String(root.children.length);signature=race.difficulty;
+  stage.dataset.teslaAppearance=teslaTexture?'detailed-transparent-rear':'rounded-3d';stage.dataset.teslaTribute='ALBERTO';stage.dataset.teslaColor='white';stage.dataset.teslaFinish='neutral-pearl-white';stage.dataset.teslaDimensions='4.694x1.849x1.443';stage.dataset.track3d='ready';stage.dataset.track3dLevel=race.difficulty;stage.dataset.track3dStructures=String(root.children.length);signature=race.difficulty;
  }
  try{rivalTexture=await loader.loadAsync('assets/rival-octavia-azul.png');rivalTexture.colorSpace=THREE.SRGBColorSpace;}catch{}
- try{teslaTexture=await loader.loadAsync('assets/tesla-model3-alberto.png');teslaTexture.colorSpace=THREE.SRGBColorSpace;teslaTexture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());}catch{}
+ try{teslaTexture=await loader.loadAsync('assets/tesla-model3-alberto-blanco.png');teslaTexture.colorSpace=THREE.SRGBColorSpace;teslaTexture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());}catch{}
  function resize(w,h){width=w;height=h;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,quality));renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(76)/2)/(w/h)));camera.setViewOffset(w,h,0,h*.19,w,h);camera.updateProjectionMatrix();}
  function render(race,{aerial=false}={}){if(!available)return false;if(signature!==race.difficulty)build(race);const {p,t,r}=layout.frame(race.distance),offset=race.x*race.settings.roadHalf-.35;camera.position.set(p[0]+r[0]*offset,p[1]+1.22,p[2]+r[2]*offset);const ahead=layout.frame(race.distance+32);camera.up.set(0,1,0);camera.lookAt(ahead.p[0]+ahead.r[0]*offset,ahead.p[1]+1.18,ahead.p[2]+ahead.r[2]*offset);sun.target.position.set(p[0],p[1],p[2]);sun.position.set(p[0]-65,p[1]+105,p[2]+45);sun.target.updateMatrixWorld();
   for(let i=0;i<rivalMeshes.length;i++){const car=race.rivals[i],f=layout.frame(car.distance),group=rivalMeshes[i];group.position.set(f.p[0]+f.r[0]*car.x*race.settings.roadHalf,f.p[1]+.03,f.p[2]+f.r[2]*car.x*race.settings.roadHalf);group.rotation.y=Math.atan2(-f.t[0],-f.t[2]);}
