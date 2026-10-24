@@ -8,6 +8,7 @@ async function verify(){
  for(const id of ['cockpit','rival','circuit']){const response=await fetch(base+'/assets/race/'+id+'.jpg');assert.equal(response.status,200,'Fotografía '+id);assert.ok(response.headers.get('content-type')?.startsWith('image/jpeg'));}
  const rival=await fetch(base+'/assets/rival-octavia-azul.png');assert.equal(rival.status,200,'Rival azul publicado');assert.ok(rival.headers.get('content-type')?.startsWith('image/png'));
  const stadium=await fetch(base+'/assets/circuito-estadio.jpg');assert.equal(stadium.status,200,'Referencia del estadio publicada');assert.ok(stadium.headers.get('content-type')?.startsWith('image/jpeg'));
+ for(const path of ['racing-world3d.mjs','circuit-layout.mjs','vendor/three.module.js','vendor/three.core.js','vendor/HDRLoader.js','assets/track3d/asphalt-color.jpg','assets/track3d/asphalt-normal.jpg','assets/track3d/asphalt-rough.jpg','assets/track3d/sky.hdr']){const resource=await fetch(base+'/'+path);assert.equal(resource.status,200,'Recurso 3D '+path);assert.ok((await resource.arrayBuffer()).byteLength>500,'Recurso completo '+path);}
  const radio=await fetch(base+'/assets/audio/radio-club.mp3');assert.equal(radio.status,200,'Audio del club publicado');assert.ok((await radio.arrayBuffer()).byteLength>100000,'MP3 completo');
  const cursor=await fetch(base+'/assets/puntero-flecha.svg');assert.equal(cursor.status,200);assert.ok((await cursor.text()).includes('stroke="#934954"'));
  console.log('CIRCUITO_PUBLICADO_OK: fotos locales, tres niveles, orden de portada y puntero negro/rojo.');
