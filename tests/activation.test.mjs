@@ -7,6 +7,7 @@ import {pathToFileURL} from 'node:url';
 // Run the identical handler with isolated activation fixtures; production keys are never used.
 const directory=mkdtempSync(join(tmpdir(),'club-market-test-'));
 const digest=async value=>Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))).toString('hex');
+writeFileSync(join(directory,'racing.mjs'),`export {handleRacingRequest} from ${JSON.stringify(new URL('../server/racing.mjs',import.meta.url).href)};`);
 writeFileSync(join(directory,'gallery.mjs'),readFileSync(new URL('../server/gallery.mjs',import.meta.url)));
 writeFileSync(join(directory,'garage.mjs'),readFileSync(new URL('../server/garage.mjs',import.meta.url)));
 writeFileSync(join(directory,'review-mail.mjs'),readFileSync(new URL('../server/review-mail.mjs',import.meta.url)));

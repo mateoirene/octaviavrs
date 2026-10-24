@@ -80,3 +80,10 @@ CREATE TABLE IF NOT EXISTS garage_profiles (
  member_id TEXT PRIMARY KEY REFERENCES garage_members(id) ON DELETE CASCADE,
  phone TEXT NOT NULL DEFAULT '', content_type TEXT, data BLOB
 );
+
+CREATE TABLE IF NOT EXISTS racing_results (
+ id TEXT PRIMARY KEY, pilot TEXT NOT NULL, level TEXT NOT NULL CHECK(level IN ('easy','intermediate','expert')),
+ total_ms INTEGER NOT NULL CHECK(total_ms>0), best_ms INTEGER NOT NULL CHECK(best_ms>0),
+ laps_json TEXT NOT NULL, position INTEGER NOT NULL CHECK(position BETWEEN 1 AND 4), created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS racing_results_level ON racing_results(level,total_ms,created_at);

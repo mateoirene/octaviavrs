@@ -1,3 +1,4 @@
+import {createRaceResults} from './racing-results.mjs?v=20261024-pilotos';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
 import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-3d';
 import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-teslarojo';
@@ -6,6 +7,8 @@ const stage=$('[data-racing-stage]'),canvas=$('[data-race-canvas]'),ctx=canvas.g
 const start=$('[data-race-start]'),pause=$('[data-race-pause]'),overlay=$('[data-race-overlay]'),status=$('[data-race-status]');
 const levelPicker=$('[data-race-level]');
 const cinematic=createOvertakeCinematic(stage);
+const results=createRaceResults(document.querySelector('[data-race-results-root]'),levelPicker);
+results.input.addEventListener('input',()=>results.input.setCustomValidity(''));
 function loadBest(level){try{const saved=Number(localStorage.getItem('octavia-mk4-best-lap-v2-'+level));return saved>0&&Number.isFinite(saved)?saved:null;}catch{return null;}}
 let storedBest=loadBest(levelPicker.value);
 let race=createRace(storedBest,levelPicker.value),width=1000,height=620,last=0,sound=false,audio,oscillator,gain;
@@ -128,8 +131,8 @@ function hud(){
 }
 function draw(){canvas.dataset.sceneryDistance=race.distance.toFixed(2);canvas.dataset.speed=String(Math.round(race.speed*3.6));ctx.clearRect(0,0,width,height);road();cockpit();cinematic.draw(ctx,width,height);hud();}
 function setOverlay(title,copy){overlay.replaceChildren();const strong=document.createElement('strong'),span=document.createElement('span');strong.textContent=title;span.textContent=copy;overlay.append(strong,span);overlay.hidden=false;}
-function updateUi(){levelPicker.disabled=['running','paused'].includes(race.phase);pause.disabled=!['running','paused'].includes(race.phase);pause.textContent=race.phase==='paused'?'Continuar':'Pausa';start.textContent=race.phase==='running'?'Motor en marcha':race.phase==='paused'?'Continuar carrera':race.phase==='finished'?'Volver a correr':'Arrancar y salir a pista';start.disabled=race.phase==='running';if(race.phase==='running')overlay.hidden=true;}
-function begin(){if(race.phase==='finished'){race=createRace(storedBest,levelPicker.value);cinematic.reset();}race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
+function updateUi(){results.lock(['running','paused'].includes(race.phase));levelPicker.disabled=['running','paused'].includes(race.phase);pause.disabled=!['running','paused'].includes(race.phase);pause.textContent=race.phase==='paused'?'Continuar':'Pausa';start.textContent=race.phase==='running'?'Motor en marcha':race.phase==='paused'?'Continuar carrera':race.phase==='finished'?'Volver a correr':'Arrancar y salir a pista';start.disabled=race.phase==='running';if(race.phase==='running')overlay.hidden=true;}
+function begin(){if(!['running','paused'].includes(race.phase)&&!results.enter()){status.textContent='Escribe tu nombre o alias antes de empezar.';return;}if(race.phase==='finished'){race=createRace(storedBest,levelPicker.value);cinematic.reset();}race.phase='running';last=0;clearControls();updateUi();stage.focus({preventScroll:true});status.textContent='Carrera en marcha. Mantén GAS o la flecha arriba para acelerar.';if(audio&&sound)void audio.resume();}
 function togglePause(){if(race.phase==='running'){race.phase='paused';clearControls();setOverlay('CARRERA EN PAUSA','Pulsa «Continuar» cuando estés listo.');status.textContent='Carrera en pausa.';}else if(race.phase==='paused')begin();updateUi();}
 start.addEventListener('click',begin);pause.addEventListener('click',togglePause);
 levelPicker.addEventListener('change',()=>{storedBest=loadBest(levelPicker.value);race=createRace(storedBest,levelPicker.value);cinematic.reset();$('[data-race-level-description]').textContent=race.settings.description;clearControls();setOverlay('CIRCUITO '+race.settings.name.toUpperCase(),race.settings.description);status.textContent='Circuito '+race.settings.name+' seleccionado. Récord independiente para este nivel.';updateUi();draw();});
@@ -149,7 +152,7 @@ function frame(timestamp){const dt=last?Math.min(.15,(timestamp-last)/1000):0;la
  const input=controls(),result={lap:false,finished:false};let remaining=dt;while(remaining>0){const slice=Math.min(.05,remaining),event=stepRace(race,input,slice);result.lap ||= event.lap;result.finished ||= event.finished;remaining-=slice;}
  if(cinematic.update(race,dt))status.textContent='TESLA MODEL 3 FUERA DE CARRERA';
  if(result.lap){storedBest=race.bestLap;try{localStorage.setItem('octavia-mk4-best-lap-v2-'+race.difficulty,String(storedBest));}catch{}status.textContent=`Vuelta ${race.completedLaps}: ${lapTime(race.lapTimes.at(-1))}. Mejor vuelta: ${lapTime(race.bestLap)}.`;}
- if(result.finished){clearControls();setOverlay(`META · ${race.position}.º PUESTO`,`Tiempo total ${lapTime(race.elapsed)} · Mejor vuelta ${lapTime(race.bestLap)}`);status.textContent=`Carrera terminada. Puesto ${race.position} de ${race.rivals.length+1}. Tiempo total ${lapTime(race.elapsed)}. Mejor vuelta ${lapTime(race.bestLap)}.`;updateUi();}
+ if(result.finished){results.finish(race);clearControls();setOverlay(`META · ${race.position}.º PUESTO`,`Tiempo total ${lapTime(race.elapsed)} · Mejor vuelta ${lapTime(race.bestLap)}`);status.textContent=`Carrera terminada. Puesto ${race.position} de ${race.rivals.length+1}. Tiempo total ${lapTime(race.elapsed)}. Mejor vuelta ${lapTime(race.bestLap)}.`;updateUi();}
  if(gain){gain.gain.setTargetAtTime(sound&&race.phase==='running'?.025:0,audio.currentTime,.06);oscillator.frequency.setTargetAtTime(32+race.speed*3.2,audio.currentTime,.08);}
  if(race.phase==='running'||result.finished)draw();requestAnimationFrame(frame);
 }
@@ -158,5 +161,5 @@ new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFr
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
 if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261024-realtesla').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+ import('./racing-world3d.mjs?v=20261024-rivalesalias').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
 }else stage.dataset.renderer='2d-fallback';
