@@ -9,7 +9,7 @@ export async function createRacingWorld(stage){
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b5c5d2');scene.fog=new THREE.FogExp2('#b5c5d2',.0016);
  scene.add(new THREE.HemisphereLight('#d6e1ec','#5a604f',2.0));
- const sun=new THREE.DirectionalLight('#fff4df',2.6);sun.castShadow=true;sun.shadow.mapSize.set(mobile?512:1024,mobile?512:1024);Object.assign(sun.shadow.camera,{left:-85,right:85,top:85,bottom:-85,near:1,far:280});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);
+ const sun=new THREE.DirectionalLight('#fff4df',2.6);sun.castShadow=true;sun.shadow.mapSize.set((mobile||low)?512:1024,(mobile||low)?512:1024);Object.assign(sun.shadow.camera,{left:-85,right:85,top:85,bottom:-85,near:1,far:280});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);
  const camera=new THREE.PerspectiveCamera(65,1,.12,1800);
  const loader=new THREE.TextureLoader(),loaded=await Promise.all(['asphalt-color.jpg','asphalt-normal.jpg','asphalt-rough.jpg'].map(name=>loader.loadAsync(textureRoot+name)));
  loaded.forEach(t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(mobile?4:8,renderer.capabilities.getMaxAnisotropy());});loaded[0].colorSpace=THREE.SRGBColorSpace;

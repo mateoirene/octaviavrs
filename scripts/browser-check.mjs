@@ -71,16 +71,17 @@ try{
  await evaluate("document.querySelector('.notification-bell').click()");
 
  await call('Page.navigate',{url:base+'/simulador.html?quality=low'});await until("document.querySelector('[data-race-canvas]')?.width>300");
- await until("document.querySelector('canvas').dataset.sceneryReady==='true'");
- await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
+ await until("document.querySelector('[data-race-canvas]').dataset.sceneryReady==='true'");
+ await until("document.querySelector('[data-race-canvas]').dataset.cockpitReady==='true'&&document.querySelector('[data-race-canvas]').dataset.rivalReady==='true'&&document.querySelector('[data-race-canvas]').dataset.circuitReady==='true'");
  const transparentRival=await evaluate("new Promise((resolve,reject)=>{const image=new Image();image.onerror=()=>reject(new Error('No carga el coche azul'));image.onload=()=>{const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const x=c.getContext('2d');x.drawImage(image,0,0);resolve([[0,0],[c.width-1,0],[0,c.height-1],[c.width-1,c.height-1]].every(([a,b])=>x.getImageData(a,b,1,1).data[3]===0))};image.src='assets/rival-octavia-azul.png';})");assert.equal(transparentRival,true,'El rival azul no tiene fondo opaco');
  for(const level of ['expert','intermediate','easy']){await evaluate(`document.querySelector('[data-race-level]').value='${level}';document.querySelector('[data-race-level]').dispatchEvent(new Event('change'))`);assert.equal(await evaluate("document.querySelector('[data-race-level]').value"),level);}
- await evaluate("document.querySelector('[data-race-start]').click();window.__raceImage=document.querySelector('canvas').toDataURL();window.__sceneryDistance=Number(document.querySelector('canvas').dataset.sceneryDistance);window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));");
- await wait(1800);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}))");
+ await evaluate("document.querySelector('[data-race-start]').click();window.__raceImage=document.querySelector('[data-race-canvas]').toDataURL();window.__sceneryDistance=Number(document.querySelector('[data-race-canvas]').dataset.sceneryDistance);window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}));");
+ await until("Number(document.querySelector('[data-race-canvas]').dataset.speed)>6");await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowUp',bubbles:true}))");
  assert.equal(await evaluate("document.querySelector('[data-race-start]').disabled"),true);
- assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.sceneryDistance)>window.__sceneryDistance"),'El paisaje avanza al acelerar');
- const speed=await evaluate("Number(document.querySelector('canvas').dataset.speed)");assert.ok(speed>0,'El velocímetro digital sube con GAS');
- await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}))");await wait(400);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}))");assert.ok(await evaluate("Number(document.querySelector('canvas').dataset.speed)")<speed,'El velocímetro baja al frenar');
+ console.log('DRIVING_3D_STATE '+JSON.stringify(await evaluate("({speed:document.querySelector('[data-race-canvas]').dataset.speed,distance:document.querySelector('[data-race-canvas]').dataset.sceneryDistance,status:document.querySelector('[data-race-status]').textContent,renderer:document.querySelector('[data-racing-stage]').dataset.renderer})")));
+ assert.ok(await evaluate("Number(document.querySelector('[data-race-canvas]').dataset.sceneryDistance)>window.__sceneryDistance"),'El paisaje avanza al acelerar');
+ const speed=await evaluate("Number(document.querySelector('[data-race-canvas]').dataset.speed)");assert.ok(speed>0,'El velocímetro digital sube con GAS');
+ await evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{code:'Space',bubbles:true}))");await wait(400);await evaluate("window.dispatchEvent(new KeyboardEvent('keyup',{code:'Space',bubbles:true}))");assert.ok(await evaluate("Number(document.querySelector('[data-race-canvas]').dataset.speed)")<speed,'El velocímetro baja al frenar');
  await evaluate("document.querySelector('[data-race-music]').scrollIntoView({block:'center',behavior:'instant'})");
  const musicPoint=await evaluate("(()=>{const r=document.querySelector('[data-race-music]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
  await call('Input.dispatchMouseEvent',{type:'mouseMoved',...musicPoint});
@@ -93,16 +94,16 @@ try{
  await until("document.querySelector('[data-race-music]').getAttribute('aria-pressed')==='false'");
  assert.equal(await evaluate("document.querySelector('[data-race-radio]').paused"),true,'Apaga la reproducción de la radio');
 
- assert.ok(await evaluate("document.querySelector('canvas').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
+ assert.ok(await evaluate("document.querySelector('[data-race-canvas]').toDataURL()!==window.__raceImage"),'La vista se actualiza al conducir');
  await evaluate("document.querySelector('[data-racing-stage]').scrollIntoView({block:'center'})");screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/circuito-interior.jpg',Buffer.from(screenshot.data,'base64'));
  const clip=await evaluate("(()=>{const r=document.querySelector('[data-racing-stage]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:Math.min(1,640/r.width)}})()");const preview=await call('Page.captureScreenshot',{format:'jpeg',quality:25,clip});console.log('RACE_VISUAL_PREVIEW '+preview.data);
  console.log('GRAPHICS_3D_OK '+JSON.stringify(await evaluate("({...document.querySelector('[data-racing-stage]').dataset})")));
  await evaluate("document.querySelector('[data-race-pause]').click()");assert.ok(await evaluate("document.querySelector('[data-race-status]').textContent.includes('pausa')"));
- const pausedScenery=await evaluate("document.querySelector('canvas').dataset.sceneryDistance");await wait(300);assert.equal(await evaluate("document.querySelector('canvas').dataset.sceneryDistance"),pausedScenery,'El paisaje se detiene con la carrera en pausa');
+ const pausedScenery=await evaluate("document.querySelector('[data-race-canvas]').dataset.sceneryDistance");await wait(300);assert.equal(await evaluate("document.querySelector('[data-race-canvas]').dataset.sceneryDistance"),pausedScenery,'El paisaje se detiene con la carrera en pausa');
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
  await call('Page.navigate',{url:base+'/simulador.html?quality=low'});await until("document.querySelector('[data-race-canvas]')?.width>300");
- await until("document.querySelector('canvas').dataset.sceneryReady==='true'");
- await until("document.querySelector('canvas').dataset.cockpitReady==='true'&&document.querySelector('canvas').dataset.rivalReady==='true'&&document.querySelector('canvas').dataset.circuitReady==='true'");
+ await until("document.querySelector('[data-race-canvas]').dataset.sceneryReady==='true'");
+ await until("document.querySelector('[data-race-canvas]').dataset.cockpitReady==='true'&&document.querySelector('[data-race-canvas]').dataset.rivalReady==='true'&&document.querySelector('[data-race-canvas]').dataset.circuitReady==='true'");
  await evaluate("document.querySelector('[data-race-start]').click();document.querySelector('.race-touch-controls').scrollIntoView({block:'center'});");
  const positions=await evaluate("['accelerate','left'].map(action=>{const b=document.querySelector('[data-drive='+action+']').getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2}})");
  await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:positions.map((point,index)=>({...point,id:index+1}))});await wait(900);await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
