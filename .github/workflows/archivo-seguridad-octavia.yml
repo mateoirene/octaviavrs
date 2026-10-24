@@ -1,0 +1,61 @@
+name: archivo de seguridad OCTAVIA WEB
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/archivo-seguridad-octavia.yml'
+      - '.github/backup/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: respaldo-octavia-web
+  cancel-in-progress: false
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: '71fb53fce0685a83a5b15712414cfc25'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      BACKUP_PUBLIC_KEY: |
+        -----BEGIN PUBLIC KEY-----
+        MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAlohmGtAR2bzi5f7CvqGN
+        MPaPtatASz3cUtvBS7YPcrxjuM5/hQDEEsJT6RWTDTvzng8yhUdP04dwz3gMC9iY
+        LNaJLZ7B2PyrY5HdS8XyrIdDQ5C3nlxPmIWZ84lvYMJ74rE5RV1MX7aTGOU2P7pN
+        bfLTkKqoguLfHxEUTpnGqlJxJB6+dARRXk4R0a3mHouAE/LPGShKF24GP3Im5dkz
+        Lno1IzKyWoMY0SSNQmYa1STvoaCb+/EAmmrfGhEOZijdnhi/fAlMUX89TLP7jWsd
+        +SuDIkaJRl9TLQQSEN2dLp/Wt1m/yOdspM7AO+t7yKshCqHuT1fr23ZvBwbQLtb9
+        z2KV4MmZ9ZYbBU2pJUSNowaUiuui9O9r94SHXVaA1DyVcgQwiUdLmKQF1V9v6bUr
+        5D3fiUvEaKiwHYOMJUgG2HBArdhbYnkbBg0Q0n6Clck356MOtiadSALwH1zW5GQU
+        bIqUJUWKMWixysOYgO8/MPODvT8J1Lp9EqI3Fmsj0wkG6VKnWKaWanS/4rx404G6
+        rrx1bLgzpIxkJSir7/poLb+yY5mbxW5AsLfd2/FWxN6LnlOlVlQ1Ch65hMXnRAh4
+        RhcH/CLaim+rGfFYvrbF4opVbK1OU+gS2TRztJKY70pQ5MzmAXjZ1UpwzjxkEbW2
+        /zPY0+kk9TMGh2SpRWm9Rs8CAwEAAQ==
+        -----END PUBLIC KEY-----
+    steps:
+      - name: Obtener versión exacta
+        uses: actions/checkout@v6
+      - name: Preparar Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Recuperar fotos del circuito
+        uses: actions/cache@v4
+        with:
+          path: dist/assets/race
+          key: octavia-race-photos-20261023-v1
+      - name: Recuperar motor y materiales 3D
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist/vendor
+            dist/assets/track3d
+          key: octavia-track3d-three0180-asphalt02-v1
+      - name: Incluir recursos locales completos
+        run: |
+          node scripts/prepare-race-assets.mjs
+          node scripts/prepare-track3d.mjs
+      - name: Exportar, comprobar y cifrar respaldo
+        run: node .github/backup/crear-copia.mjs
