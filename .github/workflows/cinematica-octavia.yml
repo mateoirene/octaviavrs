@@ -14,8 +14,9 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
         with: {node-version: '24'}
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq blender
-      - run: blender -b -t 4 --python cinematic/modelo.py -- build/cinematic
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq blender python3-numpy
+      - run: blender -b -t 4 --python-exit-code 1 --python cinematic/modelo.py -- build/cinematic
+      - run: test -s build/cinematic/octavia-art.glb
       - run: node cinematic/preparar.mjs
       - uses: actions/upload-artifact@v4
         with:
@@ -65,6 +66,7 @@ jobs:
           mkdir -p build/pelicula
           test "$(find build/fotogramas -name '*.jpg' | wc -l)" -eq 720
           ffmpeg -y -framerate 24 -start_number 0 -i build/fotogramas/%04d.jpg -t 30 -an -c:v libx264 -preset medium -crf 21 -maxrate 5M -bufsize 10M -pix_fmt yuv420p -movflags +faststart build/pelicula/octavia-cinematica-4k.mp4
+          ffmpeg -y -i build/pelicula/octavia-cinematica-4k.mp4 -vf scale=1920:1080 -an -c:v libx264 -preset medium -crf 22 -maxrate 2200k -bufsize 4400k -pix_fmt yuv420p -movflags +faststart build/pelicula/octavia-cinematica-web.mp4
           ffmpeg -y -i build/fotogramas/0000.jpg -vf scale=1920:1080 -q:v 2 build/pelicula/octavia-cinematica-portada.jpg
           ffprobe -v error -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames:format=duration,size -of json build/pelicula/octavia-cinematica-4k.mp4 > build/pelicula/verificacion.json
           python3 - <<'PY'
@@ -85,7 +87,7 @@ jobs:
         run: |
           git switch -c video-octavia-${{ github.run_id }}
           mkdir -p dist/assets/cinematic
-          cp build/pelicula/octavia-cinematica-4k.mp4 build/pelicula/octavia-cinematica-portada.jpg build/pelicula/verificacion.json dist/assets/cinematic/
+          cp build/pelicula/octavia-cinematica-4k.mp4 build/pelicula/octavia-cinematica-web.mp4 build/pelicula/octavia-cinematica-portada.jpg build/pelicula/verificacion.json dist/assets/cinematic/
           git config user.name 'Club Octavia · produccion'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add dist/assets/cinematic/
