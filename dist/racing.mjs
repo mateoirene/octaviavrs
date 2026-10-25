@@ -1,12 +1,12 @@
-import {paintedImage} from './racing-paint.mjs?v=20261024-tour1';
-import {createCircuitCompetition} from './racing-championship.mjs?v=20261024-tour1';
+import {paintedImage} from './racing-paint.mjs?v=20261025-negro';
+import {createCircuitCompetition} from './racing-championship.mjs?v=20261025-negro';
 import {drawCircuitNavigation,steeringRotation} from './racing-dashboard.mjs?v=20261024-tour1';
 import {createFinishReplay,drawCompatibleFinish} from './racing-finish-replay.mjs?v=20261024-tour1';
 import {drawCarFire} from './racing-fire2d.mjs';
 import {teslaFireTime} from './racing-cinematic-state.mjs?v=20261024-tour1';
 import {createRaceSummary} from './racing-summary.mjs?v=20261024-tour1';
 import {drawAerialFallback,drawAerialCars,prepareAerialSurfaces} from './racing-aerial.mjs?v=20261025-aerial';
-import {createRaceResults} from './racing-results.mjs?v=20261024-tour1';
+import {createRaceResults} from './racing-results.mjs?v=20261025-negro';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
 import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261024-tour1';
 import {createOvertakeCinematic} from './racing-cinematic.mjs?v=20261024-tour1';
@@ -190,7 +190,7 @@ new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFr
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
 if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261025-aerial').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+ import('./racing-world3d.mjs?v=20261025-negro').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
 }else stage.dataset.renderer='2d-fallback';
 
 prepareAerialSurfaces().then(()=>draw()).catch(()=>{});

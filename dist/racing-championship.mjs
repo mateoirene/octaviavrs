@@ -1,4 +1,4 @@
-import {CIRCUITS,CIRCUIT_BY_ID,circuitName,POINTS,SKODA_PAINTS} from './racing-circuits.mjs?v=20261024-tour1';
+import {CIRCUITS,CIRCUIT_BY_ID,circuitName,POINTS,SKODA_PAINTS} from './racing-circuits.mjs?v=20261025-negro';
 import {createCircuitLayout} from './circuit-layout.mjs?v=20261024-tour1';
 const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const save=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};

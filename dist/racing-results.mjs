@@ -1,4 +1,4 @@
-import {circuitName,SKODA_PAINTS} from './racing-circuits.mjs?v=20261024-tour1';
+import {circuitName,SKODA_PAINTS} from './racing-circuits.mjs?v=20261025-negro';
 import {lapTime,LEVELS} from './racing-physics.mjs?v=20261024-tour1';
 const aliasKey='club-racing-pilot-v1',queueKey='club-racing-pending-v1';
 export function normalizePilot(value){const name=String(value||'').trim().replace(/\s+/g,' ');return /^[\p{L}\p{N} ._'’\-]{2,32}$/u.test(name)?name:null;}

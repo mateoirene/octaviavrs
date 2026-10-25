@@ -4,4 +4,4 @@ export const CIRCUITS = [{"id":"melbourne","name":"Melbourne","length":5274,"sou
 export const CIRCUIT_BY_ID = Object.fromEntries(CIRCUITS.map(c=>[c.id,c]));
 export const circuitName=id=>CIRCUIT_BY_ID[id]?.name||"Circuito del club";
 export const POINTS=[0,25,18,15,12];
-export const SKODA_PAINTS={blue:"Azul",red:"Rojo",white:"Blanco",grey:"Gris"};
+export const SKODA_PAINTS={blue:"Azul",red:"Rojo",white:"Blanco",grey:"Gris",black:"Negro"};
