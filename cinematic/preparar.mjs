@@ -1,0 +1,5 @@
+import {mkdir,writeFile,copyFile} from 'node:fs/promises';
+const root='build/cinematic';await mkdir(root+'/vendor',{recursive:true});
+const files={'three.module.js':'build/three.module.js','three.core.js':'build/three.core.js','GLTFLoader.js':'examples/jsm/loaders/GLTFLoader.js','BufferGeometryUtils.js':'examples/jsm/utils/BufferGeometryUtils.js','RoomEnvironment.js':'examples/jsm/environments/RoomEnvironment.js','Reflector.js':'examples/jsm/objects/Reflector.js'};
+for(const [name,path]of Object.entries(files)){const r=await fetch('https://cdn.jsdelivr.net/npm/three@0.180.0/'+path);if(!r.ok)throw Error(path+' '+r.status);let code=await r.text();if(name==='GLTFLoader.js')code=code.replace('../utils/BufferGeometryUtils.js','./BufferGeometryUtils.js');await writeFile(root+'/vendor/'+name,code);}
+const license=await fetch('https://cdn.jsdelivr.net/npm/three@0.180.0/LICENSE');if(!license.ok)throw Error('license');await writeFile(root+'/vendor/LICENSE.txt',await license.text());await copyFile('cinematic/estudio.html',root+'/index.html');

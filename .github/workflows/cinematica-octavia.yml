@@ -1,0 +1,94 @@
+name: Crear cinematica 3D del Octavia
+on:
+  push:
+    branches: [main]
+    paths: ['cinematic/**', '.github/workflows/cinematica-octavia.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  modelo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq blender
+      - run: blender -b -t 4 --python cinematic/modelo.py -- build/cinematic
+      - run: node cinematic/preparar.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cine-modelo
+          path: build/cinematic
+          retention-days: 1
+  fotogramas:
+    needs: modelo
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        fragmento: [0,1,2,3,4,5,6,7,8,9,10,11]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - uses: actions/download-artifact@v4
+        with: {name: cine-modelo, path: build/cinematic}
+      - name: Renderizar 60 fotogramas 4K
+        env:
+          FRAGMENTO: ${{ matrix.fragmento }}
+        run: node cinematic/render.mjs --width 3840 --from "$((FRAGMENTO * 60))" --to "$((FRAGMENTO * 60 + 59))" --frames build/fotogramas
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cine-frames-${{ matrix.fragmento }}
+          path: build/fotogramas
+          retention-days: 1
+  video:
+    needs: fotogramas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cine-frames-*
+          path: build/fotogramas
+          merge-multiple: true
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Codificar pelicula de 30 segundos
+        run: |
+          mkdir -p build/pelicula
+          test "$(find build/fotogramas -name '*.jpg' | wc -l)" -eq 720
+          ffmpeg -y -framerate 24 -start_number 0 -i build/fotogramas/%04d.jpg -t 30 -an -c:v libx264 -preset medium -crf 21 -maxrate 5M -bufsize 10M -pix_fmt yuv420p -movflags +faststart build/pelicula/octavia-cinematica-4k.mp4
+          ffmpeg -y -i build/fotogramas/0000.jpg -vf scale=1920:1080 -q:v 2 build/pelicula/octavia-cinematica-portada.jpg
+          ffprobe -v error -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames:format=duration,size -of json build/pelicula/octavia-cinematica-4k.mp4 > build/pelicula/verificacion.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('build/pelicula/verificacion.json').read_text());v=d['streams'][0]
+          assert v['width']==3840 and v['height']==2160 and v['nb_frames']=='720'
+          assert float(d['format']['duration'])==30 and int(d['format']['size'])<24000000
+          print('VIDEO_CINE_OK: 30 segundos, 720 fotogramas, 3840x2160, H264, menos de 24MB')
+          PY
+          for f in 0000 0168 0336 0480 0624 0695; do ffmpeg -loglevel error -y -i build/fotogramas/$f.jpg -vf scale=1280:720 -q:v 3 build/pelicula/preview-$f.jpg; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pelicula-octavia-4k
+          path: build/pelicula
+          retention-days: 7
+      - name: Guardar pelicula para revision en rama independiente
+        run: |
+          git switch -c video-octavia-${{ github.run_id }}
+          mkdir -p dist/assets/cinematic
+          cp build/pelicula/octavia-cinematica-4k.mp4 build/pelicula/octavia-cinematica-portada.jpg build/pelicula/verificacion.json dist/assets/cinematic/
+          git config user.name 'Club Octavia · produccion'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dist/assets/cinematic/
+          git commit -m 'Pelicula 3D propia de 30 segundos para revision visual'
+          git push origin HEAD
+          echo 'RAMA_PELICULA video-octavia-${{ github.run_id }}'
