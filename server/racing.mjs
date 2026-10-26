@@ -1,3 +1,4 @@
+import {NITRO_SPEED} from '../dist/racing-nitro.mjs';
 import {buildTrack,SEGMENT_LENGTH,MAX_SPEED,LEVELS} from '../dist/racing-physics.mjs';
 import {CIRCUITS,CIRCUIT_BY_ID,POINTS,SKODA_PAINTS} from '../dist/racing-circuits.mjs';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -11,7 +12,8 @@ export function validateRaceResult(body){
  if(!/^[0-9a-f-]{36}$/i.test(String(body.id||'')))invalid('La carrera no es válida.');
  const laps=body.laps;if(!Array.isArray(laps)||laps.length!==3)invalid('Termina las tres vueltas para guardar el tiempo.');
  const minimum=buildTrack(body.level,circuit).length*SEGMENT_LENGTH/MAX_SPEED*1000;
- if(laps.some(t=>!Number.isInteger(t)||t<minimum-250||t>86400000))invalid('Los tiempos de vuelta no son válidos.');
+ const boostedMinimum=buildTrack(body.level,circuit).length*SEGMENT_LENGTH/NITRO_SPEED*1000;
+ if(laps.some((t,i)=>!Number.isInteger(t)||t<(i===0?minimum:boostedMinimum)-250||t>86400000))invalid('Los tiempos de vuelta no son válidos.');
  if(!Number.isInteger(body.total)||Math.abs(laps.reduce((sum,t)=>sum+t,0)-body.total)>2||body.total>86400000)invalid('El tiempo total no coincide con las vueltas.');
  if(!Number.isInteger(body.position)||body.position<1||body.position>4)invalid('La posición no es válida.');
  const car=body.car??'Octavia VRS MK4',paint=body.paint??'blue',mode=body.mode??'free',racer=body.racer??('legacy:'+pilot.toLowerCase());

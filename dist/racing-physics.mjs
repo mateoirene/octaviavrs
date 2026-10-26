@@ -1,3 +1,4 @@
+import {createNitro,playerNitro,beforeNitroStep,prepareNitroRival,resolveNitro,stopNitro,NITRO_SPEED} from './racing-nitro.mjs?v=20261026-nitro';
 import {CIRCUIT_BY_ID} from './racing-circuits.mjs?v=20261024-tour1';
 import { createCircuitLayout } from './circuit-layout.mjs?v=20261024-tour1';
 export const SEGMENT_LENGTH = 18;
@@ -24,35 +25,38 @@ export const TRACK_LENGTH = TRACK.length * SEGMENT_LENGTH;
 export function createRace(bestLap = null, level = 'easy', circuit = 'club') {
   const difficulty = LEVELS[level] ? level : 'easy';
   const settings = LEVELS[difficulty], track = buildTrack(difficulty,circuit);
-  return { circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:settings.rivals[0]-2,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
+  return { nitro:createNitro(difficulty,track.length*SEGMENT_LENGTH,CIRCUIT_BY_ID[circuit]?circuit:'club'),circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:settings.rivals[0]-2,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
 }
 export function stepRace(state,input,delta) {
   if (state.phase !== 'running') return {lap:false,finished:false};
   const dt = Math.max(0,Math.min(.05,delta));
   if (!dt) return {lap:false,finished:false};
+  const before=[state,...state.rivals].map(car=>({distance:car.distance,x:car.x}));beforeNitroStep(state,input);
   const segment = state.track[Math.floor((state.distance % state.trackLength)/SEGMENT_LENGTH)];
   const steering = (input.right?1:0)-(input.left?1:0);
   state.steering += (steering-state.steering)*Math.min(1,dt*10);
-  const acceleration = input.accelerate ? 7.5*(1-state.speed/MAX_SPEED*.55) : -2.4;
-  state.speed = Math.max(0,Math.min(MAX_SPEED,state.speed+(acceleration-(input.brake?27:0))*dt));
+  const boosted=playerNitro(state);const acceleration = input.accelerate ? 7.5*(1-state.speed/MAX_SPEED*.55) : -2.4;
+  state.speed = boosted?NITRO_SPEED:Math.max(0,Math.min(MAX_SPEED,state.speed+(acceleration-(input.brake?27:0))*dt));
   const speedRatio = state.speed/MAX_SPEED;
   state.x += (steering*(.8+1.35*speedRatio)*speedRatio-segment.curve*speedRatio*speedRatio*state.settings.grip)*dt;
-  if (Math.abs(state.x)>1 && state.speed>12) state.speed = Math.max(12, state.speed-state.settings.offroad*dt);
+  if (!boosted&&Math.abs(state.x)>1 && state.speed>12) state.speed = Math.max(12, state.speed-state.settings.offroad*dt);
   state.x = Math.max(-2.2,Math.min(2.2,state.x));
   state.distance += state.speed*dt; state.elapsed += dt;
   state.collisionCooldown = Math.max(0,state.collisionCooldown-dt); state.hit = Math.max(0,state.hit-dt);
   for (const rival of state.rivals) {
-    if(state.circuit!=='club'&&!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
+    prepareNitroRival(state,rival,dt);const rivalIndex=state.rivals.indexOf(rival),rivalBoost=state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex;
+    if(!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.nitroBraking=Math.abs(bend)>.6;if(rivalBoost&&rival.nitroBraking)stopNitro(state,'rival-brake');if(state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex)rival.speed=NITRO_SPEED;else if(state.circuit!=='club')rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
     rival.distance += rival.speed*dt;
     if(!rival.retired&&!Number.isFinite(rival.finishTime)&&rival.distance>=state.trackLength*3&&rival.speed>0)rival.finishTime=state.elapsed-(rival.distance-state.trackLength*3)/rival.speed;
-    if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }
+    if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { if(!boosted)state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }
   }
+  resolveNitro(state,input,before,dt);
   state.position = 1 + state.rivals.filter(rival=>!rival.retired&&rival.distance>state.distance).length;
   let lap = false;
   if (state.distance >= (state.completedLaps+1)*state.trackLength) {
     const time = state.elapsed-state.lapStarted; state.lapTimes.push(time); state.lapStarted=state.elapsed;
     state.bestLap = state.bestLap===null ? time : Math.min(state.bestLap,time); state.completedLaps++; lap=true;
-    if(state.completedLaps>=3){state.phase='finished';state.speed=0;state.position=1+state.rivals.filter(car=>!car.retired&&Number.isFinite(car.finishTime)&&car.finishTime<state.elapsed-1e-6).length;}
+    if(state.completedLaps>=3){stopNitro(state,'finish');state.phase='finished';state.speed=0;state.position=1+state.rivals.filter(car=>!car.retired&&Number.isFinite(car.finishTime)&&car.finishTime<state.elapsed-1e-6).length;}
   }
   return {lap,finished:state.phase==='finished'};
 }
