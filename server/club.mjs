@@ -1,3 +1,4 @@
+import {birthdayEvents} from './birthdays.mjs';
 import {handleNewsRequest} from './news.mjs';
 import {recordClubEvent} from './push.mjs';
 const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -13,7 +14,7 @@ export function eventIcs(row){const date=row.event_date.replaceAll('-',''),start
 async function notify(db,event,context){try{await recordClubEvent(db,event,context);}catch{}}
 export async function handleClubRequest(request,db,admin,context){const url=new URL(request.url),social=url.pathname.startsWith('/api/club/social/'),path=url.pathname.replace('/api/club/social/','/api/club/directory/'),method=request.method,listsTable=social?'club_social_lists':'club_directory_lists',linksTable=social?'club_social_links':'club_directory_links';
  if(['/api/club/news','/api/club/motor-news','/api/club/weather'].includes(path))return handleNewsRequest(request,db);
- if(path==='/api/club/events'&&method==='GET')return reply((await db.prepare('SELECT * FROM club_events ORDER BY event_date,start_time,id LIMIT 500').all()).results.map(eventRow));
+ if(path==='/api/club/events'&&method==='GET')return reply([...(await db.prepare('SELECT * FROM club_events ORDER BY event_date,start_time,id LIMIT 500').all()).results.map(eventRow),...await birthdayEvents(db)]);
  if(/^\/api\/club\/events\/[^/]+\/calendar\.ics$/.test(path)&&method==='GET'){const row=await db.prepare('SELECT * FROM club_events WHERE id=?').bind(path.split('/')[4]).first();if(!row)fail('El evento no existe.',404);return new Response(eventIcs(row),{headers:{'Content-Type':'text/calendar; charset=utf-8','Content-Disposition':'attachment; filename="evento-club.ics"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
  if(path==='/api/club/directory/lists'&&method==='GET')return reply((await db.prepare(`SELECT l.*,COUNT(e.id) entries FROM ${listsTable} l LEFT JOIN ${linksTable} e ON e.list_id=l.id GROUP BY l.id ORDER BY l.created_at,l.name`).all()).results);
  if(path==='/api/club/directory/links'&&method==='GET')return reply((await db.prepare(`SELECT id,list_id,name,url,description,platform FROM ${linksTable} WHERE list_id=? ORDER BY created_at,name`).bind(url.searchParams.get('list')||'').all()).results);

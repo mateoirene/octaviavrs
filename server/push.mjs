@@ -1,3 +1,4 @@
+import {birthdayNotifications} from './birthdays.mjs';
 const encode=new TextEncoder();
 export const base64url=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','');
 export async function endpointId(value){return base64url(await crypto.subtle.digest('SHA-256',encode.encode(value)));}
@@ -19,7 +20,7 @@ export async function recordClubEvent(db,event,context,send){
  if(result.meta.changes){const delivery=sendAdminPush(db,send).catch(()=>{});if(context?.waitUntil)context.waitUntil(delivery);else await delivery;}
 }
 export async function handlePushRequest(request,db,admin){const path=new URL(request.url).pathname;
- if(path==='/api/club/notifications'&&request.method==='GET'){const rows=(await db.prepare("SELECT id,title,message,href,audience FROM club_notifications WHERE (audience='public' OR ?=1) AND kind NOT IN ('pending-market','pending-garage') ORDER BY created_at DESC,id DESC LIMIT 100").bind(admin?1:0).all()).results;return reply(rows);}
+ if(path==='/api/club/notifications'&&request.method==='GET'){const rows=(await db.prepare("SELECT id,title,message,href,audience FROM club_notifications WHERE (audience='public' OR ?=1) AND kind NOT IN ('pending-market','pending-garage') ORDER BY created_at DESC,id DESC LIMIT 100").bind(admin?1:0).all()).results;return reply([...await birthdayNotifications(db),...rows]);}
  if(!admin)return reply({error:'Inicia sesión como administrador para activar los avisos del móvil.'},401);
  if(path==='/api/push/key'&&request.method==='GET'){const keys=await getPushKeys(db);return reply({publicKey:keys.public_key});}
  if(path==='/api/push/subscription'&&['POST','DELETE'].includes(request.method)){const body=await request.json(),endpoint=body.endpoint;if(typeof endpoint!=='string'||!validPushEndpoint(endpoint))fail('El navegador no ha proporcionado una suscripción compatible.');const id=await endpointId(endpoint);

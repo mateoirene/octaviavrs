@@ -50,8 +50,11 @@ export async function initNotifications(doc = document) {
   function soundLabel(){soundControl.textContent=soundEnabled?'Sonido de avisos: activado':'Sonido de avisos: apagado';soundControl.setAttribute('aria-pressed',String(soundEnabled));}soundLabel();soundControl.addEventListener('click',()=>{soundEnabled=!soundEnabled;try{storage?.setItem('club-notification-sound-v1',soundEnabled?'on':'off');}catch{}if(soundEnabled){chime.unlock();}soundLabel();});
   const garageReviewAccess=doc.createElement('a');garageReviewAccess.className='notification-review-access';garageReviewAccess.href='garaje.html#revisiones';garageReviewAccess.textContent='Revisar fichas del garaje →';garageReviewAccess.hidden=true;panel.append(top, mark, soundControl, status, reviewAccess,garageReviewAccess, list);initPushControls(panel,doc); area.append(button, panel); masthead.append(area);
   const toast = doc.createElement('div'); toast.className = 'notification-toast'; toast.setAttribute('role', 'status'); toast.hidden = true; doc.body.append(toast);
+  const birthdayStyle=doc.createElement('link');birthdayStyle.rel='stylesheet';birthdayStyle.href=new URL('./birthdays.css?v=20261026',import.meta.url).href;doc.head.append(birthdayStyle);
+  const birthdayBanner=doc.createElement('aside');birthdayBanner.className='club-birthday-banner';birthdayBanner.dataset.birthdayBanner='';birthdayBanner.hidden=true;birthdayBanner.setAttribute('role','status');masthead.closest('header').after(birthdayBanner);
   function persist() { try { storage?.setItem(STORAGE_KEY, JSON.stringify([...read].slice(-1000))); } catch {} }
   function render() {
+    const birthdays=items.filter(item=>item.birthday);birthdayBanner.hidden=!birthdays.length;birthdayBanner.replaceChildren();if(birthdays.length){const message=doc.createElement('span');setVrsText(message,'🎂 '+birthdays.map(item=>item.title).join(' · ')+'. ¡Felicidades de parte del club!');const link=doc.createElement('a');link.href='index.html#calendario';link.textContent='Ver calendario ↗';link.addEventListener('click',()=>doc.querySelector('[data-calendar-today]')?.click());birthdayBanner.append(message,link);}
     const pendingCount = items.filter(item => item.id.startsWith('pending:')).length;
     for (const indicator of doc.querySelectorAll('[data-review-count]')) {
       indicator.hidden = pendingCount === 0; indicator.textContent = `(${pendingCount} pendientes)`;
@@ -69,7 +72,7 @@ export async function initNotifications(doc = document) {
       const message = doc.createElement('span'); setVrsText(message, item.message || '');
       link.append(title, message);
       if (!read.has(item.id)) { const label = doc.createElement('small'); label.textContent = 'Nuevo'; link.append(label); }
-      link.addEventListener('click', () => { read.add(item.id); persist(); render(); setOpen(false); });
+      link.addEventListener('click', () => { if(item.birthday)doc.querySelector('[data-calendar-today]')?.click();read.add(item.id); persist(); render(); setOpen(false); });
       li.append(link); list.append(li);
     }
   }

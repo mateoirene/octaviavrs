@@ -140,3 +140,9 @@ CREATE TABLE IF NOT EXISTS club_social_links (
 );
 
 CREATE TABLE IF NOT EXISTS market_edit_versions (listing_id TEXT PRIMARY KEY REFERENCES market_listings(id) ON DELETE CASCADE,token TEXT NOT NULL,edited_by TEXT NOT NULL,edited_at INTEGER NOT NULL);
+
+-- Fecha completa privada en la ficha; calendario público solo con día y mes.
+CREATE TABLE IF NOT EXISTS garage_birthdays (
+ member_id TEXT PRIMARY KEY REFERENCES garage_members(id) ON DELETE CASCADE,
+ birth_date TEXT NOT NULL
+);

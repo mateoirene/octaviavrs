@@ -1,6 +1,7 @@
 import { setVrsText } from './branding.mjs';
 const $ = selector => document.querySelector(selector);
 const status = $('[data-garage-status]'), saveStatus = $('[data-garage-save-status]');
+const birthParts=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'});
 const folderForm = $('[data-folder-form]'), memberForm = $('[data-member-form]');
 let admin = false, folders = [], selected = new URLSearchParams(location.search).get('carpeta') || '', previewUrls = [];
 function element(tag, text, className) { const node = document.createElement(tag); if (text) setVrsText(node,text); if (className) node.className = className; return node; }
@@ -12,7 +13,7 @@ function showPhoto(url, title) { const dialog = $('[data-garage-lightbox]'); dia
 $('[data-close-garage-photo]').addEventListener('click', () => $('[data-garage-lightbox]').close());
 $('[data-garage-lightbox]').addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
 function resetForm() {
-  memberForm.reset(); memberForm.elements.id.value = ''; memberForm.elements.photos.required = true;
+  memberForm.elements.birthDate.max=birthParts.format(new Date());memberForm.reset(); memberForm.elements.id.value = ''; memberForm.elements.photos.required = true;
   if (selected) memberForm.elements.folderId.value = selected;
   $('[data-member-form-title]').textContent = admin?'Añadir ficha de un miembro':'Envía tu ficha al club'; $('[data-cancel-edit]').hidden = true;
   $('[data-profile-preview]').replaceChildren();
@@ -20,7 +21,7 @@ function resetForm() {
   previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; $('[data-garage-previews]').replaceChildren();
 }
 function editMember(member) {
-  resetForm(); for (const field of ['id','folderId','pilot','instagram','phone','model','engine','power','year','gearbox','notes']) memberForm.elements[field].value = member[field] || '';
+  resetForm(); for (const field of ['id','folderId','pilot','instagram','phone','birthDate','model','engine','power','year','gearbox','notes']) memberForm.elements[field].value = member[field] || '';
   if(member.profileImage){const avatar=element('img');avatar.src=member.profileImage;avatar.alt='Foto actual de '+member.pilot;$('[data-profile-preview]').append(avatar);}
   memberForm.elements.photos.required = false; $('[data-member-form-title]').textContent = 'Editar la ficha de ' + member.pilot; $('[data-cancel-edit]').hidden = false;
   $('[data-photo-help]').textContent = 'Conserva las fotos actuales o selecciona fotos nuevas para sustituirlas.';
@@ -35,6 +36,7 @@ function card(member) {
   if(member.profileImage){const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';body.append(avatar);}
   body.append(element('p', 'PILOTO DEL CLUB', 'eyebrow red'), element('h3',member.pilot), element('p',member.model,'garage-model'));
   if (member.instagramUrl) { const link = element('a','@'+member.instagram+' ↗','garage-instagram'); link.href = member.instagramUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; body.append(link); }
+  if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
   if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
   const specs = element('dl','', 'garage-specs');
   for (const [label,value] of [['Motor',member.engine],['Potencia',member.power],['Año',member.year],['Cambio',member.gearbox]]) if (value) { const row = element('div'); row.append(element('dt',label),element('dd',value)); specs.append(row); }
