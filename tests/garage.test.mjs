@@ -13,7 +13,7 @@ function fixture() {
  const call=(path,method='GET',body,auth=false,origin='https://club.example')=>handleMarketRequest(new Request('https://club.example/api/garage/'+path,{method,headers:{Origin:origin,...(auth?{Cookie:'club_session=garage-test'}:{}),...(body&&!(body instanceof FormData)?{'Content-Type':'application/json'}:{})},body:body instanceof FormData?body:body?JSON.stringify(body):undefined}),{MARKET_DB:db});
  return {raw,call};
 }
-function member(folder,overrides={},photo=true){const form=new FormData();for(const [key,value]of Object.entries({folderId:folder,pilot:'Piloto del club',instagram:'@piloto.vrs',model:'Octavia VRS MK4',engine:'2.0 TSI',power:'245 CV',year:'2022',gearbox:'DSG',notes:'Preparación del coche',consent:'yes',...overrides}))form.set(key,value);if(photo)form.append('photos',new Blob([new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0])],{type:'image/jpeg'}),'coche.jpg');return form;}
+function member(folder,overrides={},photo=true){const form=new FormData();for(const [key,value]of Object.entries({folderId:folder,pilot:'Piloto del club',birthDate:'2000-01-01',instagram:'@piloto.vrs',model:'Octavia VRS MK4',engine:'2.0 TSI',power:'245 CV',year:'2022',gearbox:'DSG',notes:'Preparación del coche',consent:'yes',...overrides}))form.set(key,value);if(photo)form.append('photos',new Blob([new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0])],{type:'image/jpeg'}),'coche.jpg');return form;}
 test('carpetas personalizadas y fichas públicas solo gestionadas por administradores',async()=>{const {raw,call}=fixture();try{
  assert.equal((await call('folders','POST',{name:'Octavia MK4'})).status,401);
  assert.equal((await call('folders','POST',{name:'Octavia MK4'},true,'https://other.example')).status,403);

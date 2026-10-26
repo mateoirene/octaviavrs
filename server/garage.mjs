@@ -76,7 +76,8 @@ export async function handleGarageRequest(request, db, admin) {
     const engine = clean(form.get('engine'), 'el motor', 0, 100), power = clean(form.get('power'), 'la potencia', 0, 40), year = clean(form.get('year'), 'el año', 0, 4), gearbox = clean(form.get('gearbox'), 'el cambio', 0, 60), notes = clean(form.get('notes'), 'los detalles', 0, 2000);
     if (year && !/^\d{4}$/.test(year)) fail('El año debe tener cuatro cifras.');
     const rawPhone=clean(form.get('phone'),'el teléfono',0,30);if(rawPhone&&!/^(?:\+|00)?[0-9 ()-]+$/.test(rawPhone))fail('Introduce un teléfono válido con prefijo internacional.');let phone=rawPhone.replace(/[^0-9]/g,'');if(rawPhone.startsWith('00'))phone=phone.slice(2);if(phone&&(!/^[1-9][0-9]{6,14}$/.test(phone)))fail('Introduce el teléfono con prefijo internacional, por ejemplo +34 600 123 456.');
-    const birthDate=validateBirthDate(form.get('birthDate'));
+    const savedBirth=!creating&&!form.has('birthDate')?await db.prepare('SELECT birth_date FROM garage_birthdays WHERE member_id=?').bind(id).first():null;
+    const birthDate=validateBirthDate(savedBirth?.birth_date||form.get('birthDate'));if(!birthDate)fail('La fecha de nacimiento del piloto es obligatoria.');
     const avatar=await photosFrom(form,'profilePhoto',1);if(avatar[0]?.data.byteLength>262144)fail('La foto de perfil debe ocupar menos de 256 KB.');
     const photos = await photosFrom(form); if (creating && !photos.length) fail('Añade al menos una foto del coche.');
     const stamp = Math.floor(Date.now()/1000);
