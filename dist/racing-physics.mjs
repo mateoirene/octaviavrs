@@ -1,3 +1,4 @@
+import {TESLA_PERFORMANCE,advanceTesla,teslaTargetSpeed} from './racing-performance.mjs?v=20261026-performance';
 import {createNitro,playerNitro,beforeNitroStep,prepareNitroRival,resolveNitro,stopNitro,NITRO_SPEED} from './racing-nitro.mjs?v=20261026-nitro';
 import {CIRCUIT_BY_ID} from './racing-circuits.mjs?v=20261024-tour1';
 import { createCircuitLayout } from './circuit-layout.mjs?v=20261024-tour1';
@@ -25,7 +26,7 @@ export const TRACK_LENGTH = TRACK.length * SEGMENT_LENGTH;
 export function createRace(bestLap = null, level = 'easy', circuit = 'club') {
   const difficulty = LEVELS[level] ? level : 'easy';
   const settings = LEVELS[difficulty], track = buildTrack(difficulty,circuit);
-  return { nitro:createNitro(difficulty,track.length*SEGMENT_LENGTH,CIRCUIT_BY_ID[circuit]?circuit:'club'),circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:settings.rivals[0]-2,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
+  return { nitro:createNitro(difficulty,track.length*SEGMENT_LENGTH,CIRCUIT_BY_ID[circuit]?circuit:'club'),circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:Math.min(TESLA_PERFORMANCE.topKmh/3.6,settings.rivals[1]+8),cruiseSpeed:TESLA_PERFORMANCE.topKmh/3.6,powerCV:TESLA_PERFORMANCE.powerCV,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
 }
 export function stepRace(state,input,delta) {
   if (state.phase !== 'running') return {lap:false,finished:false};
@@ -45,7 +46,8 @@ export function stepRace(state,input,delta) {
   state.collisionCooldown = Math.max(0,state.collisionCooldown-dt); state.hit = Math.max(0,state.hit-dt);
   for (const rival of state.rivals) {
     prepareNitroRival(state,rival,dt);const rivalIndex=state.rivals.indexOf(rival),rivalBoost=state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex;
-    if(!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.nitroBraking=Math.abs(bend)>.6;if(rivalBoost&&rival.nitroBraking)stopNitro(state,'rival-brake');if(state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex)rival.speed=NITRO_SPEED;else if(state.circuit!=='club')rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
+    if(!rival.retired&&rival.model==='tesla-model-3'&&!rivalBoost)advanceTesla(state,rival,dt);
+    if(!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.nitroBraking=rival.model==='tesla-model-3'?teslaTargetSpeed(state,rival)<TESLA_PERFORMANCE.topKmh/3.6*.95:Math.abs(bend)>.6;if(rivalBoost&&rival.nitroBraking)stopNitro(state,'rival-brake');if(state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex)rival.speed=NITRO_SPEED;else if(rival.model!=='tesla-model-3'&&state.circuit!=='club')rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
     rival.distance += rival.speed*dt;
     if(!rival.retired&&!Number.isFinite(rival.finishTime)&&rival.distance>=state.trackLength*3&&rival.speed>0)rival.finishTime=state.elapsed-(rival.distance-state.trackLength*3)/rival.speed;
     if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { if(!boosted)state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }

@@ -1,7 +1,9 @@
+import {createNitroExhaust} from './racing-exhaust3d.mjs?v=20261026-performance';
+import {boostVisual} from './racing-speed-effects.mjs?v=20261026-performance';
 import {nitroVisible,nitroLabel} from './racing-nitro.mjs?v=20261026-nitro';
 import {nitroBadge} from './racing-nitro-badge.mjs?v=20261026-nitro';
 import {drivingCamera} from './racing-cameras.mjs?v=20261026-alineados';
-import {createOctavia,createTesla,rollVehicle,orientVehicle} from './racing-vehicles3d.mjs?v=20261026-alineados';
+import {createOctavia,createTesla,rollVehicle,orientVehicle} from './racing-vehicles3d.mjs?v=20261026-performance';
 import {createCircuitEnvironment,groundVariation} from './racing-environment.mjs?v=20261025-aerial';
 import {paintedImage} from './racing-paint.mjs?v=20261025-negro';
 import {SIDE_WHEELS,rollingAngle,photoWheelPose} from './racing-wheels.mjs?v=20261024-ruedas2';
@@ -21,7 +23,7 @@ export async function createRacingWorld(stage){
  const scene=new THREE.Scene();scene.background=new THREE.Color('#b5c5d2');scene.fog=new THREE.FogExp2('#b5c5d2',.0016);
  scene.add(new THREE.HemisphereLight('#d6e1ec','#5a604f',2.0));
  const sun=new THREE.DirectionalLight('#fff4df',2.6);sun.castShadow=true;sun.shadow.mapSize.set((mobile||low)?512:1024,(mobile||low)?512:1024);Object.assign(sun.shadow.camera,{left:-85,right:85,top:85,bottom:-85,near:1,far:280});sun.shadow.bias=-.00015;sun.shadow.normalBias=.08;scene.add(sun,sun.target);
- const followCamera=new THREE.PerspectiveCamera(58,1,.12,1800),camera=new THREE.PerspectiveCamera(65,1,.12,1800),replayCamera=new THREE.PerspectiveCamera(40,1,.1,1800),aerialCamera=new THREE.OrthographicCamera(-1,1,1,-1,.1,4000);let activeCamera=camera,aerialBounds,playerMesh,teslaFire,sideCard,contactShadow,nitroGroup,nitroSprite,nitroRing,wheelMeshes=[];
+ const followCamera=new THREE.PerspectiveCamera(58,1,.12,1800),camera=new THREE.PerspectiveCamera(65,1,.12,1800),replayCamera=new THREE.PerspectiveCamera(40,1,.1,1800),aerialCamera=new THREE.OrthographicCamera(-1,1,1,-1,.1,4000);let exhausts=[];let activeCamera=camera,aerialBounds,playerMesh,teslaFire,sideCard,contactShadow,nitroGroup,nitroSprite,nitroRing,wheelMeshes=[];
  const loader=new THREE.TextureLoader(),loaded=await Promise.all(['asphalt-color.jpg','asphalt-normal.jpg','asphalt-rough.jpg'].map(name=>loader.loadAsync(textureRoot+name)));
  loaded.forEach(t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(mobile?4:8,renderer.capabilities.getMaxAnisotropy());});loaded[0].colorSpace=THREE.SRGBColorSpace;
  const asphalt=new THREE.MeshStandardMaterial({map:loaded[0],normalMap:loaded[1],normalScale:new THREE.Vector2(.35,.35),roughnessMap:loaded[2],roughness:.96,metalness:0,color:'#c9c9c9'});
@@ -73,6 +75,7 @@ export async function createRacingWorld(stage){
  }
  const nitroArt=await nitroBadge(),nitroTexture=new THREE.CanvasTexture(nitroArt);nitroTexture.colorSpace=THREE.SRGBColorSpace;
  function build(race){
+  for(const item of exhausts)item.effect.dispose();exhausts=[];
   nitroGroup?.children.forEach(item=>item.material?.dispose());
   for(const car of [...rivalMeshes,playerMesh])car?.userData.disposeMaterials?.();
   for(const texture of [playerRearTexture,playerSideTexture])if(texture&&texture!==rivalTexture&&texture!==octaviaSideTexture){texture.dispose();}
@@ -118,6 +121,7 @@ export async function createRacingWorld(stage){
   wheelMeshes=Array.from({length:2},()=>{const wheel=new THREE.Mesh(new THREE.CircleGeometry(1,64),new THREE.MeshBasicMaterial({alphaTest:.1}));wheel.visible=false;root.add(wheel);return wheel;});
   playerMesh=createOctavia({rear:playerRearTexture,side:playerSideTexture,paint:race.playerPaint||'blue'});playerMesh.name=race.playerCar||'Octavia del piloto';stage.dataset.playerPaint=race.playerPaint||'blue';stage.dataset.playerCar=race.playerCar||'Octavia VRS MK4';playerMesh.visible=false;root.add(playerMesh);aerialBounds=circuitBounds(layout);stage.dataset.vehicleDetail='coherent-3d-hatch-surface-no-billboards';
 
+  exhausts=[{car:playerMesh,effect:createNitroExhaust(playerMesh),owner:'player'},...rivalMeshes.flatMap((car,i)=>car.userData.model==='tesla-model-3'?[]:[{car,effect:createNitroExhaust(car),owner:'rival:'+i}])];
   stage.dataset.teslaAppearance=teslaTexture?'detailed-transparent-rear':'rounded-3d';stage.dataset.vehicleGeometry='coherent-body-four-wheels-hatch-uv';stage.dataset.vehicleBillboards='0';stage.dataset.teslaTribute='ALBERTO';stage.dataset.teslaColor='white';stage.dataset.teslaFinish='neutral-pearl-white';stage.dataset.teslaDimensions='4.694x1.849x1.443';stage.dataset.track3d='ready';stage.dataset.track3dLevel=race.difficulty;stage.dataset.track3dStructures=String(root.children.length);signature=race.difficulty+':'+(race.circuit||'club')+':'+(race.playerPaint||'blue');stage.dataset.track3dCircuit=race.circuit||'club';
  }
  try{rivalTexture=await loader.loadAsync('assets/octavia-trasera-recta.png');rivalTexture.colorSpace=THREE.SRGBColorSpace;}catch{}
@@ -131,8 +135,10 @@ export async function createRacingWorld(stage){
  function render(race,{aerial=false,view=null,overview=false,replay=null}={}){stage.dataset.playerCar=race.playerCar||'Octavia VRS MK4';if(!available)return false;if(signature!==race.difficulty+':'+(race.circuit||'club')+':'+(race.playerPaint||'blue'))build(race);const mode=view||(aerial?'aerial':'cockpit'),outside=mode!=='cockpit',wholeCircuit=outside&&mode==='aerial'&&(overview||aerial&&!view);const {p,t,r}=layout.frame(race.distance),offset=race.x*race.settings.roadHalf-.35;camera.position.set(p[0]+r[0]*offset,p[1]+1.22,p[2]+r[2]*offset);const ahead=layout.frame(race.distance+32);camera.up.set(0,1,0);camera.lookAt(ahead.p[0]+ahead.r[0]*offset,ahead.p[1]+1.18,ahead.p[2]+ahead.r[2]*offset);sun.target.position.set(p[0],p[1],p[2]);sun.position.set(p[0]-65,p[1]+105,p[2]+45);sun.target.updateMatrixWorld();
   for(let i=0;i<rivalMeshes.length;i++){const car=race.rivals[i],f=layout.frame(car.distance),group=rivalMeshes[i];group.visible=true;group.position.set(f.p[0]+f.r[0]*car.x*race.settings.roadHalf,f.p[1]+.03,f.p[2]+f.r[2]*car.x*race.settings.roadHalf);orientVehicle(group,f);rollVehicle(group,car.distance);}
   nitroGroup.visible=!replay&&nitroVisible(race);if(nitroGroup.visible){const pulse=1+Math.sin(race.elapsed*4)*.045;nitroSprite.scale.set(3.5*pulse,3.5*pulse,1);nitroGroup.position.y=layout.frame(race.nitro.distance).p[1]+1.65+Math.sin(race.elapsed*2)*.1;}stage.dataset.nitroOwner=race.nitro.claimedBy||'';stage.dataset.nitroActive=String(race.nitro.active);stage.dataset.nitroVisible=String(nitroGroup.visible);
+  const boost=boostVisual(race);for(const item of exhausts)item.effect.update(!replay&&race.phase==='running'&&race.nitro.active&&race.nitro.claimedBy===item.owner,race.elapsed,item.owner==='player'?race.speed:race.rivals[Number(item.owner.split(':')[1])].speed);stage.dataset.exhaustFlames=exhausts.filter(item=>item.effect.group.visible).length.toString();stage.dataset.speedEffect=boost.toFixed(2);
+  const baseFov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(76+boost*10)/2)/(width/height)));if(camera.fov!==baseFov){camera.fov=baseFov;camera.updateProjectionMatrix();}
   const fireTime=teslaFireTime(race);teslaFire?.update(fireTime);stage.dataset.teslaFire=fireTime===null?'off':'burning';
-  activeCamera=wholeCircuit?aerialCamera:camera;playerMesh.visible=outside;if(outside){playerMesh.position.set(p[0]+r[0]*race.x*race.settings.roadHalf,p[1]+.03,p[2]+r[2]*race.x*race.settings.roadHalf);orientVehicle(playerMesh,{t,r});rollVehicle(playerMesh,race.distance,race.steering);stage.dataset.playerWheelAngle=(race.distance/.335).toFixed(5);if(!wholeCircuit){const pose=drivingCamera(race,mode,width/height);followCamera.aspect=width/height;followCamera.fov=pose.fov;followCamera.position.set(...pose.position);followCamera.up.set(0,1,0);followCamera.lookAt(...pose.target);followCamera.updateProjectionMatrix();activeCamera=followCamera;stage.dataset.cameraPosition=pose.position.map(v=>v.toFixed(3)).join(',');}}stage.dataset.cameraOverview=String(wholeCircuit);
+  activeCamera=wholeCircuit?aerialCamera:camera;playerMesh.visible=outside;if(outside){playerMesh.position.set(p[0]+r[0]*race.x*race.settings.roadHalf,p[1]+.03,p[2]+r[2]*race.x*race.settings.roadHalf);orientVehicle(playerMesh,{t,r});rollVehicle(playerMesh,race.distance,race.steering);stage.dataset.playerWheelAngle=(race.distance/.335).toFixed(5);if(!wholeCircuit){const pose=drivingCamera(race,mode,width/height);followCamera.aspect=width/height;followCamera.fov=pose.fov+boost*(mode==='aerial'?5:10);followCamera.position.set(...pose.position);followCamera.up.set(0,1,0);followCamera.lookAt(...pose.target);followCamera.updateProjectionMatrix();activeCamera=followCamera;stage.dataset.cameraPosition=pose.position.map(v=>v.toFixed(3)).join(',');}}stage.dataset.cameraOverview=String(wholeCircuit);
   if(wholeCircuit){const f=layout.frame(race.distance);playerMesh.position.set(f.p[0]+f.r[0]*race.x*race.settings.roadHalf,f.p[1]+.03,f.p[2]+f.r[2]*race.x*race.settings.roadHalf);orientVehicle(playerMesh,f);const b=aerialBounds,cx=(b.minX+b.maxX)/2,cz=(b.minZ+b.maxZ)/2,span=Math.max(b.maxZ-b.minZ,(b.maxX-b.minX)/(width/height)),half=span/2;Object.assign(aerialCamera,{left:-half*width/height,right:half*width/height,top:half,bottom:-half});aerialCamera.position.set(cx,b.maxY+Math.max(1500,span*1.25),cz+span*.22);aerialCamera.up.set(0,0,-1);aerialCamera.lookAt(cx,0,cz);aerialCamera.updateProjectionMatrix();}
   sideCard.visible=false;contactShadow.visible=false;wheelMeshes.forEach(wheel=>wheel.visible=false);
   if(replay){
@@ -148,7 +154,7 @@ export async function createRacingWorld(stage){
 
    stage.dataset.replayCarDistance=replay.distance.toFixed(2);stage.dataset.replayWinner=replay.winner.pilot;
   }
-  if(nitroGroup.visible)nitroRing.quaternion.copy(activeCamera.quaternion);
+  if(nitroGroup.visible)nitroRing.quaternion.copy(activeCamera.quaternion);stage.dataset.drivingFov=activeCamera.isPerspectiveCamera?activeCamera.fov.toFixed(2):'orthographic';
   const now=performance.now();if(race.phase==='running'&&lastRender){const dt=now-lastRender;totalFrame+=dt;frames++;if(dt>45)slow++;if(frames>=45){if(slow>25&&quality>.65){quality=Math.max(.65,quality-.2);resize(width,height);}stage.dataset.frameMs3d=(totalFrame/frames).toFixed(1);if(quality<=.65&&slow>40&&totalFrame/frames>110){available=false;canvas.hidden=true;stage.dataset.renderer='2d-fallback';stage.dataset.fallbackReason='performance';return false;}frames=slow=totalFrame=0;}}lastRender=now;
   const savedFog=scene.fog;if(wholeCircuit)scene.fog=null;renderer.shadowMap.enabled=!wholeCircuit;renderer.render(scene,activeCamera);scene.fog=savedFog;stage.dataset.raceView=replay?'finish-replay':mode;stage.dataset.renderer='webgl2';stage.dataset.quality3d=quality.toFixed(2);stage.dataset.drawCalls3d=String(renderer.info.render.calls);stage.dataset.triangles3d=String(renderer.info.render.triangles);stage.dataset.worldDistance=race.distance.toFixed(2);return true;
  }
