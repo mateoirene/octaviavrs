@@ -1,3 +1,4 @@
+import {handleAnalyticsRequest} from './analytics.mjs';
 import {marketFields,marketPhoto} from './market-fields.mjs';
 import {editMarketListing} from './market-edit.mjs';
 import {handleClubRequest} from './club.mjs';
@@ -40,9 +41,10 @@ export async function handleMarketRequest(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
- const requestLimit=(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
+ const requestLimit=path.startsWith('/api/analytics/')?32768:(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
  if(Number(request.headers.get('content-length')||0)>requestLimit)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>requestLimit){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
+ if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,await session(db,request),(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,'club-management',60);return await handleClubRequest(request,db,await session(db,request),context);}
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,await session(db,request));}

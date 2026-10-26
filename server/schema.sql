@@ -146,3 +146,18 @@ CREATE TABLE IF NOT EXISTS garage_birthdays (
  member_id TEXT PRIMARY KEY REFERENCES garage_members(id) ON DELETE CASCADE,
  birth_date TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS web_analytics_events (
+ id TEXT PRIMARY KEY,stamp INTEGER NOT NULL,day TEXT NOT NULL,visitor TEXT NOT NULL,session TEXT NOT NULL,
+ name TEXT NOT NULL,page TEXT NOT NULL,section TEXT NOT NULL DEFAULT '',params TEXT NOT NULL DEFAULT '{}',
+ source TEXT NOT NULL,device TEXT NOT NULL,active_ms INTEGER NOT NULL DEFAULT 0,lap_ms INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS web_analytics_day ON web_analytics_events(day,name);
+
+CREATE TABLE IF NOT EXISTS web_analytics_config(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS club_news_posts(
+ id TEXT PRIMARY KEY,title TEXT NOT NULL,body TEXT NOT NULL,link_url TEXT NOT NULL DEFAULT '',
+ category TEXT NOT NULL DEFAULT 'Noticia',expires_on TEXT NOT NULL DEFAULT '',
+ created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL
+);

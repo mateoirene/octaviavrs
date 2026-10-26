@@ -1,4 +1,4 @@
-import {openMarketListing} from './market-viewer.mjs?v=20261025-fotos';
+import {openMarketListing} from './market-viewer.mjs?v=20261026-analitica';
 import { MARKET_CATEGORIES } from './market-categories.mjs';
 import { setVrsText, upperVrs } from './branding.mjs';
 

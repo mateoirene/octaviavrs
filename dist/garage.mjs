@@ -9,7 +9,7 @@ async function api(path, method = 'GET', body) {
   const response = await fetch('/api/' + path, { method, cache: 'no-store', ...(body instanceof FormData ? { body } : body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
   const data = await response.json(); if (!response.ok) throw new Error(data.error || 'No se ha podido completar la operación.'); return data;
 }
-function showPhoto(url, title) { const dialog = $('[data-garage-lightbox]'); dialog.querySelector('img').src = url; dialog.querySelector('img').alt = title; dialog.showModal(); }
+function showPhoto(url, title, id) { const dialog = $('[data-garage-lightbox]'); dialog.querySelector('img').src = url; dialog.querySelector('img').alt = title; dialog.showModal();window.clubAnalytics?.track('member_car_view',{section:'garaje',resource_id:id}); }
 $('[data-close-garage-photo]').addEventListener('click', () => $('[data-garage-lightbox]').close());
 $('[data-garage-lightbox]').addEventListener('click', event => { if (event.target === event.currentTarget) event.currentTarget.close(); });
 function resetForm() {
@@ -31,11 +31,11 @@ function editMember(member) {
 function card(member) {
   const article = element('article', '', 'garage-member');
   const photos = element('div', '', 'garage-member-photos');
-  member.images.forEach((src,index) => { const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`); const image = element('img'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy'; button.append(image); button.addEventListener('click', () => showPhoto(src,image.alt)); photos.append(button); });
+  member.images.forEach((src,index) => { const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`); const image = element('img'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy'; button.append(image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button); });
   article.append(photos); const body = element('div', '', 'garage-member-body');
   if(member.profileImage){const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';body.append(avatar);}
   body.append(element('p', 'PILOTO DEL CLUB', 'eyebrow red'), element('h3',member.pilot), element('p',member.model,'garage-model'));
-  if (member.instagramUrl) { const link = element('a','@'+member.instagram+' ↗','garage-instagram'); link.href = member.instagramUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; body.append(link); }
+  if (member.instagramUrl) { const link = element('a','@'+member.instagram+' ↗','garage-instagram'); link.dataset.analyticsResourceId=member.id;link.href = member.instagramUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; body.append(link); }
   if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
   if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
   const specs = element('dl','', 'garage-specs');

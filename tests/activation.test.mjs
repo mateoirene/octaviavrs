@@ -16,6 +16,7 @@ writeFileSync(join(directory,'review-mail.mjs'),readFileSync(new URL('../server/
 for(const name of ['market-fields.mjs','market-edit.mjs','news.mjs','birthdays.mjs'])writeFileSync(join(directory,name),readFileSync(new URL('../server/'+name,import.meta.url)));
 writeFileSync(join(directory,'market.mjs'),readFileSync(new URL('../server/market.mjs',import.meta.url)));
 writeFileSync(join(directory,'config.mjs'),`export const ACTIVATION_HASH=${JSON.stringify(await digest('test-only-activation'))};export const ADMIN_EMAIL_HASHES=${JSON.stringify([await digest('first@example.com'),await digest('second@example.com')])};`);
+writeFileSync(join(directory,'analytics.mjs'),'export {handleAnalyticsRequest} from '+JSON.stringify(new URL('../server/analytics.mjs',import.meta.url).href)+';');
 const {handleMarketRequest}=await import(pathToFileURL(join(directory,'market.mjs')));
 const {DatabaseSync}=await import('node:sqlite');
 test('activación única y alta del segundo administrador',async()=>{const raw=new DatabaseSync(':memory:');raw.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));const db={prepare(sql){const statement=raw.prepare(sql);let args=[];const api={bind(...values){args=values;return api;},async first(){return statement.get(...args);},async run(){return {meta:{changes:statement.run(...args).changes}};}};return api;},async batch(items){raw.exec('BEGIN');try{for(const item of items)await item.run();raw.exec('COMMIT');}catch(error){raw.exec('ROLLBACK');throw error;}}};

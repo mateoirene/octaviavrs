@@ -1,5 +1,5 @@
 import {openMarketEditor} from './market-edit.mjs?v=20261025-fotos';
-import {openMarketListing} from './market-viewer.mjs?v=20261025-fotos';
+import {openMarketListing} from './market-viewer.mjs?v=20261026-analitica';
 import { setVrsText } from './branding.mjs';
 import { groupByCategory } from './market-categories.mjs';
 const $ = selector => document.querySelector(selector);
