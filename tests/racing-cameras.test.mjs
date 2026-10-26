@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createRace,stepRace} from '../dist/racing-physics.mjs';
+import {CIRCUITS} from '../dist/racing-circuits.mjs';
+import {drivingCamera,cameraProject} from '../dist/racing-cameras.mjs';
+test('cámaras exteriores conservan escala y mantienen el coche visible en curvas, móvil y meta',()=>{for(const circuit of ['club',...CIRCUITS.map(c=>c.id)])for(const view of ['chase','aerial'])for(const aspect of [.7,1.6,2.1]){const race=createRace(null,'expert',circuit);for(const fraction of [0,.17,.34,.61,.95,1]){race.distance=race.trackLength*fraction;race.x=.65;const pose=drivingCamera(race,view,aspect),p=cameraProject(pose.car,pose,700*aspect,700);assert.ok(p&&p.depth>0);assert.ok(p.x>0&&p.x<700*aspect);assert.ok(p.y>50&&p.y<660);assert.ok(pose.position[1]>pose.car[1]+2);assert.ok([...pose.position,...pose.target].every(Number.isFinite));}}});
+test('cambio de cámara no muta carrera y sigue la física incluso al cruzar meta',()=>{const race=createRace();race.phase='running';race.speed=40;race.distance=race.trackLength-.2;const before=structuredClone(race);const p=drivingCamera(race,'chase');drivingCamera(race,'aerial');assert.deepEqual(race,before);stepRace(race,{accelerate:true},.05);const next=drivingCamera(race,'chase');assert.ok(Math.hypot(...next.position.map((v,i)=>v-p.position[i]))<5);race.phase='paused';const stopped=drivingCamera(race,'aerial');stepRace(race,{accelerate:true},.05);assert.deepEqual(drivingCamera(race,'aerial'),stopped);});

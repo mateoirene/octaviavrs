@@ -28,3 +28,9 @@
 .garage-antispam{display:none!important}#revisiones select,#revisiones textarea{width:100%;max-width:100%;padding:12px;margin:8px 0;font:inherit;color:#fff;background:#16212d;border:1px solid #8291a4;border-radius:8px}#revisiones>label{display:block;max-width:400px}#revisiones button{padding:12px;background:#a51f35;border:1px solid #d68a98;color:#fff;border-radius:8px;font:inherit;cursor:pointer}#revisiones .garage-member>p{padding:16px}.garage-management{scroll-margin-top:24px}
 
 .race-stage>.race-engine-start{position:absolute;z-index:6;left:50%;top:50%;transform:translate(-50%,-50%);width:clamp(88px,14vw,128px);height:clamp(88px,14vw,128px);min-height:0;padding:0;overflow:hidden;border-radius:50%;border:1px solid #b34743;background:#070707;box-shadow:0 0 20px #e733334d;cursor:pointer}.race-stage>.race-engine-start[hidden]{display:none}.race-stage.is-finish-replay>.race-engine-start{display:none}.race-engine-start:focus-visible{outline:3px solid white;outline-offset:4px}
+
+/* Outside views: radio stays away from the road, GPS and driving controls. */
+.race-stage.is-exterior .race-screen-music{left:auto!important;right:14px;top:auto!important;bottom:14px;width:44px!important;height:44px!important;min-width:44px;min-height:44px;box-shadow:0 2px 12px #0008}
+.race-stage.is-exterior>.race-overlay{inset:65px 8% auto;padding:10px;gap:5px}.race-stage.is-exterior>.race-overlay strong{font-size:clamp(14px,2vw,22px)}.race-stage.is-exterior>.race-overlay span{font-size:12px}
+.race-view-picker button{min-height:44px}.race-view-picker button[hidden]{display:none}
+@media(max-width:600px){.race-view-picker{display:grid;grid-template-columns:1fr 1fr;gap:8px}.race-view-picker button{font-size:13px;padding:10px 8px}}

@@ -21,3 +21,5 @@ async function verify(){
  console.log('CIRCUITO_PUBLICADO_OK: fotos locales, tres niveles, orden de portada y puntero negro/rojo.');
 }
 for(let attempt=0;attempt<5;attempt++){try{await verify();break;}catch(error){if(attempt===4)throw error;await new Promise(resolve=>setTimeout(resolve,4000));}}
+
+const camerasPage=await(await fetch(base+'/simulador.html')).text();for(const view of ['cockpit','chase','aerial'])assert.ok(camerasPage.includes('data-race-view=\"'+view+'\"'));const cameraModule=await fetch(base+'/racing-cameras.mjs?v=20261026-vistas');assert.equal(cameraModule.status,200);assert.ok((await cameraModule.text()).includes('drivingCamera'));for(const module of ['racing-vehicles3d.mjs','racing-external2d.mjs'])assert.equal((await fetch(base+'/'+module)).status,200);console.log('TRES_CAMARAS_PUBLICADAS_OK: selector, cámaras 3D y respaldo disponibles.');
