@@ -39,6 +39,7 @@ for(const path of ['analytics.js','analytics.css','analytics-contract.mjs','esta
 const analyticsPublic=await(await fetch(base+'/api/analytics/config',{cache:'no-store'})).json();assert.equal(analyticsPublic.version,1);assert.ok(!('GA4_SERVICE_ACCOUNT_JSON' in analyticsPublic));
 assert.equal((await fetch(base+'/api/analytics/report?from=2026-10-01&to=2026-10-26',{cache:'no-store'})).status,401);assert.equal((await fetch(base+'/api/club/posts?manage=1',{cache:'no-store'})).status,401);
 assert.ok(Array.isArray(await(await fetch(base+'/api/club/posts')).json()));const platformLogo=await fetch(base+'/assets/platforms/youtube.svg');assert.equal(platformLogo.status,200);assert.ok((await platformLogo.text()).includes('<svg'));
+const consentHtml=await(await fetch(base+'/?consent-check='+Date.now(),{cache:'no-store'})).text();assert.ok(!/<script[^>]+src=["'][^"']*(?:googletagmanager\.com|clarity\.ms|static\.cloudflareinsights\.com)/i.test(consentHtml),'Ninguna etiqueta externa puede autoinyectarse antes del consentimiento');
 console.log('ANALITICA_COMUNIDAD_PUBLICADAS_OK: consentimiento, API privada, política, noticias de administración, festivos e iconos disponibles. Las conexiones externas requieren configuración y validación real.');
 }
 for(let attempt=0;attempt<12;attempt++){try{await verifyExtras();break;}catch(error){if(attempt===11)throw error;console.log('Esperando propagación de archivos publicados ('+(attempt+1)+').');await new Promise(resolve=>setTimeout(resolve,5000));}}
