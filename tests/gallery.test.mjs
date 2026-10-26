@@ -33,3 +33,11 @@ test('galería: carpetas separadas, fotos persistentes y gestión privada',async
  assert.equal((await call('photos/'+photos[0].id,'DELETE',undefined,true)).status,200);assert.equal((await call('photos/'+photos[0].id)).status,404);
  assert.equal((await call('folders/'+folder,'DELETE',undefined,true)).status,200);assert.equal(raw.prepare('SELECT COUNT(*) n FROM gallery_photos').get().n,0);
  }finally{raw.close();}});
+
+test('cada álbum admite 100 fotos y dos cargas simultáneas no superan el límite',async()=>{const {raw,call}=fixture();try{
+ const folder=(await(await call('folders','POST',{name:'Álbum de cien',category:'Rutas'},true)).json()).id;
+ const insert=raw.prepare('INSERT INTO gallery_photos VALUES(?,?,?,?,?,?)');for(let i=0;i<99;i++)insert.run('seed-'+i,folder,'Ruta','image/jpeg',Buffer.from([255,216,255,224,0,0,0,0,0,0,0,0,0]),1);
+ const responses=await Promise.all([call('photos','POST',photo(folder),true),call('photos','POST',photo(folder),true)]);assert.deepEqual(responses.map(r=>r.status).sort(),[201,409]);assert.equal((await(await call('photos?folder='+folder)).json()).length,100);
+ const first=raw.prepare('SELECT id FROM gallery_photos WHERE folder_id=? LIMIT 1').get(folder).id;assert.equal((await call('photos/'+first,'DELETE',undefined,true)).status,200);assert.equal((await call('photos','POST',photo(folder),true)).status,201);
+ const other=(await(await call('folders','POST',{name:'Otro evento',category:'Almuerzos'},true)).json()).id;assert.equal((await call('photos','POST',photo(other),true)).status,201);assert.equal(raw.prepare('SELECT COUNT(*) n FROM gallery_photos WHERE folder_id=?').get(folder).n,100);
+ }finally{raw.close()}});

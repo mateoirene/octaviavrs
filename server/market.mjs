@@ -1,3 +1,5 @@
+import {marketFields,marketPhoto} from './market-fields.mjs';
+import {editMarketListing} from './market-edit.mjs';
 import {handleClubRequest} from './club.mjs';
 import {handlePushRequest,recordClubEvent} from './push.mjs';
 import {handleRacingRequest} from './racing.mjs';
@@ -19,9 +21,9 @@ async function limit(db,request,purpose,max){const bucket=Math.floor(now()/900);
 function text(form,key,min,max){const value=String(form.get(key)||'').trim();if(value.length<min||value.length>max)fail(`Revisa el campo ${key}.`);return value;}
 async function credentials(body){const email=String(body.email||'').trim().toLowerCase();if(!ADMIN_EMAIL_HASHES.includes(await hash(email)))fail('Esta cuenta no está autorizada.',403);if(typeof body.password!=='string'||body.password.length<12||body.password.length>128)fail('La contraseña debe tener entre 12 y 128 caracteres.');const salt=random();return {id:crypto.randomUUID(),email,salt,digest:await password(body.password,salt)};}
 async function listings(db,status,privateView=false){
-const rows=(await db.prepare('SELECT * FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200').bind(status).all()).results;
+const rows=(await db.prepare("SELECT l.*,COALESCE(v.token,'') edit_version FROM market_listings l LEFT JOIN market_edit_versions v ON v.listing_id=l.id WHERE l.status=? ORDER BY l.created_at DESC LIMIT 200").bind(status).all()).results;
 const photos=(await db.prepare('SELECT id,listing_id FROM market_photos WHERE listing_id IN (SELECT id FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200) ORDER BY position').bind(status).all()).results;
-return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note,...(row.status==='sold'?{soldAt:row.updated_at,deleteAvailableAt:row.updated_at+86400,deleteWaitSeconds:Math.max(0,row.updated_at+86400-now()),canDelete:now()>=row.updated_at+86400}:{})}:item;});}
+return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note,contactType:row.contact_type,contactValue:row.contact_value,editVersion:row.edit_version,photoIds:photos.filter(p=>p.listing_id===row.id).map(p=>p.id),...(row.status==='sold'?{soldAt:row.updated_at,deleteAvailableAt:row.updated_at+86400,deleteWaitSeconds:Math.max(0,row.updated_at+86400-now()),canDelete:now()>=row.updated_at+86400}:{})}:item;});}
 
 async function announceMutation(request,response,db,context){
  if(!response.ok||request.method==='GET')return response;
@@ -38,8 +40,9 @@ export async function handleMarketRequest(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
- if(Number(request.headers.get('content-length')||0)>4*1024*1024)fail('Las fotos ocupan demasiado.',413);
- if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>4*1024*1024){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
+ const requestLimit=(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
+ if(Number(request.headers.get('content-length')||0)>requestLimit)fail('Las fotos ocupan demasiado.',413);
+ if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>requestLimit){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
  if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,'club-management',60);return await handleClubRequest(request,db,await session(db,request),context);}
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,await session(db,request));}
@@ -54,17 +57,10 @@ export async function handleMarketRequest(request,env,context){try{
  }
  if(path==='/api/market/submissions'&&method==='POST'){
  await limit(db,request,'submit',5);const form=await request.formData();if(form.get('website')||form.get('consent')!=='yes')fail('Confirma que aceptas publicar los datos de contacto.');
- const title=text(form,'title',4,100),description=text(form,'description',20,2500),category=text(form,'category',2,50),condition=text(form,'condition',2,50),compatibility=text(form,'compatibility',2,150),location=text(form,'location',2,100),seller=text(form,'seller',2,80);
- if(!['Motor','Llantas y neumáticos','Interior','Exterior','Otros'].includes(category))fail('Selecciona una categoría válida.');
- const rawPrice=text(form,'price',1,12).replace(',','.');const price=Number(rawPrice);if(!Number.isFinite(price)||price<0||price>100000)fail('Revisa el precio.');
- const type=text(form,'contact_type',3,20),value=text(form,'contact_value',3,150);let contact;
- if(type==='email'&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))contact='mailto:'+value;
- if(type==='phone'&&/^\+?[\d\s()-]{7,25}$/.test(value))contact='tel:'+value.replace(/[^\d+]/g,'');
- if(type==='instagram'&&/^@?[a-zA-Z0-9_.]{1,30}$/.test(value))contact='https://www.instagram.com/'+value.replace(/^@/,'')+'/';
- if(!contact)fail('Revisa el contacto del vendedor.');
- const photos=form.getAll('photos');if(photos.length<1||photos.length>3)fail('Añade entre una y tres fotos.');
+ const {title,description,category,condition,compatibility,location,seller,price,type,value,contact}=marketFields(form);
+ const photos=form.getAll('photos');if(photos.length<1||photos.length>10)fail('Añade entre 1 y 10 fotos.');
  const id=crypto.randomUUID(),stamp=now();const statements=[db.prepare('INSERT INTO market_listings(id,title,category,description,price,condition,compatibility,location,seller,contact_type,contact_value,contact_url,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,title,category,description,price,condition,compatibility,location,seller,type,value,contact,stamp,stamp)];
- for(let position=0;position<photos.length;position++){const file=photos[position];if(!file.arrayBuffer||file.size>1048576||file.size<12)fail('Cada foto debe ocupar menos de 1 MB.');const bytes=new Uint8Array(await file.arrayBuffer());const jpeg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;const webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';const mime=jpeg?'image/jpeg':png?'image/png':webp?'image/webp':null;if(!mime)fail('Solo se admiten fotos JPG, PNG o WebP.');statements.push(db.prepare('INSERT INTO market_photos VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,mime,bytes.buffer,position));}
+ for(let position=0;position<photos.length;position++){const photo=await marketPhoto(photos[position]);statements.push(db.prepare('INSERT INTO market_photos VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),id,photo.mime,photo.data,position));}
  statements.push(db.prepare('INSERT INTO market_review_mail(listing_id,created_at) VALUES(?,?)').bind(id,stamp));
  await db.batch(statements);
  const delivery=dispatchReviewMail(db,env,id).catch(()=>({sent:false}));
@@ -88,6 +84,7 @@ export async function handleMarketRequest(request,env,context){try{
  if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')).run();return json({ok:true},200,{'Set-Cookie':cookie('')});}
  if(path==='/api/admin/users'&&method==='POST'){const next=await credentials(await request.json());if(await db.prepare('SELECT id FROM market_admins WHERE email=?').bind(next.email).first())fail('Esta cuenta ya tiene acceso.',409);await db.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').bind(next.id,next.email,next.digest,next.salt,now()).run();return json({email:next.email},201);}
  if(path==='/api/admin/listings'&&method==='GET'){const status=new URL(request.url).searchParams.get('status')||'pending';if(!['pending','approved','rejected','sold'].includes(status))fail('Estado no válido.');return json(await listings(db,status,true));}
+ if(/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path)&&method==='POST'){await limit(db,request,'market-edit',40);const result=await editMarketListing(request,db,user,path.split('/')[4]);await recordClubEvent(db,{id:crypto.randomUUID(),title:'Anuncio del mercadillo actualizado',href:result.status==='approved'?'mercadillo.html':'admin.html',audience:result.status==='approved'?'public':'admin'},context).catch(()=>{});return json(result);}
  if(path.startsWith('/api/admin/listings/')&&method==='POST'){const body=await request.json();
  if(body.action==='delete'){
  if(body.confirm!==true)fail('Confirma que quieres eliminar definitivamente este anuncio.');

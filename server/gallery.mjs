@@ -32,7 +32,7 @@ export async function handleGalleryRequest(request,db,admin){
   if(!await db.prepare('SELECT id FROM gallery_folders WHERE id=?').bind(folder).first())fail('Selecciona una carpeta existente.');if(form.get('consent')!=='yes')fail('Confirma que tienes permiso para publicar las fotos.');if(caption.length>160)fail('El texto de la foto es demasiado largo.');
   const file=form.get('photo');if(!file?.arrayBuffer||file.size<12||file.size>1048576)fail('La foto debe ocupar menos de 1 MB.');const bytes=new Uint8Array(await file.arrayBuffer());
   const mime=bytes[0]===255&&bytes[1]===216&&bytes[2]===255?'image/jpeg':bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71?'image/png':String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP'?'image/webp':null;if(!mime)fail('Solo se admiten fotos JPG, PNG o WebP.');
-  const photoId=crypto.randomUUID();await db.prepare('INSERT INTO gallery_photos VALUES(?,?,?,?,?,?)').bind(photoId,folder,caption,mime,bytes.buffer,Math.floor(Date.now()/1000)).run();return reply({id:photoId},201);
+  const photoId=crypto.randomUUID();const result=await db.prepare('INSERT INTO gallery_photos SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM gallery_photos WHERE folder_id=?)<100').bind(photoId,folder,caption,mime,bytes.buffer,Math.floor(Date.now()/1000),folder).run();if(!result.meta.changes)fail('El álbum ya tiene 100 fotos. Elimina alguna antes de añadir más.',409);return reply({id:photoId},201);
  }
  if(path.startsWith('/api/gallery/photos/')&&method==='DELETE'){const result=await db.prepare('DELETE FROM gallery_photos WHERE id=?').bind(id).run();if(!result.meta.changes)fail('La foto ya no existe.',404);return reply({ok:true});}
  return reply({error:'Ruta no encontrada.'},404);

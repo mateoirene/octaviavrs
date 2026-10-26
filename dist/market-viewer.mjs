@@ -1,0 +1,22 @@
+import {setVrsText} from './branding.mjs';
+const node=(tag,text='')=>{const el=document.createElement(tag);if(text)setVrsText(el,text);return el;};
+const safe=(value,protocols)=>{if(typeof value!=='string'||!value.trim())return null;try{const url=new URL(value,document.baseURI);return protocols.includes(url.protocol)?url.href:null;}catch{return null;}};
+let dialog,current=[],index=0,title='';
+function showPhoto(at){index=(at+current.length)%current.length;const image=dialog.querySelector('[data-piece-image]');image.src=current[index];image.alt=title+' · Foto '+(index+1)+' de '+current.length;dialog.querySelector('[data-piece-counter]').textContent='Foto '+(index+1)+' de '+current.length;dialog.querySelectorAll('[data-piece-thumb]').forEach((button,i)=>button.setAttribute('aria-pressed',String(i===index)));const selected=dialog.querySelectorAll('[data-piece-thumb]')[index];if(selected){const strip=selected.parentElement,b=selected.getBoundingClientRect(),r=strip.getBoundingClientRect();strip.scrollLeft+=b.left-r.left-(r.width-b.width)/2;}}
+function create(){
+ dialog=node('dialog');dialog.className='market-detail-dialog';dialog.dataset.marketViewer='';dialog.setAttribute('aria-labelledby','market-detail-title');
+ dialog.innerHTML='<button type="button" data-piece-close>Cerrar ✕</button><h2 id="market-detail-title"></h2><div class="market-large-photo"><img data-piece-image alt=""><div class="market-photo-navigation"><button type="button" data-piece-prev aria-label="Foto anterior">← Anterior</button><p data-piece-counter role="status" aria-live="polite"></p><button type="button" data-piece-next aria-label="Foto siguiente">Siguiente →</button></div></div><div class="market-photo-thumbs" data-piece-thumbs></div><div data-piece-details></div>';
+ document.body.append(dialog);dialog.querySelector('[data-piece-close]').onclick=()=>dialog.close();dialog.querySelector('[data-piece-prev]').onclick=()=>showPhoto(index-1);dialog.querySelector('[data-piece-next]').onclick=()=>showPhoto(index+1);
+ dialog.addEventListener('keydown',event=>{if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();showPhoto(index+(event.key==='ArrowLeft'?-1:1));}});
+ dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
+ const image=dialog.querySelector('[data-piece-image]');image.draggable=false;let start=null;image.addEventListener('pointerdown',e=>{start=e.clientX;});image.addEventListener('pointerup',e=>{if(start!==null&&Math.abs(e.clientX-start)>40)showPhoto(index+(e.clientX<start?1:-1));start=null;});image.addEventListener('pointercancel',()=>start=null);
+}
+export function openMarketListing(item,at=0){
+ if(!dialog)create();current=(item.images?.length?item.images:[item.image]).map(src=>safe(src,['http:','https:'])).filter(Boolean);if(!current.length)return;
+ title=item.title;setVrsText(dialog.querySelector('h2'),title);const thumbs=dialog.querySelector('[data-piece-thumbs]');thumbs.replaceChildren();current.forEach((src,i)=>{const button=node('button'),img=node('img');button.type='button';button.dataset.pieceThumb=String(i);button.setAttribute('aria-label','Ver foto '+(i+1)+' de '+current.length);img.src=src;img.alt='Foto '+(i+1);img.loading='lazy';button.append(img);button.onclick=()=>showPhoto(i);thumbs.append(button);});
+ const details=dialog.querySelector('[data-piece-details]');details.replaceChildren(node('p',new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(item.price)),node('p',item.description));
+ for(const [label,value]of [['Estado',item.condition],['Compatible con',item.compatibility],['Localidad',item.location],['Vendedor',item.seller]])if(value)details.append(node('p',label+': '+value));
+ const contact=safe(item.contactUrl,['https:','http:','mailto:','tel:']);if(contact){const link=node('a','Contactar con el vendedor ↗');link.href=contact;link.className='button';if(contact.startsWith('http')){link.target='_blank';link.rel='noopener noreferrer';}details.append(link);}
+ if(item.editHref){const link=node('a','Editar este anuncio');link.href=item.editHref;link.className='button market-edit-link';details.append(link);}
+ dialog.querySelector('[data-piece-prev]').hidden=dialog.querySelector('[data-piece-next]').hidden=current.length<2;if(!dialog.open)dialog.showModal();showPhoto(Math.min(at,current.length-1));
+}

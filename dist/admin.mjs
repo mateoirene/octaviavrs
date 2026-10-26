@@ -1,3 +1,5 @@
+import {openMarketEditor} from './market-edit.mjs?v=20261025-fotos';
+import {openMarketListing} from './market-viewer.mjs?v=20261025-fotos';
 import { setVrsText } from './branding.mjs';
 import { groupByCategory } from './market-categories.mjs';
 const $ = selector => document.querySelector(selector);
@@ -5,7 +7,7 @@ const status = $('[data-status]'), login = $('[data-login]'), panel = $('[data-p
 const selectedId = new URLSearchParams(location.search).get('anuncio');
 const noteDrafts = new Map();
 let lastSignature = '', refreshing = false, polling = false;
-const signature = items => items.map(item => `${item.id}:${item.status}`).join('|');
+const signature = items => items.map(item => `${item.id}:${item.status}:${item.editVersion||''}`).join('|');
 function showPendingCount(count) { $('[data-pending-summary]').textContent = count ? `Tienes ${count} ${count === 1 ? 'anuncio pendiente' : 'anuncios pendientes'} de autorización.` : 'No hay anuncios pendientes de autorización.'; }
 let key = new URLSearchParams(location.hash.slice(1)).get('activar'), focused = false;
 if (location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -33,7 +35,7 @@ function cardFor(item) {
   const card = node('article'); card.className = 'admin-card'; card.id = 'anuncio-' + item.id;
   card.append(node('h3', item.title), node('p', `${item.price.toLocaleString('es-ES')} € · ${item.category}`), node('p', item.description), node('p', `Estado: ${item.condition}\nCompatibilidad: ${item.compatibility}\nLocalidad: ${item.location}\nVendedor: ${item.seller}`));
   for (const src of item.images) {
-    const a = node('a'), image = node('img'); a.href = src; a.target = '_blank'; a.rel = 'noopener noreferrer'; image.src = src; image.alt = 'Foto de ' + item.title; a.append(image); card.append(a);
+    const a = node('button'), image = node('img');a.type='button';a.className='admin-photo-open';a.onclick=()=>openMarketListing(item,item.images.indexOf(src));image.src = src;image.alt = 'Foto de ' + item.title;a.append(image);card.append(a);
   }
   const contact = node('a', 'Contacto del vendedor'); contact.href = item.contactUrl; contact.rel = 'noopener noreferrer'; card.append(contact);
   const note = node('textarea'); note.placeholder = 'Nota privada de revisión (opcional)'; note.maxLength = 500; note.setAttribute('aria-label', 'Nota privada de revisión'); note.value = noteDrafts.get(item.id) ?? item.reviewNote ?? ''; note.addEventListener('input', () => noteDrafts.set(item.id, note.value)); card.append(note);
@@ -54,6 +56,7 @@ function cardFor(item) {
     });
     actionBar.append(button);
   }
+  const edit=node('button','Editar anuncio');edit.type='button';edit.setAttribute('data-edit-listing',item.id);edit.onclick=()=>openMarketEditor(item,async()=>{await refresh();status.textContent='Cambios guardados. El anuncio conserva su estado.';});actionBar.append(edit);
   card.append(actionBar);
   return card;
 }
@@ -75,7 +78,7 @@ async function refresh() {
     status.textContent = count ? `${count} anuncios, clasificados por temática.` : 'No hay anuncios con estos filtros.';
     if (selectedId && !focused) {
       const selected = document.getElementById('anuncio-' + selectedId);
-      if (selected) { selected.tabIndex = -1; selected.focus({ preventScroll: true }); selected.scrollIntoView({ block: 'center', behavior: 'instant' }); focused = true; }
+      if (selected) { selected.tabIndex = -1; selected.focus({ preventScroll: true }); selected.scrollIntoView({ block: 'center', behavior: 'instant' }); focused = true; if(new URLSearchParams(location.search).get('editar')==='1')void openMarketEditor(items.find(item=>item.id===selectedId),async()=>{await refresh();status.textContent='Cambios guardados.';}); }
       else if (!items.some(item => item.id === selectedId)) status.textContent += ' El anuncio del enlace ya no está pendiente o ha cambiado de estado.';
     }
     await refreshMail();
@@ -88,7 +91,7 @@ async function pollPending() {
   try {
     const pending = await api('admin/listings?status=pending');
     showPendingCount(pending.length);
-    const editing = document.activeElement?.tagName === 'TEXTAREA';
+    const editing = !!document.querySelector('[data-market-editor]') || ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
     if (!editing && (($('[data-filter]').value === 'pending' && signature(pending) !== lastSignature) || $('[data-filter]').value === 'sold')) await refresh();
   } catch (error) { status.textContent = error.message; }
   finally { polling = false; }
@@ -97,6 +100,7 @@ async function enter(user) {
   key = null; login.hidden = true; panel.hidden = false; window.dispatchEvent(new Event('club-session-change'));
   if (new URLSearchParams(location.search).get('volver') === 'galeria') { location.assign('galeria.html#gestion'); return; }
   if (new URLSearchParams(location.search).get('volver') === 'garaje') { location.assign('garaje.html#gestion'); return; }
+  const initialStatus=new URLSearchParams(location.search).get('estado');if(['pending','approved','rejected','sold'].includes(initialStatus))$('[data-filter]').value=initialStatus;
   $('[data-user]').textContent = user.email; await refresh(); await refreshMail(true);
 }
 if (key) { $('[data-login-title]').textContent = 'Activar acceso privado'; $('[data-setup-copy]').hidden = false; login.elements.password.autocomplete = 'new-password'; }

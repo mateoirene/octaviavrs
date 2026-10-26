@@ -138,3 +138,5 @@ CREATE TABLE IF NOT EXISTS club_social_links (
  id TEXT PRIMARY KEY,list_id TEXT NOT NULL REFERENCES club_social_lists(id) ON DELETE CASCADE,
  name TEXT NOT NULL,url TEXT NOT NULL,description TEXT NOT NULL,platform TEXT NOT NULL,created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS market_edit_versions (listing_id TEXT PRIMARY KEY REFERENCES market_listings(id) ON DELETE CASCADE,token TEXT NOT NULL,edited_by TEXT NOT NULL,edited_at INTEGER NOT NULL);

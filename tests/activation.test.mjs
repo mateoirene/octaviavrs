@@ -13,6 +13,7 @@ writeFileSync(join(directory,'garage.mjs'),readFileSync(new URL('../server/garag
 writeFileSync(join(directory,'push.mjs'),readFileSync(new URL('../server/push.mjs',import.meta.url)));
 writeFileSync(join(directory,'club.mjs'),readFileSync(new URL('../server/club.mjs',import.meta.url)));
 writeFileSync(join(directory,'review-mail.mjs'),readFileSync(new URL('../server/review-mail.mjs',import.meta.url)));
+for(const name of ['market-fields.mjs','market-edit.mjs'])writeFileSync(join(directory,name),readFileSync(new URL('../server/'+name,import.meta.url)));
 writeFileSync(join(directory,'market.mjs'),readFileSync(new URL('../server/market.mjs',import.meta.url)));
 writeFileSync(join(directory,'config.mjs'),`export const ACTIVATION_HASH=${JSON.stringify(await digest('test-only-activation'))};export const ADMIN_EMAIL_HASHES=${JSON.stringify([await digest('first@example.com'),await digest('second@example.com')])};`);
 const {handleMarketRequest}=await import(pathToFileURL(join(directory,'market.mjs')));

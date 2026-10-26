@@ -1,3 +1,4 @@
+import {openMarketListing} from './market-viewer.mjs?v=20261025-fotos';
 import { MARKET_CATEGORIES } from './market-categories.mjs';
 import { setVrsText, upperVrs } from './branding.mjs';
 
@@ -41,11 +42,8 @@ function listingCard(item) {
   const card = element('article', 'market-card');
   const photo = safeUrl(item.image, ['https:', 'http:']);
   if (photo) {
-    const link = element('a', 'market-card-photo');
-    link.href = photo;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.setAttribute('aria-label', `Ver foto completa: ${upperVrs(item.title)}`);
+    const link = element('button', 'market-card-photo');link.type='button';link.onclick=()=>openMarketListing(item);
+    link.setAttribute('aria-label', `Ver anuncio y sus fotos: ${upperVrs(item.title)}`);
     const image = element('img');
     image.src = photo;
     image.alt = upperVrs(item.title);
@@ -53,15 +51,10 @@ function listingCard(item) {
     link.append(image);
     card.append(link);
   }
-  for (const source of (item.images || []).slice(1)) {
-    const url = safeUrl(source, ['https:', 'http:']);
-    if (!url) continue;
-    const link = element('a', 'market-extra-photo', 'Ver otra foto ↗');
-    link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; card.append(link);
-  }
   const body = element('div', 'market-card-body');
   if (item.category) body.append(element('p', 'eyebrow red', item.category));
   body.append(element('h3', '', item.title), element('p', 'market-price', formatPrice(item.price)));
+  const photoCount=(item.images||[]).length,view=element('button','',`Ver anuncio · ${photoCount} ${photoCount===1?'foto':'fotos'}`);view.type='button';view.dataset.openPiece='';view.onclick=()=>openMarketListing(item);body.append(view);
   if (item.description) body.append(element('p', 'market-description', item.description));
   const facts = element('dl', 'market-facts');
   for (const [label, value] of [['Estado', item.condition], ['Compatible con', item.compatibility], ['Localidad', item.location], ['Vendedor', item.seller]]) {
@@ -103,6 +96,7 @@ export async function initMarket(root, fetcher = fetch) {
     const response = await fetcher('/api/market/listings', { cache: 'no-cache' });
     if (!response.ok) throw new Error('No se pudo cargar el mercadillo.');
     const items = availableListings(await response.json());
+    try{const auth=await fetch('/api/admin/session',{cache:'no-store'});if(auth.ok&&(await auth.json()).id)for(const item of items)item.editHref='admin.html?estado=approved&anuncio='+encodeURIComponent(item.id)+'&editar=1';}catch{}
     const categories = MARKET_CATEGORIES;
     for (const name of categories) {
       const option = element('option', '', name);
