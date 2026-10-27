@@ -14,7 +14,7 @@ permissions:
   contents: read
 concurrency:
   group: cloudflare-pages-octaviaap
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   publicar:
     runs-on: ubuntu-latest
@@ -46,15 +46,19 @@ jobs:
         with:
           node-version: '24'
       - name: Comprobar privacidad y moderación
+        if: steps.cambios.outputs.solo_css != 'true'
         run: node --test tests/*.test.mjs
       - name: Recuperar fotografías del circuito
+        if: steps.cambios.outputs.solo_css != 'true'
         uses: actions/cache@v4
         with:
           path: dist/assets/race
           key: octavia-race-photos-20261023-v1
       - name: Preparar fotografías y atribuciones
+        if: steps.cambios.outputs.solo_css != 'true'
         run: node scripts/prepare-race-assets.mjs
       - name: Recuperar motor y materiales 3D
+        if: steps.cambios.outputs.solo_css != 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -62,6 +66,7 @@ jobs:
             dist/assets/track3d
           key: octavia-track3d-three0180-asphalt02-v1
       - name: Preparar motor local y materiales PBR
+        if: steps.cambios.outputs.solo_css != 'true'
         run: node scripts/prepare-track3d.mjs
       - name: Comprobar garaje y circuito en Chrome
         if: steps.cambios.outputs.solo_css != 'true'
