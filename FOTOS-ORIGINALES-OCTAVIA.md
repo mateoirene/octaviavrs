@@ -1,12 +1,12 @@
 # Fotografías originales del Octavia negro
 
 27 de octubre de 2026. Archivos proporcionados por el usuario:
-- 67933.jpg → source-rear-left.jpg / rear-left.png.
-- 67934.jpg → source-rear-right.jpg / rear-right.png.
-- 67932.jpg → source-rear.jpg / rear.png.
-- 67935.jpg → source-front.jpg / front.png.
+- 67933.jpg → source-rear-left.jpg / rear-left.webp.
+- 67934.jpg → source-rear-right.jpg / rear-right.webp.
+- 67932.jpg → source-rear.jpg / rear.webp.
+- 67935.jpg → source-front.jpg / front.webp.
 
-Se guardan en dist/assets/octavia-photo. Los JPEG originales se conservan sin modificar. Se usó la herramienta de imagen para obtener máscaras de silueta y se aplicaron exclusivamente sus canales alfa sobre los píxeles de las fotos originales: los RGB generados no sustituyen a los del coche. PNG transparentes de 1280×720, sin recoloración, espejado ni estiramiento. Los cuadros de los JPEG también se eliminan.
+Se guardan en dist/assets/octavia-photo. Los JPEG originales se conservan sin modificar. Los PNG maestros del recorte se convierten a WebP sin pérdida para reducir la descarga. Se usó la herramienta de imagen para obtener máscaras de silueta y se aplicaron exclusivamente sus canales alfa sobre los píxeles de las fotos originales: los RGB generados no sustituyen a los del coche. WebP transparentes sin pérdida de 1280×720, sin recoloración, espejado ni estiramiento. Los cuadros de los JPEG también se eliminan.
 
 La apariencia «Fotografías originales del club · Octavia negro» viene activada. Conserva los originales en los ángulos frontal, trasero y tres cuartos traseros mediante siluetas con profundidad y escala del circuito. La selección depende de la cámara respecto al coche y tiene histéresis para no oscilar en los cambios de ángulo. No se cambian posiciones, colisiones, controles, potencia, música, tiempos o vueltas.
 
