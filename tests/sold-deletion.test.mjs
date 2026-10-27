@@ -63,7 +63,9 @@ test('solo un administrador puede borrar vendidos; otros estados y otros orígen
     const body = { action: 'delete', confirm: true };
     assert.equal((await call('sold', { body, auth: false })).status, 401);
     assert.equal((await call('sold', { body, source: 'https://other.example' })).status, 403);
-    for (const state of ['pending','approved','rejected']) assert.equal((await call(state, { body })).status, 409);
+    for (const state of ['pending','approved']) assert.equal((await call(state, { body })).status, 409);
     assert.equal(raw.prepare('SELECT COUNT(*) n FROM market_listings').get().n, 4);
   } finally { raw.close(); Date.now = original; }
 });
+
+test('rechazados y retirados se eliminan inmediatamente con sus fotos e historial',async()=>{const stamp=Math.floor(Date.now()/1000),{raw,add,call}=fixture(stamp);try{for(const id of ['rejected','withdrawn']){add(id,'rejected',stamp);assert.equal((await call(id,{body:{action:'delete'}})).status,400);assert.equal((await call(id,{body:{action:'delete',confirm:true},auth:false})).status,401);assert.equal((await call(id,{body:{action:'delete',confirm:true}})).status,200);for(const [table,col]of [['market_listings','id'],['market_photos','listing_id'],['market_review_mail','listing_id'],['market_reviews','listing_id']])assert.equal(raw.prepare(`SELECT COUNT(*) n FROM ${table} WHERE ${col}=?`).get(id).n,0);}}finally{raw.close();}});

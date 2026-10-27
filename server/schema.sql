@@ -170,3 +170,11 @@ CREATE TABLE IF NOT EXISTS club_brico_comments(id TEXT PRIMARY KEY,brico_id TEXT
 CREATE INDEX IF NOT EXISTS club_bricos_status ON club_bricos(status,updated_at);
 CREATE TRIGGER IF NOT EXISTS gallery_media_capacity BEFORE INSERT ON gallery_photos WHEN (SELECT COUNT(*) FROM gallery_photos WHERE folder_id=NEW.folder_id)>=100 BEGIN SELECT RAISE(ABORT,'Álbum completo: máximo 100 archivos'); END;
 CREATE TRIGGER IF NOT EXISTS brico_media_capacity BEFORE INSERT ON club_brico_media WHEN (SELECT COUNT(*) FROM club_brico_media WHERE brico_id=NEW.brico_id)>=10 BEGIN SELECT RAISE(ABORT,'Tutorial completo: máximo 10 archivos'); END;
+
+-- Buzón privado: nunca se expone un listado público de propuestas.
+CREATE TABLE IF NOT EXISTS club_suggestions (
+ id TEXT PRIMARY KEY, title TEXT NOT NULL, idea TEXT NOT NULL, alias TEXT NOT NULL DEFAULT '',
+ category TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','read','archived')),
+ created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS club_suggestions_date ON club_suggestions(created_at DESC);

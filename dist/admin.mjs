@@ -44,7 +44,7 @@ function cardFor(item) {
     const available = new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Madrid' }).format(new Date(item.deleteAvailableAt * 1000));
     card.append(node('p', item.canDelete ? 'Ya han pasado 24 horas. Puedes eliminar definitivamente el anuncio y sus fotos.' : `El borrado definitivo estará disponible el ${available} (hora de Madrid), al cumplirse 24 horas desde la venta.`));
   }
-  const actions = item.status === 'pending' ? [['approve', 'Aprobar y publicar'], ['reject', 'Rechazar']] : item.status === 'approved' ? [['sold', 'Marcar vendido'], ['withdraw', 'Retirar anuncio']] : item.status === 'sold' ? [['delete', 'Eliminar definitivamente']] : [];
+  const actions = item.status === 'pending' ? [['approve', 'Aprobar y publicar'], ['reject', 'Rechazar']] : item.status === 'approved' ? [['sold', 'Marcar vendido'], ['withdraw', 'Retirar anuncio']] : ['sold','rejected'].includes(item.status) ? [['delete', 'Eliminar definitivamente']] : [];
   for (const [action, label] of actions) {
     const button = node('button', label); button.className = action === 'approve' ? 'admin-approve' : ['reject', 'delete'].includes(action) ? 'admin-reject' : '';
     if (action === 'delete' && !item.canDelete) { button.disabled = true; button.title = 'Disponible 24 horas después de marcarlo como vendido.'; } 

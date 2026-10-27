@@ -1,3 +1,4 @@
+import {handleSuggestions} from './suggestions.mjs';
 import {handleBricosRequest} from './bricos.mjs';
 import {handleAnalyticsRequest} from './analytics.mjs';
 import {marketFields,marketPhoto} from './market-fields.mjs';
@@ -25,7 +26,7 @@ async function credentials(body){const email=String(body.email||'').trim().toLow
 async function listings(db,status,privateView=false){
 const rows=(await db.prepare("SELECT l.*,COALESCE(v.token,'') edit_version FROM market_listings l LEFT JOIN market_edit_versions v ON v.listing_id=l.id WHERE l.status=? ORDER BY l.created_at DESC LIMIT 200").bind(status).all()).results;
 const photos=(await db.prepare('SELECT id,listing_id FROM market_photos WHERE listing_id IN (SELECT id FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200) ORDER BY position').bind(status).all()).results;
-return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note,contactType:row.contact_type,contactValue:row.contact_value,editVersion:row.edit_version,photoIds:photos.filter(p=>p.listing_id===row.id).map(p=>p.id),...(row.status==='sold'?{soldAt:row.updated_at,deleteAvailableAt:row.updated_at+86400,deleteWaitSeconds:Math.max(0,row.updated_at+86400-now()),canDelete:now()>=row.updated_at+86400}:{})}:item;});}
+return rows.map(row=>{const images=photos.filter(p=>p.listing_id===row.id).map(p=>`/api/market/photos/${p.id}`);const item={id:row.id,title:row.title,category:row.category,description:row.description,price:row.price,condition:row.condition,compatibility:row.compatibility,location:row.location,seller:row.seller,contactUrl:row.contact_url,status:row.status,images,image:images[0]};return privateView?{...item,reviewNote:row.review_note,contactType:row.contact_type,contactValue:row.contact_value,editVersion:row.edit_version,photoIds:photos.filter(p=>p.listing_id===row.id).map(p=>p.id),...(row.status==='rejected'?{canDelete:true}:{}),...(row.status==='sold'?{soldAt:row.updated_at,deleteAvailableAt:row.updated_at+86400,deleteWaitSeconds:Math.max(0,row.updated_at+86400-now()),canDelete:now()>=row.updated_at+86400}:{})}:item;});}
 
 async function announceMutation(request,response,db,context){
  if(!response.ok||request.method==='GET')return response;
@@ -45,6 +46,7 @@ export async function handleMarketRequest(request,env,context){try{
  const requestLimit=(path==='/api/gallery/photos'||/^\/api\/bricos\/[^/]+\/media$/.test(path))?26*1024*1024:path.startsWith('/api/analytics/')?32768:(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
  if(Number(request.headers.get('content-length')||0)>requestLimit)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>requestLimit){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
+ if(path==='/api/suggestions'||path.startsWith('/api/suggestions/')){if(method!=='GET')await limit(db,request,path==='/api/suggestions'?'suggestions-submit':'suggestions-manage',path==='/api/suggestions'?4:60);return await handleSuggestions(request,db,await session(db,request),context);}
  if(path==='/api/bricos'||path.startsWith('/api/bricos/')){if(method!=='GET')await limit(db,request,path==='/api/bricos'?'bricos-create':path.endsWith('/comments')?'bricos-comment':'bricos-upload',path==='/api/bricos'?4:path.endsWith('/comments')?8:60);return await handleBricosRequest(request,db,await session(db,request),context);}
  if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,await session(db,request),(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,'club-management',60);return await handleClubRequest(request,db,await session(db,request),context);}
@@ -95,9 +97,9 @@ export async function handleMarketRequest(request,env,context){try{
  const id=path.split('/').pop();
  const listing=await db.prepare('SELECT status,updated_at FROM market_listings WHERE id=?').bind(id).first();
  if(!listing)fail('El anuncio ya no existe.',404);
- if(listing.status!=='sold')fail('Solo se pueden eliminar definitivamente artículos vendidos.',409);
- if(now()<listing.updated_at+86400)fail('Deben pasar 24 horas desde que se marcó como vendido.',409);
- const removed=await db.prepare("DELETE FROM market_listings WHERE id=? AND status='sold' AND updated_at<=?").bind(id,now()-86400).run();
+ if(!['sold','rejected'].includes(listing.status))fail('Solo se pueden eliminar anuncios rechazados, retirados o vendidos.',409);
+ if(listing.status==='sold'&&now()<listing.updated_at+86400)fail('Deben pasar 24 horas desde que se marcó como vendido.',409);
+ const removed=await db.prepare("DELETE FROM market_listings WHERE id=? AND (status='rejected' OR (status='sold' AND updated_at<=?))").bind(id,now()-86400).run();
  if(!removed.meta.changes)fail('El anuncio ha cambiado. Actualiza la lista.',409);
  return json({ok:true,deleted:true});
  }
