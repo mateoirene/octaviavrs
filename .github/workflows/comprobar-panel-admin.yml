@@ -1,0 +1,30 @@
+name: Comprobar panel de administración
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dist/admin.html'
+      - 'dist/admin.mjs'
+      - 'dist/admin-panel.css'
+      - 'tests/admin-panel.test.mjs'
+      - '.github/workflows/comprobar-panel-admin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probar-panel:
+    name: Pruebas del panel (sin despliegue)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v6
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Ejecutar pruebas del panel de administración
+        run: node --test tests/admin-panel.test.mjs
