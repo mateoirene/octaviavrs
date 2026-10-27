@@ -1,18 +1,19 @@
+import {OCTAVIA_PHOTOS,drawOriginalOctavia} from './racing-photo-views.mjs?v=20261027';
 import {createRaceAnalytics} from './racing-analytics.mjs?v=20261026';
 import {drawSpeedEffects,boostVisual,drawExhaust2D} from './racing-speed-effects.mjs?v=20261026-performance';
 import {createCircuitLayout} from './circuit-layout.mjs?v=20261024-tour1';
 import {nitroVisible,nitroLabel,playerNitro} from './racing-nitro.mjs?v=20261026-nitro';
 import {nitroBadge,drawNitroBadge} from './racing-nitro-badge.mjs?v=20261026-nitro';
 import {RACE_VIEWS} from './racing-cameras.mjs?v=20261026-alineados';
-import {drawExternalFallback} from './racing-external2d.mjs?v=20261026-performance';
+import {drawExternalFallback} from './racing-external2d.mjs?v=20261027-photos';
 import {paintedImage} from './racing-paint.mjs?v=20261025-negro';
-import {createCircuitCompetition} from './racing-championship.mjs?v=20261025-negro';
+import {createCircuitCompetition} from './racing-championship.mjs?v=20261027-photos';
 import {drawCircuitNavigation,steeringRotation} from './racing-dashboard.mjs?v=20261024-tour1';
-import {createFinishReplay,drawCompatibleFinish} from './racing-finish-replay.mjs?v=20261024-tour1';
+import {createFinishReplay,drawCompatibleFinish} from './racing-finish-replay.mjs?v=20261027-photos';
 import {drawCarFire} from './racing-fire2d.mjs';
 import {teslaFireTime} from './racing-cinematic-state.mjs?v=20261024-tour1';
 import {createRaceSummary} from './racing-summary.mjs?v=20261024-tour1';
-import {drawAerialFallback,drawAerialCars,prepareAerialSurfaces,aerialCars} from './racing-aerial.mjs?v=20261025-aerial';
+import {drawAerialFallback,drawAerialCars,prepareAerialSurfaces,aerialCars} from './racing-aerial.mjs?v=20261027-photos';
 import {createRaceResults} from './racing-results.mjs?v=20261024-tour1';
 import { createMusic } from './racing-music.mjs?v=20261023-radio';
 import { LEVELS, SEGMENT_LENGTH, createRace, stepRace, lapTime } from './racing-physics.mjs?v=20261026-performance';
@@ -36,12 +37,13 @@ let storedBest=loadBest(levelPicker.value);
 let race=createRace(storedBest,levelPicker.value,competition.circuit()),width=1000,height=620,last=0,sound=false,audio,oscillator,gain;
 competition.configure(race);
 const music=createMusic(),musicButton=$('[data-race-music]');
-const photos={};let grain,world3d,raceView='cockpit',overview=false;
+const photos={originalOctavia:{}};let grain,world3d,raceView='cockpit',overview=false;
 for(const [id,src]of [['steering','assets/volante-octavia.png'],['steeringBack','assets/cockpit-sin-volante.png']]){const image=new Image();image.onload=()=>{photos[id]=image;canvas.dataset[id+'Ready']='true';if(id==='steering'){const c=document.createElement('canvas');c.width=image.width;c.height=image.height;const x=c.getContext('2d');x.drawImage(image,0,0);const p=x.getImageData(0,0,c.width,c.height).data;let l=c.width,t=c.height,r=0,b=0;for(let y=0;y<c.height;y++)for(let z=0;z<c.width;z++)if(p[(y*c.width+z)*4+3]>128){l=Math.min(l,z);t=Math.min(t,y);r=Math.max(r,z);b=Math.max(b,y);}photos.steeringBounds={l,t,w:r-l+1,h:b-t+1};}draw();};image.src=src;}
 for(const [id,src]of [['teslaSide','assets/tesla-model3-lateral.png'],['octaviaSide','assets/octavia-vrs-lateral.png']]){const photo=new Image();photo.onload=()=>photos[id]=photo;photo.src=src;}
 const teslaPhoto=new Image();teslaPhoto.onload=()=>{photos.tesla=teslaPhoto;canvas.dataset.teslaReady='true';draw();};teslaPhoto.src='assets/tesla-model3-alberto-blanco.png';
 const circuitReference=new Image();circuitReference.onload=()=>{photos.stadium=circuitReference;canvas.dataset.sceneryReady='true';draw();};circuitReference.src='assets/circuito-estadio.jpg';
 const photoReady=Promise.all(['cockpit','rival','circuit'].map(id=>new Promise(resolve=>{const photo=new Image();photo.onload=()=>{photos[id]=photo;canvas.dataset[id+'Ready']='true';draw();resolve();};photo.onerror=()=>resolve();photo.src=id==='cockpit'?'assets/cockpit-frontal.jpg':id==='rival'?'assets/octavia-trasera-recta.png':'assets/race/'+id+'.jpg';})));
+for(const [key,photo]of Object.entries(OCTAVIA_PHOTOS)){const image=new Image();image.onload=()=>{photos.originalOctavia[key]=image;canvas.dataset.originalPhotosReady=String(Object.keys(photos.originalOctavia).length===4);draw();};image.src=photo.path;}
 void photoReady;
 const grainCanvas=document.createElement('canvas');grainCanvas.width=grainCanvas.height=96;const grainContext=grainCanvas.getContext('2d');const noise=grainContext.createImageData(96,96);let seed=17;for(let i=0;i<noise.data.length;i+=4){seed=(seed*16807)%2147483647;const value=100+seed%100;noise.data[i]=noise.data[i+1]=noise.data[i+2]=value;noise.data[i+3]=45;}grainContext.putImageData(noise,0,0);grain=ctx.createPattern(grainCanvas,'repeat');
 const keys=new Set(),touches=new Map();
@@ -94,7 +96,7 @@ function road(){
  }
  const cars=race.rivals.map(rival=>({...rival,z:((rival.distance-race.distance)%race.trackLength+race.trackLength)%race.trackLength})).filter(car=>car.z>1&&car.z<1000).sort((a,b)=>b.z-a.z);
  for(const car of cars){const segment=segments[Math.min(104,Math.floor((car.z+fraction)/SEGMENT_LENGTH))];if(!segment)continue;const scale=focal/car.z,w=2.05*scale,h=1.25*scale,y=horizon+cameraHeight*scale,x=segment.p2.x+(car.x*race.settings.roadHalf)*scale;
-  ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(x,y,w*.6,h*.15,0,0,Math.PI*2);ctx.fill();if(car.model==='tesla-model-3'){drawTeslaRear(x,y,w);drawCarFire(ctx,x,y,w,teslaFireTime(race));continue;}if(photos.rival){const rw=w*1.14,rh=rw*photos.rival.height/photos.rival.width;ctx.drawImage(photos.rival,x-rw/2,y-rh,rw,rh);continue;}rect(x-w*.46,y-h*.7,w*.92,h*.7,car.color);polygon([[x-w*.46,y-h*.7],[x-w*.3,y-h],[x+w*.3,y-h],[x+w*.46,y-h*.7]],car.color);rect(x-w*.28,y-h*.92,w*.56,h*.3,'#172b3f');rect(x-w*.49,y-h*.31,w*.25,h*.1,'#ff3548');rect(x+w*.24,y-h*.31,w*.25,h*.1,'#ff3548');rect(x-w*.35,y-h*.09,w*.7,h*.09,'#141b23');
+  ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(x,y,w*.6,h*.15,0,0,Math.PI*2);ctx.fill();if(car.model==='tesla-model-3'){drawTeslaRear(x,y,w);drawCarFire(ctx,x,y,w,teslaFireTime(race));continue;}if(race.photoCars!==false&&drawOriginalOctavia(ctx,photos.originalOctavia,Math.abs((car.x-race.x)*race.settings.roadHalf)>car.z*.27?car.x>race.x?'rear-left':'rear-right':'rear',x,y,1.49*scale,car.distance))continue;if(photos.rival&&race.photoCars===false){const rw=w*1.14,rh=rw*photos.rival.height/photos.rival.width;ctx.drawImage(photos.rival,x-rw/2,y-rh,rw,rh);continue;}rect(x-w*.46,y-h*.7,w*.92,h*.7,car.color);polygon([[x-w*.46,y-h*.7],[x-w*.3,y-h],[x+w*.3,y-h],[x+w*.46,y-h*.7]],car.color);rect(x-w*.28,y-h*.92,w*.56,h*.3,'#172b3f');rect(x-w*.49,y-h*.31,w*.25,h*.1,'#ff3548');rect(x+w*.24,y-h*.31,w*.25,h*.1,'#ff3548');rect(x-w*.35,y-h*.09,w*.7,h*.09,'#141b23');
  }
  ctx.restore();
  if(nitroVisible(race)){const distance=((race.nitro.distance-race.distance)%race.trackLength+race.trackLength)%race.trackLength;if(distance>1&&distance<1000){const s=segments[Math.min(104,Math.floor((distance+fraction)/SEGMENT_LENGTH))],scale=focal/distance;drawNitroBadge(ctx,race,s.p2.x,horizon+(cameraHeight-1.65)*scale,3.5*scale);}}
@@ -203,7 +205,7 @@ function leave(){music.stop();stage.dataset.music='stopped';musicButton.setAttri
 window.addEventListener('blur',leave);window.addEventListener('club-contact-open',leave);document.addEventListener('visibilitychange',()=>{if(document.hidden)leave();});
 musicButton.addEventListener('click',async()=>{try{if(music.playing)music.stop();else await music.start();musicButton.setAttribute('aria-pressed',String(music.playing));musicButton.setAttribute('aria-label',music.playing?'Apagar la radio del club':'Encender la radio del club');stage.dataset.music=music.playing?'playing':'stopped';draw();}catch{status.textContent='No se puede activar la música en este navegador.';}});
 $('[data-race-sound]').addEventListener('click',async()=>{try{if(!audio){const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)throw new Error();audio=new Audio();oscillator=audio.createOscillator();gain=audio.createGain();const filter=audio.createBiquadFilter();oscillator.type='sawtooth';filter.type='lowpass';filter.frequency.value=650;gain.gain.value=0;oscillator.connect(filter);filter.connect(gain);gain.connect(audio.destination);oscillator.start();}sound=!sound;if(sound)await audio.resume();$('[data-race-sound]').textContent=sound?'Sonido: encendido':'Sonido: apagado';$('[data-race-sound]').setAttribute('aria-pressed',String(sound));}catch{status.textContent='El sonido no está disponible en este navegador. Puedes seguir conduciendo.';}});
-let compatiblePaint='',compatibleSide,rearPaint='',rearImage;function paintedRear(){if(rearPaint!==race.playerPaint||!rearImage){rearPaint=race.playerPaint;rearImage=paintedImage(photos.rival,race.playerPaint||'blue');}return rearImage;}function compatiblePhotos(){if(photos.octaviaSide&&(compatiblePaint!==race.playerPaint||!compatibleSide)){compatiblePaint=race.playerPaint;compatibleSide=paintedImage(photos.octaviaSide,race.playerPaint||'blue');}return {...photos,playerSide:compatibleSide,playerRear:photos.rival?paintedRear():null};}
+let compatiblePaint='',compatibleSide,rearPaint='',rearImage;function paintedRear(){if(rearPaint!==race.playerPaint||!rearImage){rearPaint=race.playerPaint;rearImage=paintedImage(photos.rival,race.playerPaint||'blue');}return rearImage;}function compatiblePhotos(){if(photos.octaviaSide&&(compatiblePaint!==race.playerPaint||!compatibleSide)){compatiblePaint=race.playerPaint;compatibleSide=paintedImage(photos.octaviaSide,race.playerPaint||'blue');}return {...photos,photoCars:race.photoCars!==false,playerSide:compatibleSide,playerRear:photos.rival?paintedRear():null};}
 let nitroRace=null,nitroOwnerSeen=null,nitroActiveSeen=false;
 function frame(timestamp){const dt=last?Math.min(.15,(timestamp-last)/1000):0;last=timestamp;
  const input=controls(),result={lap:false,finished:false};let remaining=dt;while(remaining>0){const slice=Math.min(.05,remaining),event=stepRace(race,input,slice);result.lap ||= event.lap;result.finished ||= event.finished;remaining-=slice;}
@@ -220,7 +222,7 @@ new ResizeObserver(resize).observe(stage);resize();updateUi();requestAnimationFr
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
 if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261026-performance').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
+ import('./racing-world3d.mjs?v=20261027-photos').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
 }else stage.dataset.renderer='2d-fallback';
 
 nitroBadge().then(()=>draw()).catch(()=>{});

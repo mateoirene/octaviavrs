@@ -34,3 +34,4 @@
 .race-stage.is-exterior>.race-overlay{inset:65px 8% auto;padding:10px;gap:5px}.race-stage.is-exterior>.race-overlay strong{font-size:clamp(14px,2vw,22px)}.race-stage.is-exterior>.race-overlay span{font-size:12px}
 .race-view-picker button{min-height:44px}.race-view-picker button[hidden]{display:none}
 @media(max-width:600px){.race-view-picker{display:grid;grid-template-columns:1fr 1fr;gap:8px}.race-view-picker button{font-size:13px;padding:10px 8px}}
+.race-photo-mode{display:flex;align-items:center;gap:10px;font-size:13px;margin:16px 0 8px;color:#e5edf2}.race-photo-mode input{width:20px;height:20px;accent-color:#b4d6e8}.race-photo-help{font-size:12px;color:#bac5ce;line-height:1.6;max-width:850px}
