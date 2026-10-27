@@ -49,3 +49,5 @@
 .admin-page .admin-tool-controls select{width:100%;min-height:44px;padding:9px 12px;border:1px solid #687583;border-radius:8px;background:#111820;color:#fff;font:inherit}
 .admin-page .admin-tool-controls>button{min-height:44px;padding:10px 15px;border:1px solid #667585;border-radius:8px;background:#202a35;color:#fff;font:inherit;cursor:pointer}
 @media(max-width:600px){.admin-page .admin-tool-links{grid-template-columns:1fr}.admin-page .admin-tool-controls{align-items:stretch;flex-direction:column}.admin-page .admin-tool-controls>label,.admin-page .admin-tool-controls>button{width:100%}}
+
+.admin-page .admin-tools{display:block}
