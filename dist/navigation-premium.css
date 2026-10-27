@@ -23,29 +23,3 @@ header>nav[aria-label="Navegación principal"]>a[aria-current="page"]{border-col
 header>nav[aria-label="Navegación principal"]>a[href="sugerencias.html"]{--nav-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='2' y='4' width='20' height='16' rx='3'/%3E%3Cpath d='m3 6 9 7 9-7'/%3E%3C/svg%3E")}
 
 
-/* Petición del club: botón "El club" en azul, sin alterar el resto de la navegación. */
-header>nav[aria-label="Navegación principal"]>a[href$="#club"]{
-  border-color:#278bff;
-  color:#fff;
-  background:
-    linear-gradient(135deg,#2f9bff30 0%,transparent 60%,#63c1ff20 100%) padding-box,
-    linear-gradient(180deg,#1769c7 0%,#06458f 48%,#07336b 100%) padding-box,
-    linear-gradient(135deg,#a7ddff,#278bff 35%,#0c4fa5 72%,#72c7ff) border-box;
-  box-shadow:inset 0 1px 1px #ffffff45,inset 0 -2px 4px #001b45aa,0 3px 10px #001e4d99,0 0 10px #1687ff35;
-}
-header>nav[aria-label="Navegación principal"]>a[href$="#club"]::before{
-  background:linear-gradient(155deg,#fff 5%,#d9efff 45%,#76bdff);
-}
-header>nav[aria-label="Navegación principal"]>a[href$="#club"]::after{
-  background:radial-gradient(ellipse 60px 3px at 28% 0,#d9f2ffdd 0%,#6dbbff88 40%,transparent 100%),radial-gradient(ellipse 70px 2px at 55% 100%,#9bd5ffb3 0%,#2f91ff50 40%,transparent 100%);
-}
-@media(hover:hover){
-  header>nav[aria-label="Navegación principal"]>a[href$="#club"]:hover{
-    border-color:#8dccff;
-    background:
-      linear-gradient(135deg,#5bb1ff40 0%,transparent 60%,#8bd1ff30 100%) padding-box,
-      linear-gradient(180deg,#278bff 0%,#075bb7 48%,#064080 100%) padding-box,
-      linear-gradient(135deg,#d4f0ff,#4aa6ff 35%,#1264c4 72%,#b4e4ff) border-box;
-    box-shadow:inset 0 1px 2px #ffffff55,inset 0 -2px 4px #001b45aa,0 4px 14px #0009,0 0 14px #1687ff65;
-  }
-}
