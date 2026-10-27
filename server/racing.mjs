@@ -13,7 +13,7 @@ export function validateRaceResult(body){
  const laps=body.laps;if(!Array.isArray(laps)||laps.length!==3)invalid('Termina las tres vueltas para guardar el tiempo.');
  const minimum=buildTrack(body.level,circuit).length*SEGMENT_LENGTH/MAX_SPEED*1000;
  const boostedMinimum=buildTrack(body.level,circuit).length*SEGMENT_LENGTH/NITRO_SPEED*1000;
- if(laps.some((t,i)=>!Number.isInteger(t)||t<(i===0?minimum:boostedMinimum)-250||t>86400000))invalid('Los tiempos de vuelta no son válidos.');
+ if(laps.some((t,i)=>!Number.isInteger(t)||t<boostedMinimum-250||t>86400000))invalid('Los tiempos de vuelta no son válidos.');
  if(!Number.isInteger(body.total)||Math.abs(laps.reduce((sum,t)=>sum+t,0)-body.total)>2||body.total>86400000)invalid('El tiempo total no coincide con las vueltas.');
  if(!Number.isInteger(body.position)||body.position<1||body.position>4)invalid('La posición no es válida.');
  const car=body.car??'Octavia VRS MK4',paint=body.paint??'blue',mode=body.mode??'free',racer=body.racer??('legacy:'+pilot.toLowerCase());

@@ -1,5 +1,5 @@
 import {TESLA_PERFORMANCE,advanceTesla,teslaTargetSpeed} from './racing-performance.mjs?v=20261026-performance';
-import {createNitro,playerNitro,beforeNitroStep,prepareNitroRival,resolveNitro,stopNitro,NITRO_SPEED} from './racing-nitro.mjs?v=20261026-nitro';
+import {createNitro,playerNitro,beforeNitroStep,prepareNitroRival,resolveNitro,stopNitro,nitroActiveFor,NITRO_SPEED} from './racing-nitro.mjs?v=20261026-nitro';
 import {CIRCUIT_BY_ID} from './racing-circuits.mjs?v=20261024-tour1';
 import { createCircuitLayout } from './circuit-layout.mjs?v=20261024-tour1';
 export const SEGMENT_LENGTH = 18;
@@ -26,7 +26,7 @@ export const TRACK_LENGTH = TRACK.length * SEGMENT_LENGTH;
 export function createRace(bestLap = null, level = 'easy', circuit = 'club') {
   const difficulty = LEVELS[level] ? level : 'easy';
   const settings = LEVELS[difficulty], track = buildTrack(difficulty,circuit);
-  return { nitro:createNitro(difficulty,track.length*SEGMENT_LENGTH,CIRCUIT_BY_ID[circuit]?circuit:'club'),circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:settings.rivals[0],x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:settings.rivals[1],x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:Math.min(TESLA_PERFORMANCE.topKmh/3.6,settings.rivals[1]+8),cruiseSpeed:TESLA_PERFORMANCE.topKmh/3.6,powerCV:TESLA_PERFORMANCE.powerCV,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
+  return { nitro:createNitro(difficulty,track.length*SEGMENT_LENGTH,CIRCUIT_BY_ID[circuit]?circuit:'club'),circuit:CIRCUIT_BY_ID[circuit]?circuit:'club',difficulty,settings,track,trackLength:track.length*SEGMENT_LENGTH,phase:'ready',distance:0,speed:0,x:0,elapsed:0,lapStarted:0,completedLaps:0,lapTimes:[],bestLap,steering:0,collisionCooldown:0,hit:0,position:4,rivals:[{distance:32,speed:Math.min(230/3.6,settings.rivals[0]),cruiseSpeed:230/3.6,x:-.38,model:'octavia',color:'#2389dc'},{distance:70,speed:Math.min(230/3.6,settings.rivals[1]),cruiseSpeed:230/3.6,x:.38,model:'octavia',color:'#2389dc'},{distance:110,speed:Math.min(230/3.6,settings.rivals[1]+8),cruiseSpeed:230/3.6,powerCV:TESLA_PERFORMANCE.powerCV,x:0,model:'tesla-model-3',name:'ALBERTO',color:'#ffffff'}] };
 }
 export function stepRace(state,input,delta) {
   if (state.phase !== 'running') return {lap:false,finished:false};
@@ -40,17 +40,18 @@ export function stepRace(state,input,delta) {
   state.speed = boosted?NITRO_SPEED:Math.max(0,Math.min(MAX_SPEED,state.speed+(acceleration-(input.brake?27:0))*dt));
   const speedRatio = state.speed/MAX_SPEED;
   state.x += (steering*(.8+1.35*speedRatio)*speedRatio-segment.curve*speedRatio*speedRatio*state.settings.grip)*dt;
-  if (!boosted&&Math.abs(state.x)>1 && state.speed>12) state.speed = Math.max(12, state.speed-state.settings.offroad*dt);
+  if(Math.abs(state.x)>1)stopNitro(state,'offroad','player');
+  if (!playerNitro(state)&&Math.abs(state.x)>1 && state.speed>12) state.speed = Math.max(12, state.speed-state.settings.offroad*dt);
   state.x = Math.max(-2.2,Math.min(2.2,state.x));
   state.distance += state.speed*dt; state.elapsed += dt;
   state.collisionCooldown = Math.max(0,state.collisionCooldown-dt); state.hit = Math.max(0,state.hit-dt);
   for (const rival of state.rivals) {
-    prepareNitroRival(state,rival,dt);const rivalIndex=state.rivals.indexOf(rival),rivalBoost=state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex;
+    prepareNitroRival(state,rival,dt);const rivalIndex=state.rivals.indexOf(rival),rivalBoost=nitroActiveFor(state,'rival:'+rivalIndex);
     if(!rival.retired&&rival.model==='tesla-model-3'&&!rivalBoost)advanceTesla(state,rival,dt);
-    if(!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.nitroBraking=rival.model==='tesla-model-3'?teslaTargetSpeed(state,rival)<TESLA_PERFORMANCE.topKmh/3.6*.95:Math.abs(bend)>.6;if(rivalBoost&&rival.nitroBraking)stopNitro(state,'rival-brake');if(state.nitro?.active&&state.nitro.claimedBy==='rival:'+rivalIndex)rival.speed=NITRO_SPEED;else if(rival.model!=='tesla-model-3'&&state.circuit!=='club')rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
+    if(!rival.retired){rival.cruiseSpeed??=rival.speed;const bend=state.track[Math.floor(((rival.distance+30)%state.trackLength)/SEGMENT_LENGTH)].curve,target=rival.cruiseSpeed*(1-Math.min(.55,Math.abs(bend)*.25));rival.nitroBraking=rival.model==='tesla-model-3'?teslaTargetSpeed(state,rival)<(230/3.6)*.95:Math.abs(bend)>.6;if(rivalBoost&&rival.nitroBraking)stopNitro(state,'rival-brake','rival:'+rivalIndex);if(nitroActiveFor(state,'rival:'+rivalIndex))rival.speed=NITRO_SPEED;else if(rival.model!=='tesla-model-3')rival.speed+=(target-rival.speed)*Math.min(1,dt*2);}
     rival.distance += rival.speed*dt;
     if(!rival.retired&&!Number.isFinite(rival.finishTime)&&rival.distance>=state.trackLength*3&&rival.speed>0)rival.finishTime=state.elapsed-(rival.distance-state.trackLength*3)/rival.speed;
-    if (state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.3 && state.speed>10) { if(!boosted)state.speed*=.62; state.collisionCooldown=1.4; state.hit=.3; }
+    if (!rival.retired&&state.collisionCooldown===0 && Math.abs(rival.distance-state.distance)<7 && Math.abs(rival.x-state.x)<.42 && state.speed>10) { const side=state.x>=rival.x?1:-1;state.x=Math.max(-2.2,Math.min(2.2,state.x+side*.16));rival.x=Math.max(-1.2,Math.min(1.2,rival.x-side*.055));if(!playerNitro(state))state.speed*=.62;state.collisionCooldown=1.4;state.hit=.4;if(Math.abs(state.x)>1)stopNitro(state,'offroad','player');if(Math.abs(rival.x)>1)stopNitro(state,'offroad','rival:'+rivalIndex); }
   }
   resolveNitro(state,input,before,dt);
   state.position = 1 + state.rivals.filter(rival=>!rival.retired&&rival.distance>state.distance).length;

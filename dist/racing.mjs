@@ -2,7 +2,7 @@ import {OCTAVIA_PHOTOS,drawOriginalOctavia} from './racing-photo-views.mjs?v=202
 import {createRaceAnalytics} from './racing-analytics.mjs?v=20261026';
 import {drawSpeedEffects,boostVisual,drawExhaust2D} from './racing-speed-effects.mjs?v=20261026-performance';
 import {createCircuitLayout} from './circuit-layout.mjs?v=20261024-tour1';
-import {nitroVisible,nitroLabel,playerNitro} from './racing-nitro.mjs?v=20261026-nitro';
+import {nitroVisible,nitroLabel,playerNitro,availableNitros} from './racing-nitro.mjs?v=20261026-nitro';
 import {nitroBadge,drawNitroBadge} from './racing-nitro-badge.mjs?v=20261026-nitro';
 import {RACE_VIEWS} from './racing-cameras.mjs?v=20261026-alineados';
 import {drawExternalFallback} from './racing-external2d.mjs?v=20261027-photos';
@@ -99,7 +99,7 @@ function road(){
   ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(x,y,w*.6,h*.15,0,0,Math.PI*2);ctx.fill();if(car.model==='tesla-model-3'){drawTeslaRear(x,y,w);drawCarFire(ctx,x,y,w,teslaFireTime(race));continue;}if(race.photoCars!==false&&drawOriginalOctavia(ctx,photos.originalOctavia,Math.abs((car.x-race.x)*race.settings.roadHalf)>car.z*.27?car.x>race.x?'rear-left':'rear-right':'rear',x,y,1.49*scale,car.distance))continue;if(photos.rival&&race.photoCars===false){const rw=w*1.14,rh=rw*photos.rival.height/photos.rival.width;ctx.drawImage(photos.rival,x-rw/2,y-rh,rw,rh);continue;}rect(x-w*.46,y-h*.7,w*.92,h*.7,car.color);polygon([[x-w*.46,y-h*.7],[x-w*.3,y-h],[x+w*.3,y-h],[x+w*.46,y-h*.7]],car.color);rect(x-w*.28,y-h*.92,w*.56,h*.3,'#172b3f');rect(x-w*.49,y-h*.31,w*.25,h*.1,'#ff3548');rect(x+w*.24,y-h*.31,w*.25,h*.1,'#ff3548');rect(x-w*.35,y-h*.09,w*.7,h*.09,'#141b23');
  }
  ctx.restore();
- if(nitroVisible(race)){const distance=((race.nitro.distance-race.distance)%race.trackLength+race.trackLength)%race.trackLength;if(distance>1&&distance<1000){const s=segments[Math.min(104,Math.floor((distance+fraction)/SEGMENT_LENGTH))],scale=focal/distance;drawNitroBadge(ctx,race,s.p2.x,horizon+(cameraHeight-1.65)*scale,3.5*scale);}}
+ for(const pickup of availableNitros(race)){const distance=((pickup.distance-race.distance)%race.trackLength+race.trackLength)%race.trackLength;if(distance>1&&distance<1000){const s=segments[Math.min(104,Math.floor((distance+fraction)/SEGMENT_LENGTH))],scale=focal/distance;drawNitroBadge(ctx,race,s.p2.x,horizon+(cameraHeight-1.65)*scale,3.5*scale);}}
 }
 function drawTeslaRear(x,y,w){
  if(photos.tesla){const rw=w*1.1,rh=rw*photos.tesla.height/photos.tesla.width;ctx.drawImage(photos.tesla,x-rw/2,y-rh,rw,rh);return;}
@@ -160,7 +160,7 @@ function hud(){
  if(Math.abs(race.x)>1&&race.phase==='running')text('FUERA DE PISTA',width*.5,height*.39,size,'#ffe69c','center');
  if(race.hit>0){ctx.strokeStyle='#ff335b99';ctx.lineWidth=12;ctx.strokeRect(6,6,width-12,height-12);}
 }
-function drivingCameraForNitro(state){const f=createCircuitLayout(state.difficulty,state.trackLength,state.circuit).frame(state.nitro.distance);return [f.p[0],f.p[1]+1.65,f.p[2]];}
+function drivingCameraForNitro(state,pickup){const f=createCircuitLayout(state.difficulty,state.trackLength,state.circuit).frame(pickup.distance);return [f.p[0],f.p[1]+1.65,f.p[2]];}
 function externalHud(){
  const size=Math.max(10,Math.min(14,width*.022));rect(8,8,width-16,48,'#101820df');text('VUELTA '+Math.min(3,race.completedLaps+1)+'/3 · POS '+race.position+'/'+(race.rivals.length+1),18,27,size);text(lapTime(race.elapsed),width-18,27,size,'#d9e8f1','right');text(Math.round(race.speed*3.6)+' km/h',width-18,47,size,'#fff','right');text(race.settings.name.toUpperCase(),18,47,size*.85,'#b7c7ce');
  if(!overview){const w=Math.min(150,width*.3),h=Math.min(110,height*.2);drawCircuitNavigation(ctx,race,{x:12,y:height-h-12,w,h},music.playing);stage.dataset.navigationDistance=race.distance.toFixed(2);stage.dataset.navigationCircuit=race.circuit||'club';}
@@ -171,10 +171,10 @@ function draw(){if(finishReplay.active)return;canvas.dataset.sceneryDistance=rac
   let rendered=false;if(world3d){try{rendered=world3d.render(race,{view:raceView,overview});}catch(error){world3d.canvas.hidden=true;world3d=null;stage.dataset.renderer='2d-fallback';}}
   const cars=aerialCars(race);stage.dataset.aerialCars=String(cars.length);stage.dataset.aerialPositions=JSON.stringify(cars.map(c=>c.point.map(v=>+v.toFixed(2))));
   if(rendered&&raceView==='aerial'&&overview)drawAerialCars(ctx,race,width,height,p=>world3d.projectAerial(p));
-  if(!rendered){if(raceView==='aerial'&&overview){const project=drawAerialFallback(ctx,race,width,height);drawAerialCars(ctx,race,width,height,project);if(playerNitro(race)){const f=createCircuitLayout(race.difficulty,race.trackLength,race.circuit).frame(race.distance),[x,y]=project(f.p);drawExhaust2D(ctx,race,x,y,14,{aerial:true,heading:Math.atan2(f.t[0],-f.t[2])});}if(nitroVisible(race)){const [x,y]=project(drivingCameraForNitro(race));drawNitroBadge(ctx,race,x,y,24);}}else drawExternalFallback(ctx,race,width,height,raceView,compatiblePhotos());}
+  if(!rendered){if(raceView==='aerial'&&overview){const project=drawAerialFallback(ctx,race,width,height);drawAerialCars(ctx,race,width,height,project);if(playerNitro(race)){const f=createCircuitLayout(race.difficulty,race.trackLength,race.circuit).frame(race.distance),[x,y]=project(f.p);drawExhaust2D(ctx,race,x,y,14,{aerial:true,heading:Math.atan2(f.t[0],-f.t[2])});}for(const pickup of availableNitros(race)){const [x,y]=project(drivingCameraForNitro(race,pickup));drawNitroBadge(ctx,race,x,y,24);}}else drawExternalFallback(ctx,race,width,height,raceView,compatiblePhotos());}
   externalHud();cinematic.draw(ctx,width,height);
  }else{road();cockpit();cinematic.draw(ctx,width,height);hud();}
- if(nitroVisible(race)&&raceView==='aerial'&&overview){const frame=drivingCameraForNitro(race),project=world3d&&stage.dataset.renderer==='webgl2'?p=>world3d.projectAerial(p):null;if(project){const [x,y]=project(frame);drawNitroBadge(ctx,race,x,y,24);}}
+ if(raceView==='aerial'&&overview)for(const pickup of availableNitros(race)){const frame=drivingCameraForNitro(race,pickup),project=world3d&&stage.dataset.renderer==='webgl2'?p=>world3d.projectAerial(p):null;if(project){const [x,y]=project(frame);drawNitroBadge(ctx,race,x,y,24);}}
  if(raceView==='aerial'&&overview&&playerNitro(race)){const f=createCircuitLayout(race.difficulty,race.trackLength,race.circuit).frame(race.distance),project=world3d&&stage.dataset.renderer==='webgl2'?p=>world3d.projectAerial(p):null;if(project){const [x,y]=project(f.p);drawExhaust2D(ctx,race,x,y,14,{aerial:true,heading:Math.atan2(f.t[0],-f.t[2])});}}
  stage.dataset.speedStreaks=String(drawSpeedEffects(ctx,race,width,height,raceView,{overview,reduced:speedMotion.matches}));stage.dataset.speedEffect=boostVisual(race).toFixed(2);
  const nitroText=nitroLabel(race);stage.dataset.nitroVisible=String(nitroVisible(race));stage.dataset.nitroPosition=race.nitro.distance.toFixed(2);stage.dataset.nitroOwner=race.nitro.claimedBy||'';stage.dataset.nitroActive=String(race.nitro.active);if(race.nitro.active&&race.nitro.claimedBy==='player'){rect(width*.24,height-44,width*.52,28,'#093a30e8');text(nitroText,width*.5,height-25,Math.max(11,Math.min(15,width*.028)),'#afffe3','center');}
@@ -210,7 +210,7 @@ let nitroRace=null,nitroOwnerSeen=null,nitroActiveSeen=false;
 function frame(timestamp){const dt=last?Math.min(.15,(timestamp-last)/1000):0;last=timestamp;
  const input=controls(),result={lap:false,finished:false};let remaining=dt;while(remaining>0){const slice=Math.min(.05,remaining),event=stepRace(race,input,slice);result.lap ||= event.lap;result.finished ||= event.finished;remaining-=slice;}
  raceAnalytics.tick(race);
- if(nitroRace!==race){nitroRace=race;nitroOwnerSeen=null;nitroActiveSeen=false;}if(race.nitro.claimedBy!==nitroOwnerSeen){nitroOwnerSeen=race.nitro.claimedBy;if(nitroOwnerSeen)status.textContent=nitroLabel(race)+(race.nitro.active&&nitroOwnerSeen==='player'?' · Mantén GAS. Se desactiva al soltar o frenar.':'');}else if(nitroActiveSeen&&!race.nitro.active&&nitroOwnerSeen==='player'&&race.phase==='running')status.textContent='Nitro desactivado. Velocidad normal.';nitroActiveSeen=race.nitro.active;
+ if(nitroRace!==race){nitroRace=race;nitroOwnerSeen=null;nitroActiveSeen=false;}if(race.nitro.claimedBy!==nitroOwnerSeen){nitroOwnerSeen=race.nitro.claimedBy;if(nitroOwnerSeen)status.textContent=nitroLabel(race)+(race.nitro.active&&nitroOwnerSeen==='player'?' · Mantén GAS. Se desactiva al soltar, frenar o salir de la calzada.':'');}else if(nitroActiveSeen&&!race.nitro.active&&nitroOwnerSeen==='player'&&race.phase==='running')status.textContent='Nitro desactivado. Velocidad normal.';nitroActiveSeen=race.nitro.active;
  if(cinematic.update(race,dt))status.textContent='TESLA MODEL 3 FUERA DE CARRERA';
  if(result.lap){storedBest=race.bestLap;try{localStorage.setItem(bestKey(race.difficulty),String(storedBest));}catch{}status.textContent=`Vuelta ${race.completedLaps}: ${lapTime(race.lapTimes.at(-1))}. Mejor vuelta: ${lapTime(race.bestLap)}.`;}
  if(result.finished){selectRaceView('aerial',true);results.finish(race);competition.finish(race);clearControls();setOverlay(`META · ${race.position}.º PUESTO`,`Tiempo total ${lapTime(race.elapsed)} · Mejor vuelta ${lapTime(race.bestLap)}`);status.textContent=`Carrera terminada. Puesto ${race.position} de ${race.rivals.length+1}. Tiempo total ${lapTime(race.elapsed)}. Mejor vuelta ${lapTime(race.bestLap)}.`;updateUi();}
