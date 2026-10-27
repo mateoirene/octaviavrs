@@ -64,9 +64,10 @@ jobs:
       - name: Preparar motor local y materiales PBR
         run: node scripts/prepare-track3d.mjs
       - name: Comprobar garaje y circuito en Chrome
+        if: steps.cambios.outputs.solo_css != 'true'
         run: node scripts/browser-check.mjs
       - name: Guardar vistas de comprobación
-        if: always()
+        if: always() && steps.cambios.outputs.solo_css != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: vistas-garaje-circuito
