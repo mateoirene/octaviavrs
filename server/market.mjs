@@ -1,3 +1,4 @@
+import {handleBricosRequest} from './bricos.mjs';
 import {handleAnalyticsRequest} from './analytics.mjs';
 import {marketFields,marketPhoto} from './market-fields.mjs';
 import {editMarketListing} from './market-edit.mjs';
@@ -41,9 +42,10 @@ export async function handleMarketRequest(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
- const requestLimit=path.startsWith('/api/analytics/')?32768:(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
+ const requestLimit=(path==='/api/gallery/photos'||/^\/api\/bricos\/[^/]+\/media$/.test(path))?26*1024*1024:path.startsWith('/api/analytics/')?32768:(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
  if(Number(request.headers.get('content-length')||0)>requestLimit)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>requestLimit){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
+ if(path==='/api/bricos'||path.startsWith('/api/bricos/')){if(method!=='GET')await limit(db,request,path==='/api/bricos'?'bricos-create':path.endsWith('/comments')?'bricos-comment':'bricos-upload',path==='/api/bricos'?4:path.endsWith('/comments')?8:60);return await handleBricosRequest(request,db,await session(db,request),context);}
  if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,await session(db,request),(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,'club-management',60);return await handleClubRequest(request,db,await session(db,request),context);}
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
@@ -102,4 +104,4 @@ export async function handleMarketRequest(request,env,context){try{
  const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);await recordClubEvent(db,{id:body.action==='approve'?'listing:'+path.split('/').pop():crypto.randomUUID(),title:body.action==='approve'?'Nueva pieza publicada en el mercadillo':'Anuncio del mercadillo revisado',href:body.action==='approve'?'mercadillo.html':'admin.html',audience:body.action==='approve'?'public':'admin'},context).catch(()=>{});return json({ok:true});}
  }
  return json({error:'Ruta no encontrada.'},404);
- }catch(error){if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}
+ }catch(error){if(/(?:Álbum|Tutorial) completo/.test(error.message||''))return json({error:'Se ha alcanzado el límite de archivos. Actualiza e inténtalo de nuevo.'},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}

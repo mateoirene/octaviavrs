@@ -161,3 +161,12 @@ CREATE TABLE IF NOT EXISTS club_news_posts(
  category TEXT NOT NULL DEFAULT 'Noticia',expires_on TEXT NOT NULL DEFAULT '',
  created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS club_media_files(id TEXT PRIMARY KEY,content_type TEXT NOT NULL,size INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS club_media_chunks(file_id TEXT NOT NULL REFERENCES club_media_files(id) ON DELETE CASCADE,position INTEGER NOT NULL,data BLOB NOT NULL,PRIMARY KEY(file_id,position));
+CREATE TABLE IF NOT EXISTS club_bricos(id TEXT PRIMARY KEY,title TEXT NOT NULL,author TEXT NOT NULL,category TEXT NOT NULL,vehicle TEXT NOT NULL,steps TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','pending','approved','rejected')),edit_hash TEXT NOT NULL,review_note TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS club_brico_media(id TEXT PRIMARY KEY,brico_id TEXT NOT NULL REFERENCES club_bricos(id) ON DELETE CASCADE,content_type TEXT NOT NULL,caption TEXT NOT NULL DEFAULT '',position INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS club_brico_comments(id TEXT PRIMARY KEY,brico_id TEXT NOT NULL REFERENCES club_bricos(id) ON DELETE CASCADE,author TEXT NOT NULL,body TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),created_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS club_bricos_status ON club_bricos(status,updated_at);
+CREATE TRIGGER IF NOT EXISTS gallery_media_capacity BEFORE INSERT ON gallery_photos WHEN (SELECT COUNT(*) FROM gallery_photos WHERE folder_id=NEW.folder_id)>=100 BEGIN SELECT RAISE(ABORT,'Álbum completo: máximo 100 archivos'); END;
+CREATE TRIGGER IF NOT EXISTS brico_media_capacity BEFORE INSERT ON club_brico_media WHEN (SELECT COUNT(*) FROM club_brico_media WHERE brico_id=NEW.brico_id)>=10 BEGIN SELECT RAISE(ABORT,'Tutorial completo: máximo 10 archivos'); END;

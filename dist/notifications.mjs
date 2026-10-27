@@ -11,7 +11,7 @@ export function buildNotifications(news, listings = [], pending = []) {
   return [
     ...pending.map(item => ({ id: `pending:${item.id}`, title: 'Anuncio pendiente de revisión', message: `${item.category || 'Otros'} · ${item.title}`, href: `admin.html?anuncio=${encodeURIComponent(item.id)}` })),
     ...listings.map(item => ({ id: `listing:${item.id}`, title: 'Nueva pieza en el mercadillo', message: item.title, href: 'mercadillo.html' })),
-    ...news,
+    ...news.filter(item=>!String(item.href||'').includes('simulador')&&!/^(record|champion|racing|simulator):/.test(item.id||'')),
   ].filter((item, index, all) => item && typeof item.id === 'string' && typeof item.title === 'string' && all.findIndex(other => other.id === item.id) === index);
 }
 function readIds(storage) {
