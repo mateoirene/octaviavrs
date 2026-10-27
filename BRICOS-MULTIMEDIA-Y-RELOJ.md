@@ -12,7 +12,7 @@ Fecha: 27 de octubre de 2026. Se conserva la web de Cloudflare Pages y D1 existe
 
 ## Álbumes
 - Hasta 100 archivos combinados por álbum, conservando las fotos actuales. MP4/WebM de hasta 25 MB por vídeo. Las fotos se reducen en el navegador y se validan en servidor (JPG/PNG/WebP, hasta 1 MB).
-- Vídeos guardados en fragmentos de 512 KiB en club_media_files/club_media_chunks, sin contratar otro proveedor. El espacio y las cuotas de la cuenta D1 siguen aplicándose. Las respuestas admiten rangos HTTP para reproducir y avanzar. Se borran los fragmentos al eliminar un archivo.
+- Vídeos guardados en fragmentos de 512 KiB en club_media_files/club_media_chunks, sin contratar otro proveedor. El espacio y las cuotas de la cuenta D1 siguen aplicándose. Las respuestas admiten rangos HTTP para reproducir y avanzar y leen cuatro fragmentos por consulta para no agotar el límite de invocación de D1 gratuito. Se borran los fragmentos al eliminar un archivo.
 - No se promete conversión de códecs: deben usarse MP4 compatibles con el navegador (preferiblemente H.264/AAC) o WebM. El contenido multimedia no se reproduce automáticamente.
 - Temáticas: Almuerzos, Comidas, Rutas, Kdds, Calçotada y Otros. Las carpetas históricas guardadas como Quedadas se muestran como Kdds sin borrarlas.
 
@@ -25,3 +25,5 @@ Fecha: 27 de octubre de 2026. Se conserva la web de Cloudflare Pages y D1 existe
 
 ## Verificación
 Pruebas de privacidad de borradores y archivos, tokens, revisión, comentarios, álbum mixto, categorías, rangos entre fragmentos y borrado. Navegador real: subida de foto y vídeo, aprobación, reproducción, navegación y móvil. Las pruebas utilizan SQLite efímero y contenido de prueba local, sin publicar datos artificiales.
+
+Referencia técnica: https://developers.cloudflare.com/d1/platform/limits/ (límites de consultas, filas y lotes).
