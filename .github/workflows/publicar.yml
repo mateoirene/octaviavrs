@@ -33,7 +33,16 @@ jobs:
           echo "solo_css=false" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" != "push" ] || [ -z "${{ github.event.before }}" ]; then exit 0; fi
           archivos="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
-          if [ -n "$archivos" ] && ! printf '%s\n' "$archivos" | grep -Ev '^(dist/navigation-premium.css|\.github/workflows/publicar.yml)        uses: actions/setup-node@v4
+          if [ -z "$archivos" ]; then exit 0; fi
+          while IFS= read -r archivo; do
+            case "$archivo" in
+              dist/navigation-premium.css|.github/workflows/publicar.yml) ;;
+              *) exit 0 ;;
+            esac
+          done <<< "$archivos"
+          echo "solo_css=true" >> "$GITHUB_OUTPUT"
+      - name: Preparar Node
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
       - name: Comprobar privacidad y moderación
@@ -130,12 +139,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Preparar almacenamiento del mercadillo
-        if: steps.destino.outputs.ready == 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true'
         run: node scripts/market-storage.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Sincronizar avisos push del club
-        if: steps.destino.outputs.ready == 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true'
         run: node scripts/push-news.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
