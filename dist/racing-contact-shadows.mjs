@@ -11,6 +11,14 @@ export function drawRearContactShadow(ctx,x,y,width,height=width*.62){
  ctx.restore();
 }
 
+export function drawSideContactShadow(ctx,x,y,width,height=width*.34){
+ ctx.save();
+ ellipse(ctx,x,y-height*.018,width*.48,height*.12,'rgba(0,0,0,.22)');
+ ellipse(ctx,x-width*.31,y-height*.025,width*.115,height*.055,'rgba(0,0,0,.46)');
+ ellipse(ctx,x+width*.31,y-height*.025,width*.115,height*.055,'rgba(0,0,0,.46)');
+ ctx.restore();
+}
+
 export function drawAerialContactShadow(ctx,width,length){
  ctx.save();
  ellipse(ctx,0,0,width*.48,length*.47,'rgba(0,0,0,.18)');

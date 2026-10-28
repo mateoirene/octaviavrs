@@ -4,9 +4,7 @@ import {drawNitroBadge} from './racing-nitro-badge.mjs?v=20261026-nitro';
 import {nitroVisible,availableNitros} from './racing-nitro.mjs?v=20261026-nitro';
 import {drivingCamera,cameraProject} from './racing-cameras.mjs?v=20261026-alineados';
 import {createCircuitEnvironment} from './racing-environment.mjs?v=20261025-aerial';
-import {teslaFireTime} from './racing-cinematic-state.mjs';
-import {drawCarFire} from './racing-fire2d.mjs';
-import {drawRearContactShadow,drawAerialContactShadow} from './racing-contact-shadows.mjs?v=20261027-sombras';
+import {drawRearContactShadow,drawAerialContactShadow} from './racing-contact-shadows.mjs?v=20261028-grounded-tesla';
 const environments=new Map(),images={};
 if(typeof Image!=='undefined')for(const [key,path]of [['grass','assets/cesped-circuito.jpg'],['asphalt','assets/track3d/asphalt-color.jpg']]){const image=new Image();image.onload=()=>images[key]=image;image.src=path;}
 export function drawExternalFallback(ctx,race,width,height,view,photos){
@@ -24,7 +22,6 @@ export function drawExternalFallback(ctx,race,width,height,view,photos){
  const car=o.car,w=Math.max(1,p.scale*1.9),image=car.player?photos.playerRear:car.model==='tesla-model-3'?photos.tesla:photos.rival;if(view==='aerial'){
  const f=layout.frame(car.distance),front=project([f.p[0]+f.t[0]*2,f.p[1],f.p[2]+f.t[2]*2]),back=project([f.p[0]-f.t[0]*2,f.p[1],f.p[2]-f.t[2]*2]);const angle=front&&back?Math.atan2(front.x-back.x,-front.y+back.y):0,h=w*1.85;ctx.save();ctx.translate(p.x,p.y-h*.35);ctx.rotate(angle);drawAerialContactShadow(ctx,w,h);const color=car.model==='tesla-model-3'?'#eeefed':race.photoCars!==false?'#111418':car.player?({red:'#a32a32',black:'#17191b',grey:'#6a6e70',white:'#e5e7e5'})[car.color]||'#2265a0':'#2265a0';ctx.fillStyle='#101318';for(const side of [-1,1])for(const axle of [-.28,.28])ctx.fillRect(side*w*.48-w*.06,axle*h-w*.18,w*.12,w*.36);const paint=ctx.createLinearGradient(-w*.5,0,w*.5,0);paint.addColorStop(0,'#1c2b36');paint.addColorStop(.25,color);paint.addColorStop(.65,color);paint.addColorStop(1,'#263947');ctx.fillStyle=paint;ctx.beginPath();ctx.roundRect(-w*.45,-h*.5,w*.9,h,w*.16);ctx.fill();ctx.fillStyle='#192a35';ctx.fillRect(-w*.34,-h*.28,w*.68,h*.17);ctx.fillRect(-w*.33,h*.24,w*.66,h*.12);ctx.fillStyle=car.model==='tesla-model-3'?'#253139':color;ctx.fillRect(-w*.32,-h*.08,w*.64,h*.28);ctx.fillStyle='#d6e3e7';for(const side of [-1,1])ctx.fillRect(side*w*.3-w*.08,-h*.45,w*.16,h*.025);ctx.fillStyle='#d62432';for(const side of [-1,1])ctx.fillRect(side*w*.3-w*.08,h*.44,w*.16,h*.035);if(car.player)drawExhaust2D(ctx,race,0,h*.48,w,{aerial:true});ctx.restore();
  }else{drawRearContactShadow(ctx,p.x,p.y,w,w*.72);if(car.model!=='tesla-model-3'&&race.photoCars!==false&&(()=>{const frame=layout.frame(car.distance),position=[frame.p[0]+frame.r[0]*car.x*half,frame.p[1],frame.p[2]+frame.r[2]*car.x*half],key=photoViewFromWorld(frame,position,pose.position);return key&&drawOriginalOctavia(ctx,photos.originalOctavia,key,p.x,p.y,p.scale*1.49,car.distance);})()){}else if(image&&(car.model==='tesla-model-3'||race.photoCars===false)){const h=w*image.height/image.width;ctx.drawImage(image,p.x-w/2,p.y-h,w,h);}else{ctx.fillStyle=car.model==='tesla-model-3'?'#f3f1ec':race.photoCars!==false?'#111418':'#1465a3';ctx.fillRect(p.x-w/2,p.y-w*.7,w,w*.7);}}
- if(car.player&&view!=='aerial')drawExhaust2D(ctx,race,p.x,p.y,w);
- if(car.model==='tesla-model-3')drawCarFire(ctx,p.x,p.y,w,teslaFireTime(race));}
+ if(car.player&&view!=='aerial')drawExhaust2D(ctx,race,p.x,p.y,w);}
  return pose;
 }

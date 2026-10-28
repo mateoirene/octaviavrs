@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import {paintGroundContactTexture} from './racing-contact-shadows.mjs?v=20261027-sombras';
+import {paintGroundContactTexture} from './racing-contact-shadows.mjs?v=20261028-grounded-tesla';
 export const OCTAVIA_COLORS={blue:'#1261b5',red:'#aa1525',white:'#e6e7e5',grey:'#62686e',black:'#111418'};
+export const VEHICLE_GROUND_CLEARANCE=0;
 // One dimensioned body per car. Rear artwork is mapped to the hatch surface,
 // never to a floating full-car billboard or separate side photographs.
 export function vehicleDimensions(model='octavia'){return model==='tesla-model-3'?{length:4.694,width:1.849,height:1.443,wheelbase:2.875}:{length:4.7,width:1.829,height:1.49,wheelbase:2.686};}
@@ -52,7 +53,7 @@ function createVehicle({rear,paint='blue',model='octavia'}={}){
  batch(group);
  // La sombra siempre sigue el plano del coche, incluso cuando la cámara aérea
  // desactiva las sombras dinámicas para mantener el rendimiento en móviles.
- const shadowCanvas=paintGroundContactTexture(document.createElement('canvas')),shadowTexture=new THREE.CanvasTexture(shadowCanvas),shadowMaterial=new THREE.MeshBasicMaterial({map:shadowTexture,transparent:true,depthWrite:false,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-4}),contactShadow=mesh(new THREE.PlaneGeometry(dim.width*1.12,dim.length*.98),shadowMaterial);contactShadow.geometry.rotateX(-Math.PI/2);contactShadow.position.y=-.025;contactShadow.castShadow=false;contactShadow.receiveShadow=false;contactShadow.renderOrder=2;contactShadow.name='Sombra de contacto · ruedas sobre el asfalto';contactShadow.userData.groundContactShadow=true;group.userData.ownedTextures.push(shadowTexture);
+ const shadowCanvas=paintGroundContactTexture(document.createElement('canvas')),shadowTexture=new THREE.CanvasTexture(shadowCanvas),shadowMaterial=new THREE.MeshBasicMaterial({map:shadowTexture,transparent:true,depthWrite:false,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-4}),contactShadow=mesh(new THREE.PlaneGeometry(dim.width*1.12,dim.length*.98),shadowMaterial);contactShadow.geometry.rotateX(-Math.PI/2);contactShadow.position.y=.004;contactShadow.castShadow=false;contactShadow.receiveShadow=false;contactShadow.renderOrder=2;contactShadow.name='Sombra de contacto · ruedas sobre el asfalto';contactShadow.userData.groundContactShadow=true;group.userData.ownedTextures.push(shadowTexture);
  group.userData.wheels=wheels;group.userData.model=model;group.userData.dimensions=dim;group.userData.length=dim.length;group.userData.coherentBody=true;group.userData.photoBillboards=0;group.userData.contactShadow=contactShadow;group.userData.disposeMaterials=()=>{for(const m of materials)m.dispose();for(const t of group.userData.ownedTextures||[])t.dispose();};return group;
 }
 export function rollVehicle(group,distance,steering=0){group.userData.photoDistance=distance;for(const wheel of group.userData.wheels||[]){wheel.mesh.rotation.x=-distance/wheel.radius;wheel.pivot.rotation.y=wheel.z<0?-steering*.35:0;}}

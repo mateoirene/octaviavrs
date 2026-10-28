@@ -6,7 +6,6 @@ import {CIRCUITS} from '../dist/racing-circuits.mjs';
 import {createCircuitLayout} from '../dist/circuit-layout.mjs';
 import {createRace,stepRace} from '../dist/racing-physics.mjs';
 import {nextChampionshipCircuit} from '../dist/racing-championship.mjs';
-import {createOvertakeSequence,teslaLeaderOvertake,advanceOvertakeSequence,igniteTesla} from '../dist/racing-cinematic-state.mjs';
 import {handleMarketRequest} from '../server/market.mjs';
 
 test('25 pistas con recorrido propio, cierre, escala y Tesla blanco en los tres niveles',()=>{
@@ -16,8 +15,8 @@ test('25 pistas con recorrido propio, cierre, escala y Tesla blanco en los tres 
  const suzuka=CIRCUITS.find(c=>c.id==='suzuka');assert.ok(Math.max(...suzuka.points.map(p=>p[1]))>9,'Paso elevado de Suzuka');
  assert.equal(nextChampionshipCircuit([]).id,'melbourne');assert.equal(nextChampionshipCircuit([{circuit:'melbourne',position:2}]).id,'melbourne');assert.equal(nextChampionshipCircuit([{circuit:'melbourne',position:1}]).id,'shanghai');assert.equal(nextChampionshipCircuit(CIRCUITS.map(c=>({circuit:c.id,position:1}))),null);
 });
-test('adelantamiento real al Tesla por el primer Skoda, una vez y con pausa',()=>{
- const race=createRace(null,'easy','monza'),sequence=createOvertakeSequence();race.phase='running';const tesla=race.rivals[2];tesla.distance=100;race.rivals[0].distance=95;race.rivals[1].distance=90;assert.equal(teslaLeaderOvertake(sequence,race),false);race.phase='paused';race.rivals[0].distance=101;assert.equal(teslaLeaderOvertake(sequence,race),false);race.phase='running';const overtaken=teslaLeaderOvertake(sequence,race);assert.equal(overtaken,true);assert.equal(advanceOvertakeSequence(sequence,4,'running',.05,overtaken),true);igniteTesla(race);assert.equal(tesla.retired,true);assert.equal(tesla.speed,0);assert.equal(advanceOvertakeSequence(sequence,4,'running',.05,true),false);assert.equal(race.speed,0);
+test('el Tesla blanco sigue en carrera después de ser adelantado',()=>{
+ const race=createRace(null,'easy','monza');race.phase='running';const tesla=race.rivals[2];tesla.distance=100;tesla.speed=45;race.distance=101;const before=tesla.distance;stepRace(race,{accelerate:true},.05);assert.ok(tesla.distance>before);assert.ok(tesla.speed>0);assert.equal(tesla.retired,undefined);assert.equal(race.teslaFireStartedAt,undefined);
 });
 function fixture(){const raw=new DatabaseSync(':memory:');raw.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));const db={prepare(sql){const stmt=raw.prepare(sql);let args=[];const q={bind(...v){args=v;return q;},async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};},async run(){return {meta:{changes:Number(stmt.run(...args).changes)}};}};return q;},async batch(statements){raw.exec('BEGIN');try{for(const s of statements)await s.run();raw.exec('COMMIT');}catch(e){raw.exec('ROLLBACK');throw e;}}};const call=(path,body)=>handleMarketRequest(new Request('https://club.example/api/racing/'+path,{method:body?'POST':'GET',headers:{Origin:'https://club.example','Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),{MARKET_DB:db});return {raw,call};}
 const racer=crypto.randomUUID();const result=(changes={})=>({id:crypto.randomUUID(),pilot:'Piloto Club',level:'easy',circuit:'melbourne',car:'Skoda de Raúl',paint:'red',mode:'championship',racer,total:360000,laps:[120000,120000,120000],position:1,...changes});
