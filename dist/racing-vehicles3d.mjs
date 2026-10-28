@@ -6,7 +6,30 @@ export const VEHICLE_GROUND_CLEARANCE=0;
 // never to a floating full-car billboard or separate side photographs.
 export function vehicleDimensions(model='octavia'){return model==='tesla-model-3'?{length:4.694,width:1.849,height:1.443,wheelbase:2.875}:{length:4.7,width:1.829,height:1.49,wheelbase:2.686};}
 export function createOctavia(options={}){return createVehicle({...options,model:'octavia'});}
-export function createTesla(options={}){return createVehicle({...options,model:'tesla-model-3',paint:'white'});}
+export function createTesla(options={}){const vehicle=createVehicle({...options,model:'tesla-model-3',paint:'white'});return options.glb?attachTeslaGlb(vehicle,options.glb):vehicle;}
+const importedWheelName=/(?:^|[_ .-])(wheel|tyre|tire|rim|llanta|rueda)(?:$|[_ .-])/i;
+const importedWheelRoot=/^Rueda[_ .-]*(delantera|trasera)/i;
+const spinAxis=new THREE.Vector3(0,0,1),steerAxis=new THREE.Vector3(0,1,0),spinQuaternion=new THREE.Quaternion(),steerQuaternion=new THREE.Quaternion();
+function cloneTeslaGlb(source){const clone=source.clone(true);clone.traverse(item=>{if(!item.isMesh)return;item.geometry=item.geometry.clone();item.material=Array.isArray(item.material)?item.material.map(material=>material.clone()):item.material?.clone();item.castShadow=true;item.receiveShadow=true;});return clone;}
+export function attachTeslaGlb(vehicle,source){
+ if(!source?.isObject3D||vehicle.userData.model!=='tesla-model-3')return vehicle;
+ const dim=vehicleDimensions('tesla-model-3'),model=cloneTeslaGlb(source),holder=new THREE.Group();holder.name='Tesla_Model3.glb · carrocería normalizada';holder.add(model);
+ // The imported body replaces the procedural body. Its four named wheels are
+ // animated when available; the ALBERTO plate and contact shadow stay in the
+ // simulator so gameplay and grounding do not depend on decorative materials.
+ vehicle.traverse(item=>{if(item.isMesh)item.visible=false;});
+ vehicle.traverse(item=>{if(item.name==='Matrícula ALBERTO'||item.userData.groundContactShadow)item.visible=true;});
+ let bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3());
+ if(size.x>size.z*1.18)model.rotation.y=-Math.PI/2;
+ model.updateMatrixWorld(true);bounds.setFromObject(model);size=bounds.getSize(size);
+ const fit=dim.length/Math.max(size.z,.001);
+ model.scale.multiplyScalar(fit);model.updateMatrixWorld(true);bounds.setFromObject(model);const center=bounds.getCenter(new THREE.Vector3());model.position.x-=center.x;model.position.y-=bounds.min.y;model.position.z-=center.z;model.updateMatrixWorld(true);
+ const importedWheels=[];model.traverse(item=>{const match=(item.name||'').match(importedWheelRoot);if(match)importedWheels.push({node:item,front:match[1].toLowerCase()==='delantera',initial:item.quaternion.clone()});if(/^Matricula trasera$/i.test(item.name||''))item.visible=false;});
+ let hiddenWheels=0;if(importedWheels.length===4){for(const wheel of importedWheels){const z=wheel.front?-1.44:1.44,radius=.337*fit;wheel.node.userData.importedTeslaWheel=true;wheel.setPose=(spin,steering)=>{spinQuaternion.setFromAxisAngle(spinAxis,spin);steerQuaternion.setFromAxisAngle(steerAxis,wheel.front?-steering*.35:0);wheel.node.quaternion.copy(wheel.initial).premultiply(spinQuaternion).premultiply(steerQuaternion);};Object.assign(wheel,{mesh:wheel.node,pivot:wheel.node,z,radius});}vehicle.userData.wheels=importedWheels;}else{model.traverse(item=>{if(item!==model&&importedWheelName.test(item.name||'')){item.visible=false;hiddenWheels++;}});for(const wheel of vehicle.userData.wheels||[])wheel.pivot.traverse(item=>{item.visible=true;});}
+ let triangles=0;model.traverse(item=>{if(item.isMesh){const index=item.geometry.getIndex(),position=item.geometry.getAttribute('position');triangles+=(index?index.count:position?.count||0)/3;}});
+ vehicle.add(holder);const previousDispose=vehicle.userData.disposeMaterials;vehicle.userData.disposeMaterials=()=>{previousDispose?.();const geometries=new Set(),materials=new Set();model.traverse(item=>{if(item.geometry)geometries.add(item.geometry);const list=Array.isArray(item.material)?item.material:[item.material];for(const material of list.filter(Boolean))materials.add(material);});for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();};
+ vehicle.userData.glbAsset=true;vehicle.userData.glbBody=holder;vehicle.userData.glbHiddenWheels=hiddenWheels;vehicle.userData.glbWheelSource=importedWheels.length===4?'glb':'procedural-fallback';vehicle.userData.glbTriangles=Math.round(triangles);vehicle.userData.vehicleSource='assets/Tesla_Model3.glb';vehicle.userData.coherentBody=true;return vehicle;
+}
 function createVehicle({rear,paint='blue',model='octavia'}={}){
  const tesla=model==='tesla-model-3',dim=vehicleDimensions(model),half=dim.width/2,end=dim.length/2,group=new THREE.Group();group.name=tesla?'Tesla Model 3 blanco · ALBERTO':'Octavia · carrocería coherente';
  const body=new THREE.MeshPhysicalMaterial({color:tesla?'#f2f1ec':OCTAVIA_COLORS[paint]||OCTAVIA_COLORS.blue,metalness:tesla?.1:.48,roughness:.24,clearcoat:.9,clearcoatRoughness:.12,envMapIntensity:tesla?.45:.8});
@@ -56,7 +79,7 @@ function createVehicle({rear,paint='blue',model='octavia'}={}){
  const shadowCanvas=paintGroundContactTexture(document.createElement('canvas')),shadowTexture=new THREE.CanvasTexture(shadowCanvas),shadowMaterial=new THREE.MeshBasicMaterial({map:shadowTexture,transparent:true,depthWrite:false,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-4}),contactShadow=mesh(new THREE.PlaneGeometry(dim.width*1.12,dim.length*.98),shadowMaterial);contactShadow.geometry.rotateX(-Math.PI/2);contactShadow.position.y=.004;contactShadow.castShadow=false;contactShadow.receiveShadow=false;contactShadow.renderOrder=2;contactShadow.name='Sombra de contacto · ruedas sobre el asfalto';contactShadow.userData.groundContactShadow=true;group.userData.ownedTextures.push(shadowTexture);
  group.userData.wheels=wheels;group.userData.model=model;group.userData.dimensions=dim;group.userData.length=dim.length;group.userData.coherentBody=true;group.userData.photoBillboards=0;group.userData.contactShadow=contactShadow;group.userData.disposeMaterials=()=>{for(const m of materials)m.dispose();for(const t of group.userData.ownedTextures||[])t.dispose();};return group;
 }
-export function rollVehicle(group,distance,steering=0){group.userData.photoDistance=distance;for(const wheel of group.userData.wheels||[]){wheel.mesh.rotation.x=-distance/wheel.radius;wheel.pivot.rotation.y=wheel.z<0?-steering*.35:0;}}
+export function rollVehicle(group,distance,steering=0){group.userData.photoDistance=distance;for(const wheel of group.userData.wheels||[]){const spin=-distance/wheel.radius;if(wheel.setPose)wheel.setPose(spin,steering);else{wheel.mesh.rotation.x=spin;wheel.pivot.rotation.y=wheel.z<0?-steering*.35:0;}}}
 
 const poseBasis=new THREE.Matrix4(),poseRight=new THREE.Vector3(),poseUp=new THREE.Vector3(),poseBack=new THREE.Vector3();
 export function orientVehicle(group,frame){poseRight.set(...frame.r).normalize();poseBack.set(...frame.t).multiplyScalar(-1).normalize();poseUp.crossVectors(poseBack,poseRight).normalize();poseBasis.makeBasis(poseRight,poseUp,poseBack);group.quaternion.setFromRotationMatrix(poseBasis);}
