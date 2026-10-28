@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 const base='https://octaviaap.pages.dev';
 async function verify(){
  const index=await(await fetch(base+'/?check='+Date.now(),{cache:'no-store'})).text();
+ assert.ok(index.includes('mailto:cluboctaviavrscat@gmail.com?subject=Contacto%20Club%20Octavia%20VRS'),'Correo del club publicado');assert.ok(!index.includes('mozos.raul@gmail.com')&&!index.includes('Puedes escribir a Raúl'),'Contacto anterior retirado');const privacyContact=await(await fetch(base+'/privacidad.html?contact='+Date.now(),{cache:'no-store'})).text();assert.ok(privacyContact.includes('mailto:cluboctaviavrscat@gmail.com')&&!privacyContact.includes('mozos.raul@gmail.com'),'Contacto coherente en privacidad');console.log('CONTACTO_CLUB_PUBLICADO_OK: correo general visible y texto personal retirado.');
  assert.ok(index.includes('href="galeria.html"'),'Acceso a álbumes publicado');assert.ok(!index.includes('data-image='),'Fotos decorativas sin ampliación');const gallery=await fetch(base+'/galeria.html');assert.equal(gallery.status,200);const folders=await fetch(base+'/api/gallery/folders');assert.equal(folders.status,200);assert.ok(Array.isArray(await folders.json()));
  assert.ok(index.indexOf('id="simulador"')>index.indexOf('id="mercadillo"'),'Orden mercadillo y simulador');
  const game=await(await fetch(base+'/simulador.html?check='+Date.now(),{cache:'no-store'})).text();assert.ok(game.includes('data-race-level'),'Selector de niveles publicado');
