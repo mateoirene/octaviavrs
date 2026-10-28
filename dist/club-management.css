@@ -4,9 +4,9 @@
 
 /* Marcas de colaboradores como fondo discreto de sus fichas */
 .directory-list,.directory-link{position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(135deg,#111b27f5,#11151bed)}
-.directory-brand-watermark{position:absolute;z-index:0;right:10px;top:8px;width:clamp(84px,12vw,150px);height:clamp(84px,12vw,150px);object-fit:contain;opacity:.19;filter:grayscale(1) contrast(1.1);pointer-events:none}
+.directory-brand-watermark{position:absolute;z-index:0;right:10px;top:8px;width:clamp(84px,12vw,150px);height:clamp(84px,12vw,150px);object-fit:contain;opacity:.48;pointer-events:none}
 .directory-list>button,.directory-link>*:not(.directory-brand-watermark){position:relative;z-index:1}
 .directory-list:hover,.directory-link:hover{border-color:#c5d8e8;box-shadow:0 12px 32px #0006}
 .directory-link h3,.directory-list h2{text-shadow:0 2px 8px #000}
-@media(max-width:600px){.directory-brand-watermark{width:92px;height:92px;opacity:.16}}
+@media(max-width:600px){.directory-brand-watermark{width:92px;height:92px;opacity:.34}}
 .directory-list-group{grid-column:1/-1;min-width:0}.directory-list-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 4px;border-bottom:1px solid #74808d;margin-bottom:0}.directory-list-heading h2{font-size:clamp(22px,3vw,32px);margin:6px 0 14px}.directory-list-heading small{color:#c2ced9;letter-spacing:.12em}.directory-list-group>.directory-links{margin-top:18px}
