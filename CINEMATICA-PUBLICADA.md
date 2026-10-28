@@ -1,9 +1,14 @@
-# Cinemática publicada del club
+# Vídeo publicado en El club
 
-Película propia de 30 segundos y 720 fotogramas a 24 fps. Modelo artístico inspirado en el Octavia vRS, no réplica ni plano técnico oficial. 33 grupos independientes; cada fotograma valida que las mallas, sus geometrías, vértices y visibilidad se mantienen. Se animan únicamente transformaciones rígidas.
+El reproductor de `#club` utiliza el vídeo facilitado por el club el 28 de octubre de 2026. El MP4 se conserva exactamente como se recibió, sin recomprimir ni cambiar sus fotogramas.
 
-Original: assets/cinematic/octavia-cinematica-4k.mp4, 3840×2160, 18.578.161 bytes, H264. Versión web: 1920×1080, 5.256.136 bytes, H264. Ambas con faststart; sin audio. Portada de 1920×1080. Reproductor debajo del título de #club, reproducción voluntaria, preload none y enlace de descarga del 4K.
+- Archivo público: `dist/assets/cinematic/octavia-cinematica-web.mp4`
+- SHA-256: `3d340697ae235080f918d43e29a8a1c15e5049c49c0f8fbe580432ef5fe7f444`
+- Formato: H.264, 854×480, 30 fps, 33,6 segundos y 3.204.769 bytes
+- Audio: no contiene pista de audio
+- Inicio: voluntario, con controles y reproducción integrada en móvil
+- Final: vuelve a empezar mediante el atributo `loop`
+- Carga: `preload="none"` y entrega HTTP por rangos
+- Portada: fotograma del mismo vídeo guardado en `octavia-club-portada.jpg`
 
-Producción: workflow 40177377168, fuente b6d93c026d60bb2b3a5a66d0b7325b7a398ee6f8, Blender 4.0.2 y Three.js 0.180.0. Modelo original en cinematic/modelo.py; estudio, animación y profundidad de campo en cinematic/estudio.html; render y preparación en cinematic/. Rama de producción video-octavia-40177377168. No se incorporan cambios antiguos de esa rama al código: se copian los cuatro recursos terminados sobre la rama principal.
-
-Comprobaciones: ffprobe confirma duración exacta, 4K nativo y 720 fotogramas; decodificación completa del MP4 web y revisión de fotogramas 0, 168, 336, 480, 624 y 695. Chrome comprueba metadatos, reproducción real, controles y ausencia de autoplay en la web. Tras publicar se verifican HTTP 206, MIME video/mp4 y solicitudes por rango de ambas versiones. No se ha medido reproducción en teléfonos físicos.
+El botón rojo «Descubre el club» enlaza directamente con `#club`, la sección `01 / EL CLUB`. Chrome valida el destino, los metadatos, la reproducción real y el bucle. La comprobación posterior al despliegue valida el tamaño original mediante `Content-Range`.
