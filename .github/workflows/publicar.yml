@@ -26,21 +26,29 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Detectar publicación solo visual
+      - name: Detectar publicación rápida
         id: cambios
         shell: bash
         run: |
           echo "solo_css=false" >> "$GITHUB_OUTPUT"
+          echo "solo_visual=false" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" != "push" ] || [ -z "${{ github.event.before }}" ]; then exit 0; fi
           archivos="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
           if [ -z "$archivos" ]; then exit 0; fi
+          solo_css=true
+          solo_visual=true
           while IFS= read -r archivo; do
             case "$archivo" in
-              dist/navigation-premium.css|dist/club-news.css|.github/workflows/publicar.yml) ;;
-              *) exit 0 ;;
+              dist/navigation-premium.css|dist/club-news.css) ;;
+              *) solo_css=false ;;
+            esac
+            case "$archivo" in
+              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*|.github/workflows/publicar.yml) ;;
+              *) solo_visual=false ;;
             esac
           done <<< "$archivos"
-          echo "solo_css=true" >> "$GITHUB_OUTPUT"
+          if [ "$solo_css" = true ]; then echo "solo_css=true" >> "$GITHUB_OUTPUT"; fi
+          if [ "$solo_visual" = true ]; then echo "solo_visual=true" >> "$GITHUB_OUTPUT"; fi
       - name: Preparar Node
         uses: actions/setup-node@v4
         with:
@@ -49,16 +57,16 @@ jobs:
         if: steps.cambios.outputs.solo_css != 'true'
         run: node --test tests/*.test.mjs
       - name: Recuperar fotografías del circuito
-        if: steps.cambios.outputs.solo_css != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         uses: actions/cache@v4
         with:
           path: dist/assets/race
           key: octavia-race-photos-20261023-v1
       - name: Preparar fotografías y atribuciones
-        if: steps.cambios.outputs.solo_css != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/prepare-race-assets.mjs
       - name: Recuperar motor y materiales 3D
-        if: steps.cambios.outputs.solo_css != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -66,13 +74,13 @@ jobs:
             dist/assets/track3d
           key: octavia-track3d-three0180-asphalt02-v1
       - name: Preparar motor local y materiales PBR
-        if: steps.cambios.outputs.solo_css != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/prepare-track3d.mjs
       - name: Comprobar garaje y circuito en Chrome
-        if: steps.cambios.outputs.solo_css != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/browser-check.mjs
       - name: Guardar vistas de comprobación
-        if: always() && steps.cambios.outputs.solo_css != 'true'
+        if: always() && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: vistas-garaje-circuito
@@ -84,12 +92,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Preparar almacenamiento del mercadillo
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/market-storage.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Sincronizar avisos push del club
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/push-news.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
