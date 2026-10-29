@@ -67,3 +67,5 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
+      - name: Conservar copia cifrada en rama de recuperación
+        run: node .github/backup/publicar-copia-cifrada.mjs
