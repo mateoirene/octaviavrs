@@ -11,13 +11,34 @@ db=sqlite3.connect(data/'produccion.sqlite');db.executescript(sql.read_text());a
 tables=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'")]
 counts={table:db.execute('SELECT COUNT(*) FROM "'+table.replace('"','""')+'"').fetchone()[0] for table in tables}
 for name in ['market_listings','market_admins','garage_members','garage_profiles','gallery_folders','gallery_photos']:assert name in counts,name
+def valid_image(mime,blob):
+ return isinstance(blob,bytes) and len(blob)>0 and ((mime=='image/jpeg' and blob.startswith(b'\xff\xd8\xff')) or (mime=='image/png' and blob.startswith(b'\x89PNG')) or (mime=='image/webp' and blob.startswith(b'RIFF')))
 photo_count=0
-for table in ['market_photos','garage_photos','gallery_photos','garage_profiles']:
+for table in ['market_photos','garage_photos','garage_profiles']:
  for mime,blob in db.execute('SELECT content_type,data FROM '+table+' WHERE data IS NOT NULL'):
-  assert isinstance(blob,bytes) and len(blob)>0
-  assert (mime=='image/jpeg' and blob.startswith(b'\xff\xd8\xff')) or (mime=='image/png' and blob.startswith(b'\x89PNG')) or (mime=='image/webp' and blob.startswith(b'RIFF'))
+  assert valid_image(mime,blob),(table,mime)
   photo_count+=1
-db.close();config=json.loads((work/'configuracion.json').read_text());config['databaseExport']['tables']=counts;config['databaseExport']['photoCount']=photo_count;config['databaseExport']['sqliteIntegrity']='ok';config['databaseExport']['foreignKeys']='ok';(root/'MANIFIESTO.json').write_text(json.dumps(config,ensure_ascii=False,indent=2))
+# Las imágenes de galería siguen dentro de gallery_photos. Los vídeos dejan un
+# BLOB vacío allí y conservan el archivo original, por fragmentos, en
+# club_media_files/club_media_chunks.
+for media_id,mime,blob in db.execute('SELECT id,content_type,data FROM gallery_photos WHERE data IS NOT NULL'):
+ if mime.startswith('image/'):
+  assert valid_image(mime,blob),('gallery_photos',media_id,mime)
+  photo_count+=1
+ else:
+  assert mime in ('video/mp4','video/webm') and isinstance(blob,bytes) and len(blob)==0,(media_id,mime)
+  assert db.execute('SELECT id FROM club_media_files WHERE id=?',(media_id,)).fetchone(),media_id
+media_count=0
+if 'club_media_files' in counts:
+ for media_id,mime,size in db.execute('SELECT id,content_type,size FROM club_media_files'):
+  chunks=db.execute('SELECT position,length(data),substr(data,1,16) FROM club_media_chunks WHERE file_id=? ORDER BY position',(media_id,)).fetchall()
+  assert isinstance(size,int) and size>0 and chunks,media_id
+  assert [row[0] for row in chunks]==list(range(len(chunks))),media_id
+  assert all(row[1]>0 for row in chunks) and sum(row[1] for row in chunks)==size,media_id
+  first=chunks[0][2]
+  assert (mime.startswith('image/') and valid_image(mime,first)) or (mime=='video/mp4' and first[4:8]==b'ftyp') or (mime=='video/webm' and first.startswith(b'\x1aE\xdf\xa3')),(media_id,mime)
+  media_count+=1
+db.close();config=json.loads((work/'configuracion.json').read_text());config['databaseExport']['tables']=counts;config['databaseExport']['photoCount']=photo_count;config['databaseExport']['mediaFiles']=media_count;config['databaseExport']['sqliteIntegrity']='ok';config['databaseExport']['foreignKeys']='ok';(root/'MANIFIESTO.json').write_text(json.dumps(config,ensure_ascii=False,indent=2))
 for name in ['LEEME-RAUL.md','RECUPERACION-PARA-CODEX.md','verificar.py','servidor-local.mjs']:
  shutil.copy2(Path('.github/backup')/name,root/name)
 # Las cookies activas, contraseñas y claves de servicio no se extraen del entorno.
