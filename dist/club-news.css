@@ -6,3 +6,79 @@
 .club-news-layout{align-items:center}.club-news-station{align-self:center}.club-speed-clock{align-self:center;width:220px;justify-self:center}.club-clock-dial{margin:0 auto 4px}.club-clock-date{margin:0 0 5px}.club-news-screen img[data-contain="true"]{object-fit:contain;padding:34px;background:radial-gradient(circle,#23303b 0,#080b0f 66%)}@media(max-width:1100px){.club-speed-clock{width:200px}}@media(max-width:650px){.club-news-layout{align-items:stretch}.club-speed-clock{width:210px}.club-news-station{width:100%}.club-news-screen img[data-contain="true"]{padding:26px}}
 
 .club-clock-led{fill:#541017;opacity:.88;transition:fill .18s ease,filter .18s ease,opacity .18s ease}.club-clock-led.is-lit{fill:#ff2638;opacity:1;filter:drop-shadow(0 0 2.5px #ff2638)}@media(prefers-reduced-motion:reduce){.club-clock-led{transition:none}}
+
+
+/* Mejora visual de Noticias: jerarquia editorial, contraste y controles accesibles. */
+.club-news-section{
+  position:relative;
+  isolation:isolate;
+  background:radial-gradient(ellipse at 8% 12%,#1c2927 0,transparent 42%),linear-gradient(180deg,#111416 0%,#0c0e10 100%);
+  border-top:1px solid #ffffff0b;
+}
+.club-news-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:24px}
+.club-news-heading .eyebrow{margin-bottom:8px;color:#d6a1a5}
+.club-news-heading h2{margin:6px 0 0;line-height:1.04;letter-spacing:-1.3px}
+.club-news-heading h2::after{content:"";display:block;width:58px;height:3px;margin-top:14px;background:linear-gradient(90deg,#ed383f,#8e2027);border-radius:3px}
+.club-news-heading [data-news-admin]:not([hidden]){display:inline-flex;align-items:center;gap:8px;padding:11px 14px;border:1px solid #5b7770;border-radius:8px;background:#101c19;color:#d8f2e8;font-size:12px;font-weight:700;transition:background .2s,border-color .2s}
+.club-news-heading [data-news-admin]:hover{background:#19302a;border-color:#83b6a6}
+.club-news-layout{align-items:stretch;gap:20px}
+.club-news-station{position:relative;overflow:hidden;grid-template-columns:minmax(0,1fr) minmax(250px,.9fr);gap:clamp(18px,2.3vw,32px);padding:clamp(20px,2.7vw,32px);border-color:#4c5c5c;border-radius:18px;background:linear-gradient(135deg,#1a2425f5 0%,#101517f7 58%,#15191df5 100%);box-shadow:0 16px 44px #0005,inset 0 1px #ffffff0c}
+.club-news-station::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,#ed383f,#7e242b 60%,#4d7f6e)}
+.club-news-description{padding:6px 0 6px 4px}
+.club-news-label{display:flex;align-items:center;gap:8px;color:#a8d2c2;font-size:10px;letter-spacing:2px}
+.club-news-label::before{content:"";width:6px;height:6px;border-radius:50%;background:#77c9a8;box-shadow:0 0 10px #77c9a877}
+.club-news-description h3{font-size:clamp(23px,2.2vw,34px);line-height:1.12;letter-spacing:-.7px;margin:0 0 14px;color:#f7f7f5}
+.club-news-description>p:not(.club-news-label){font-size:14px;line-height:1.7;color:#c2ccca}
+.club-news-origin{color:#92a39f!important;font-size:11px!important}
+.club-news-link{display:inline-flex;align-items:center;gap:12px;margin-top:6px;padding:12px 15px;border:1px solid #ed383f;border-radius:7px;background:#ed383f;color:#fff;transition:transform .2s,background .2s}
+.club-news-link:hover{background:#c82b33;transform:translateY(-1px)}
+.club-news-display{min-width:0;align-self:center}
+.club-news-screen{aspect-ratio:16/10;border:1px solid #64716e;outline:1px solid #ffffff12;border-radius:12px;box-shadow:0 12px 28px #0008}
+.club-news-screen img{transition:transform .5s ease}
+.club-news-screen:hover img{transform:scale(1.025)}
+.club-news-screen-shade{background:linear-gradient(180deg,#0009,transparent 35%,#000e)}
+.club-news-onair{top:14px;left:14px;padding:7px 9px;border:1px solid #ffffff30;border-radius:5px;background:#080b0bc9;backdrop-filter:blur(6px)}
+.club-news-screen p{left:16px;right:16px;bottom:15px;font-size:clamp(15px,1.5vw,21px);line-height:1.25}
+.club-news-controls{gap:8px;margin-top:13px}
+.club-news-controls button{min-width:42px;min-height:42px;border-color:#4a605a;background:#121a18;transition:background .2s,border-color .2s,transform .2s}
+.club-news-controls button:hover{background:#20332d;border-color:#91b6a8;transform:translateY(-1px)}
+.club-news-controls button[data-news-play]{font-size:17px}
+.club-news-controls span{flex:1;font-size:10px;font-weight:800;letter-spacing:1.2px;color:#b7d4c9}
+.club-news-return{border-color:#394b46;background:#111715;color:#cbdad4;transition:background .2s}
+.club-news-return:hover{background:#1b2b25}
+.club-news-status{padding:9px 12px;border-radius:6px;background:#141b19;color:#b9d5c9}
+.club-speed-clock{border-color:#43534f;border-radius:18px;background:linear-gradient(145deg,#18201f,#0c1011 72%);box-shadow:0 16px 44px #0004,inset 0 1px #ffffff0c}
+.club-clock-date{color:#c1d0ca}
+.club-clock-weather{border-top-color:#52625c}
+.club-clock-weather small,.club-clock-weather a{color:#a8c3b7}
+.club-news-station button:focus-visible,.club-news-station a:focus-visible,.club-news-heading a:focus-visible{outline:3px solid #a8e5c9;outline-offset:3px}
+@media(max-width:1100px){
+ .club-news-layout{grid-template-columns:minmax(0,1fr) 205px;gap:16px}
+ .club-news-station{grid-template-columns:minmax(0,1fr) minmax(220px,.9fr);padding:22px}
+ .club-news-description h3{font-size:clamp(22px,2.4vw,30px)}
+}
+@media(max-width:850px){
+ .club-news-layout{grid-template-columns:1fr}
+ .club-news-station{grid-template-columns:minmax(0,1fr) minmax(230px,.9fr)}
+ .club-speed-clock{display:grid;grid-template-columns:minmax(150px,210px) 1fr;align-items:center;gap:16px;text-align:left}
+ .club-clock-dial{grid-row:span 2}
+ .club-clock-date{margin:0}
+ .club-clock-weather{align-self:start}
+}
+@media(max-width:600px){
+ .club-news-section{padding:34px 5%}
+ .club-news-heading{align-items:start;gap:14px;margin-bottom:20px}
+ .club-news-heading h2{font-size:clamp(27px,8vw,36px)}
+ .club-news-station{grid-template-columns:minmax(0,1fr);padding:20px 17px;gap:20px}
+ .club-news-description{padding-left:2px}
+ .club-news-description h3{font-size:27px}
+ .club-news-screen{aspect-ratio:16/10}
+ .club-news-controls button{min-width:44px;min-height:44px}
+ .club-speed-clock{display:block;text-align:center;padding:18px}
+ .club-clock-dial{max-width:205px}
+ .club-clock-date{margin:8px 0 13px}
+ .club-clock-weather{text-align:center}
+}
+@media(prefers-reduced-motion:reduce){
+ .club-news-link,.club-news-controls button,.club-news-screen img,.club-news-heading [data-news-admin]:not([hidden]){transition:none}
+}
