@@ -1,0 +1,28 @@
+const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
+const cleanText=(value,label,min,max)=>{const result=typeof value==='string'?value.trim():'';if(result.length<min||result.length>max)fail('Revisa '+label+'.');return result;};
+const count=(value,label,min=0,max=99)=>{const number=typeof value==='number'?value:Number(String(value??''));if(!Number.isInteger(number)||number<min||number>max)fail('Revisa '+label+'.');return number;};
+const euros=(value,label)=>{const source=String(value??'').trim().replace(',','.');if(!/^\d{1,5}(?:\.\d{1,2})?$/.test(source))fail('Revisa '+label+'.');const cents=Math.round(Number(source)*100);if(cents<0||cents>9999999)fail('Revisa '+label+'.');return cents;};
+const boolean=value=>value===true||value===1||value==='1'||value==='true';
+
+export function validateEventAttendee(body={}){
+ const attendees=count(body.attendees,'el número de asistentes',1),calcotada=count(body.calcotada,'los menús de calçotada'),vegetarian=count(body.vegetarian,'los menús vegetarianos'),childMenu=count(body.childMenu,'los menús infantiles');
+ if(calcotada+vegetarian+childMenu>attendees)fail('Los menús no pueden superar el número de asistentes.');
+ return {pilotName:cleanText(body.pilotName,'el nombre del piloto',2,100),attendees,plate:cleanText(body.plate||'','la matrícula',0,20),calcotada,vegetarian,childMenu,depositCents:euros(body.depositEuros??'0','la paga y señal'),balanceCents:euros(body.balanceEuros??'0','el resto'),paid:boolean(body.paid)};
+}
+
+const attendeeRow=row=>({id:row.id,eventId:row.event_id,pilotName:row.pilot_name,attendees:row.attendees,plate:row.vehicle_plate,calcotada:row.calcotada_count,vegetarian:row.vegetarian_count,childMenu:row.child_menu_count,depositCents:row.deposit_cents,balanceCents:row.balance_cents,paid:Boolean(row.paid),createdAt:row.created_at,updatedAt:row.updated_at});
+const route=pathname=>{const match=pathname.match(/^\/api\/club\/events\/([^/]+)\/attendees(?:\/([^/]+))?$/);if(!match)return null;try{return {eventId:decodeURIComponent(match[1]),attendeeId:match[2]?decodeURIComponent(match[2]):null};}catch{return {invalid:true};}};
+
+export async function handleEventAttendeeRequest(request,db,admin){
+ const target=route(new URL(request.url).pathname);if(!target)return null;if(target.invalid)return json({error:'Ruta no válida.'},400);if(!admin)return json({error:'Solo los administradores pueden gestionar asistentes.'},401);
+ const event=await db.prepare('SELECT id FROM club_events WHERE id=?').bind(target.eventId).first();if(!event)return json({error:'El evento no existe.'},404);
+ if(request.method==='GET'&&!target.attendeeId){const rows=(await db.prepare('SELECT * FROM club_event_attendees WHERE event_id=? ORDER BY created_at,pilot_name COLLATE NOCASE,id').bind(target.eventId).all()).results;return json(rows.map(attendeeRow));}
+ if(request.method==='POST'){
+  const data=validateEventAttendee(await request.json()),stamp=Math.floor(Date.now()/1000);
+  if(target.attendeeId){const old=await db.prepare('SELECT id,created_at FROM club_event_attendees WHERE id=? AND event_id=?').bind(target.attendeeId,target.eventId).first();if(!old)return json({error:'El asistente no existe en este evento.'},404);await db.prepare('UPDATE club_event_attendees SET pilot_name=?,attendees=?,vehicle_plate=?,calcotada_count=?,vegetarian_count=?,child_menu_count=?,deposit_cents=?,balance_cents=?,paid=?,updated_at=?,updated_by=? WHERE id=? AND event_id=?').bind(data.pilotName,data.attendees,data.plate,data.calcotada,data.vegetarian,data.childMenu,data.depositCents,data.balanceCents,data.paid?1:0,stamp,admin.id,target.attendeeId,target.eventId).run();return json(attendeeRow(await db.prepare('SELECT * FROM club_event_attendees WHERE id=? AND event_id=?').bind(target.attendeeId,target.eventId).first()));}
+  const id=crypto.randomUUID();await db.prepare('INSERT INTO club_event_attendees(id,event_id,pilot_name,attendees,vehicle_plate,calcotada_count,vegetarian_count,child_menu_count,deposit_cents,balance_cents,paid,created_at,updated_at,updated_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,target.eventId,data.pilotName,data.attendees,data.plate,data.calcotada,data.vegetarian,data.childMenu,data.depositCents,data.balanceCents,data.paid?1:0,stamp,stamp,admin.id).run();return json(attendeeRow(await db.prepare('SELECT * FROM club_event_attendees WHERE id=?').bind(id).first()),201);
+ }
+ if(request.method==='DELETE'&&target.attendeeId){const result=await db.prepare('DELETE FROM club_event_attendees WHERE id=? AND event_id=?').bind(target.attendeeId,target.eventId).run();if(!result.meta?.changes)return json({error:'El asistente no existe en este evento.'},404);return json({deleted:true});}
+ return json({error:'Método no permitido.'},405);
+}

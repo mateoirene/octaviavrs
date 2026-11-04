@@ -9,7 +9,7 @@ export function isClubNewsVisible(item){
  if(!item||typeof item!=='object')return false;
  const kind=text(item.kind),href=text(item.href),content=text([item.label,item.title,item.description].join(' '));
  if(['record','racing','simulator','simulador'].includes(kind))return false;
- if(/(^|[\/#?&=_-])simulad(or|or-3d)([\/#?&=_-]|$)/.test(href))return false;
+ if(/(^|[\/#?&=_.-])simulador(?:-3d)?(?:\.html)?([\/#?&=_.-]|$)/.test(href))return false;
  return !/(^|\W)simulador(a|es)?(\W|$)|(^|\W)simulator(\W|$)/.test(content);
 }
 

@@ -130,6 +130,26 @@ CREATE TABLE IF NOT EXISTS club_event_details (
  photo_content_type TEXT,
  photo_data BLOB
 );
+-- Lista privada por evento. Los nombres y matrículas nunca se incorporan a la
+-- respuesta pública del calendario, a noticias ni a los ficheros ICS.
+CREATE TABLE IF NOT EXISTS club_event_attendees (
+ id TEXT PRIMARY KEY,
+ event_id TEXT NOT NULL REFERENCES club_events(id) ON DELETE CASCADE,
+ pilot_name TEXT NOT NULL,
+ attendees INTEGER NOT NULL CHECK(attendees BETWEEN 1 AND 99),
+ vehicle_plate TEXT NOT NULL DEFAULT '',
+ calcotada_count INTEGER NOT NULL DEFAULT 0 CHECK(calcotada_count BETWEEN 0 AND 99),
+ vegetarian_count INTEGER NOT NULL DEFAULT 0 CHECK(vegetarian_count BETWEEN 0 AND 99),
+ child_menu_count INTEGER NOT NULL DEFAULT 0 CHECK(child_menu_count BETWEEN 0 AND 99),
+ deposit_cents INTEGER NOT NULL DEFAULT 0 CHECK(deposit_cents BETWEEN 0 AND 9999999),
+ balance_cents INTEGER NOT NULL DEFAULT 0 CHECK(balance_cents BETWEEN 0 AND 9999999),
+ paid INTEGER NOT NULL DEFAULT 0 CHECK(paid IN (0,1)),
+ created_at INTEGER NOT NULL,
+ updated_at INTEGER NOT NULL,
+ updated_by TEXT NOT NULL,
+ CHECK(calcotada_count + vegetarian_count + child_menu_count <= attendees)
+);
+CREATE INDEX IF NOT EXISTS club_event_attendees_event ON club_event_attendees(event_id,created_at);
 INSERT INTO club_events SELECT 'calcotada-vrs-2027','2027-01-23','4.ª edición Calçotada VRS','Nos vemos en la próxima quedada del CLUB OCTAVIA VRS CATALUÑA para compartir nuestra pasión por los coches.','Embolic by moon','13:00','17:00','https://www.instagram.com/s/aGlnaGxpZ2h0OjE3OTg5Mzk3OTk0MDQ4NTgx?story_media_id=3991193257735061550_62570715173&dlrf=MXBqcDN2czQwd2R0NQ==','https://maps.app.goo.gl/Eatg8mFQYyJ1DGB56?g_st=aw',0,0,'initial-calendar' WHERE NOT EXISTS(SELECT 1 FROM market_settings WHERE key='calendar-seeded-v1') ON CONFLICT(id) DO NOTHING;
 INSERT INTO market_settings(key,value) VALUES('calendar-seeded-v1','yes') ON CONFLICT(key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS club_directory_lists (
