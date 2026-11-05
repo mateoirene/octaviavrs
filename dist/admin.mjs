@@ -118,6 +118,7 @@ async function enter(user) {
   key = null; login.hidden = true; panel.hidden = false; window.dispatchEvent(new Event('club-session-change'));
   if (new URLSearchParams(location.search).get('volver') === 'galeria') { location.assign('galeria.html#gestion'); return; }
   if (new URLSearchParams(location.search).get('volver') === 'garaje') { location.assign('garaje.html#gestion'); return; }
+  if (new URLSearchParams(location.search).get('volver') === 'asistentes') { const eventId=new URLSearchParams(location.search).get('evento')||'';if(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,100}$/.test(eventId)){location.assign('asistentes-evento.html?evento='+encodeURIComponent(eventId));return;} }
   const initialStatus=new URLSearchParams(location.search).get('estado');if(['pending','approved','rejected','sold'].includes(initialStatus))$('[data-filter]').value=initialStatus;
   $('[data-user]').textContent = user.email;
   if(!prepareWhatsAppInvite())await refreshWhatsAppSettings();

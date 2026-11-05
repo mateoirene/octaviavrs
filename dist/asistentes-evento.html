@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#101112">
+  <title>Lista de asistentes · Club Octavia VRS Cataluña</title>
+  <link rel="stylesheet" href="style.css?v=20261024-emblema">
+  <link rel="stylesheet" href="events-calendar.css?v=20261105-pantalla-completa">
+  <link rel="stylesheet" href="event-detail.css?v=20261105">
+  <link rel="stylesheet" href="navigation-premium.css?v=20261027">
+  <link rel="stylesheet" href="engine-pointer.css?v=20261026-nativo">
+</head>
+<body class="attendees-admin-page">
+  <div class="smoke-backdrop" aria-hidden="true"></div>
+  <header>
+    <a class="brand" href="index.html#inicio">OCTAVIA <b>VRS</b><span class="brand-region">CATALUÑA</span></a>
+    <nav aria-label="Navegación principal"><a href="index.html#inicio">El club</a><a href="index.html#calendario" aria-current="page">Calendario</a><a href="admin.html">Administración</a></nav>
+  </header>
+  <main class="section attendees-page-main">
+    <a class="attendees-back" href="index.html#calendario">← Volver al calendario</a>
+    <p class="eyebrow red">GESTIÓN PRIVADA · SOLO ADMINISTRADORES</p>
+    <h1>Lista completa<br><em>de asistentes.</em></h1>
+    <div class="attendees-event-heading" data-event-heading hidden>
+      <p data-event-date></p><h2 data-event-title></h2>
+      <p>Sesión iniciada como <strong data-admin-email></strong>. Aquí puedes añadir, editar y eliminar asistentes.</p>
+    </div>
+    <p class="attendees-page-status" data-page-status role="status" aria-live="polite">Comprobando el acceso de administración…</p>
+    <section class="attendees-login-panel" data-login-panel hidden>
+      <h2>Inicia sesión para abrir la lista</h2>
+      <p>Los nombres, matrículas e importes son privados y solo se cargan después de comprobar la cuenta de administración.</p>
+      <a class="button" data-login-link href="admin.html">Entrar como administrador →</a>
+    </section>
+    <div data-attendees-root hidden></div>
+  </main>
+  <footer><p>Club Octavia VRS Cataluña</p><a href="mailto:cluboctaviavrscat@gmail.com">cluboctaviavrscat@gmail.com</a></footer>
+  <script type="module" src="asistentes-evento.mjs?v=20261105-pantalla-completa"></script>
+  <script defer src="interactions.js?v=20261022-1"></script>
+  <script src="engine-pointer.js?v=20261026-nativo" defer></script>
+</body>
+</html>
