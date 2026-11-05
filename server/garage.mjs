@@ -1,7 +1,12 @@
 import {validateBirthDate} from './birthdays.mjs';
+import {normalizeClubPhone} from './whatsapp.mjs';
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
 const clean = (value, label, min, max) => { const text = String(value || '').trim(); if (text.length < min || text.length > max) fail(`Revisa ${label}.`); return text; };
+const legacyPhone = phone => phone.startsWith('34') && phone.length === 11 ? phone.slice(2) : phone;
+async function phoneInUse(db,phone,memberId,approvedOnly=false){
+  return !!await db.prepare(`SELECT p.member_id FROM garage_profiles p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.member_id<>? AND p.phone IN (?,?) AND (?=0 OR COALESCE(g.status,'approved')='approved') LIMIT 1`).bind(memberId,phone,legacyPhone(phone),approvedOnly?1:0).first();
+}
 async function photosFrom(form,field="photos",maximum=3) {
   const files = form.getAll(field).filter(file => file.size > 0);
   if (files.length > maximum) fail('Añade como máximo tres fotos por ficha.');
@@ -30,7 +35,7 @@ export async function handleGarageRequest(request, db, admin) {
     const photos=(await db.prepare(`SELECT p.id,p.member_id FROM garage_photos p JOIN garage_members m ON m.id=p.member_id LEFT JOIN garage_moderation g ON g.member_id=m.id WHERE ${predicate} ORDER BY p.position`).bind(argument).all()).results;
     const profiles=(await db.prepare(`SELECT p.member_id,p.phone,CASE WHEN p.data IS NOT NULL THEN 1 ELSE 0 END has_avatar FROM garage_profiles p JOIN garage_members m ON m.id=p.member_id LEFT JOIN garage_moderation g ON g.member_id=m.id WHERE ${predicate}`).bind(argument).all()).results;
     const birthdays=(await db.prepare(`SELECT b.member_id,b.birth_date FROM garage_birthdays b JOIN garage_members m ON m.id=b.member_id LEFT JOIN garage_moderation g ON g.member_id=m.id WHERE ${predicate}`).bind(argument).all()).results;
-    return reply(rows.map(row => {const profile=profiles.find(p=>p.member_id===row.id),birth=birthdays.find(b=>b.member_id===row.id)?.birth_date||'';return ({ id: row.id,birthDay:birth.slice(5),...(admin?{birthDate:birth}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}), phone:profile?.phone||'', whatsappUrl:profile?.phone?'https://wa.me/'+profile.phone:null,profileImage:profile?.has_avatar?'/api/garage/profiles/'+row.id+'/photo':null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: photos.filter(photo => photo.member_id === row.id).map(photo => '/api/garage/photos/' + photo.id) });}));
+    return reply(rows.map(row => {const profile=profiles.find(p=>p.member_id===row.id),birth=birthdays.find(b=>b.member_id===row.id)?.birth_date||'';return ({ id: row.id,birthDay:birth.slice(5),...(admin?{birthDate:birth,phone:profile?.phone||'',whatsappUrl:profile?.phone?'https://wa.me/'+profile.phone:null}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}),profileImage:profile?.has_avatar?'/api/garage/profiles/'+row.id+'/photo':null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: photos.filter(photo => photo.member_id === row.id).map(photo => '/api/garage/photos/' + photo.id) });}));
   }
   if(path.startsWith('/api/garage/profiles/')&&path.endsWith('/photo')&&method==='GET'){const photo=await db.prepare(`SELECT p.content_type,p.data FROM garage_profiles p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.member_id=? AND p.data IS NOT NULL AND (COALESCE(g.status,'approved')='approved' OR ?=1)`).bind(path.split('/')[4],admin?1:0).first();if(!photo)return reply({error:'Foto no disponible.'},404);return new Response(new Uint8Array(photo.data),{headers:{'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
   if (path.startsWith('/api/garage/photos/') && method === 'GET') {
@@ -42,6 +47,11 @@ export async function handleGarageRequest(request, db, admin) {
     const id=path.split('/').pop(),body=await request.json();if(!['approve','reject'].includes(body.action))fail('Acción no válida.');
     const current=await db.prepare('SELECT status FROM garage_moderation WHERE member_id=?').bind(id).first();if(!current)fail('La ficha no está en revisión.',404);
     const folder=body.folderId;if(body.action==='approve'&&folder&&!await db.prepare('SELECT id FROM garage_folders WHERE id=?').bind(folder).first())fail('Selecciona una carpeta existente.');
+    if(body.action==='approve'){
+      const profile=await db.prepare('SELECT phone FROM garage_profiles WHERE member_id=?').bind(id).first();
+      let phone;try{phone=normalizeClubPhone(profile?.phone);}catch{fail('Completa un teléfono/WhatsApp válido antes de aprobar la ficha.');}
+      if(await phoneInUse(db,phone,id,true))fail('Este teléfono ya pertenece a otra ficha aprobada. Revisa ambas fichas antes de continuar.',409);
+    }
     const status=body.action==='approve'?'approved':'rejected';
     const actions=[];if(status==='approved'&&folder)actions.push(db.prepare("UPDATE garage_members SET folder_id=? WHERE id=? AND EXISTS(SELECT 1 FROM garage_moderation WHERE member_id=? AND status='pending')").bind(folder,id,id));
     actions.push(db.prepare("UPDATE garage_moderation SET status=?,note=?,reviewed_by=?,reviewed_at=? WHERE member_id=? AND status='pending'").bind(status,String(body.note||'').trim().slice(0,500),admin.id,Math.floor(Date.now()/1000),id));
@@ -75,7 +85,8 @@ export async function handleGarageRequest(request, db, admin) {
     if (instagram && !/^[A-Za-z0-9_.]{1,30}$/.test(instagram)) fail('Introduce solo el usuario de Instagram, sin la dirección web.');
     const engine = clean(form.get('engine'), 'el motor', 0, 100), power = clean(form.get('power'), 'la potencia', 0, 40), year = clean(form.get('year'), 'el año', 0, 4), gearbox = clean(form.get('gearbox'), 'el cambio', 0, 60), notes = clean(form.get('notes'), 'los detalles', 0, 2000);
     if (year && !/^\d{4}$/.test(year)) fail('El año debe tener cuatro cifras.');
-    const rawPhone=clean(form.get('phone'),'el teléfono',0,30);if(rawPhone&&!/^(?:\+|00)?[0-9 ()-]+$/.test(rawPhone))fail('Introduce un teléfono válido con prefijo internacional.');let phone=rawPhone.replace(/[^0-9]/g,'');if(rawPhone.startsWith('00'))phone=phone.slice(2);if(phone&&(!/^[1-9][0-9]{6,14}$/.test(phone)))fail('Introduce el teléfono con prefijo internacional, por ejemplo +34 600 123 456.');
+    const phone=normalizeClubPhone(form.get('phone'));
+    if(!submitted&&await phoneInUse(db,phone,id))fail('Este teléfono ya está asociado a otra ficha del garaje.',409);
     const savedBirth=!creating&&!form.has('birthDate')?await db.prepare('SELECT birth_date FROM garage_birthdays WHERE member_id=?').bind(id).first():null;
     const birthDate=validateBirthDate(savedBirth?.birth_date||form.get('birthDate'));if(!birthDate)fail('La fecha de nacimiento del piloto es obligatoria.');
     const avatar=await photosFrom(form,'profilePhoto',1);if(avatar[0]?.data.byteLength>262144)fail('La foto de perfil debe ocupar menos de 256 KB.');

@@ -13,7 +13,7 @@ function fixture() {
  const call=(path,method='GET',body,auth=false,origin='https://club.example')=>handleMarketRequest(new Request('https://club.example/api/garage/'+path,{method,headers:{Origin:origin,...(auth?{Cookie:'club_session=garage-test'}:{}),...(body&&!(body instanceof FormData)?{'Content-Type':'application/json'}:{})},body:body instanceof FormData?body:body?JSON.stringify(body):undefined}),{MARKET_DB:db});
  return {raw,call};
 }
-function member(folder,overrides={},photo=true){const form=new FormData();for(const [key,value]of Object.entries({folderId:folder,pilot:'Piloto del club',birthDate:'2000-01-01',instagram:'@piloto.vrs',model:'Octavia VRS MK4',engine:'2.0 TSI',power:'245 CV',year:'2022',gearbox:'DSG',notes:'Preparación del coche',consent:'yes',...overrides}))form.set(key,value);if(photo)form.append('photos',new Blob([new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0])],{type:'image/jpeg'}),'coche.jpg');return form;}
+function member(folder,overrides={},photo=true){const form=new FormData();for(const [key,value]of Object.entries({folderId:folder,pilot:'Piloto del club',birthDate:'2000-01-01',phone:'+34 600 123 456',instagram:'@piloto.vrs',model:'Octavia VRS MK4',engine:'2.0 TSI',power:'245 CV',year:'2022',gearbox:'DSG',notes:'Preparación del coche',consent:'yes',...overrides}))form.set(key,value);if(photo)form.append('photos',new Blob([new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0])],{type:'image/jpeg'}),'coche.jpg');return form;}
 test('carpetas personalizadas y fichas públicas solo gestionadas por administradores',async()=>{const {raw,call}=fixture();try{
  assert.equal((await call('folders','POST',{name:'Octavia MK4'})).status,401);
  assert.equal((await call('folders','POST',{name:'Octavia MK4'},true,'https://other.example')).status,403);
@@ -36,7 +36,7 @@ test('carpetas personalizadas y fichas públicas solo gestionadas por administra
  assert.equal((await call('folders/'+folder,'DELETE',undefined,true)).status,200);
  }finally{raw.close();}});
 test('valida fotos, consentimiento, carpeta e Instagram antes de publicar',async()=>{const {raw,call}=fixture();try{const folder=(await(await call('folders','POST',{name:'Club'},true)).json()).id;
- for(const overrides of [{consent:'no'},{instagram:'https://instagram.com/wrong'},{year:'abc'},{folderId:'missing'}])assert.equal((await call('members','POST',member(folder,overrides),true)).status,400);
+ for(const overrides of [{consent:'no'},{instagram:'https://instagram.com/wrong'},{year:'abc'},{folderId:'missing'},{phone:''},{phone:'   '}])assert.equal((await call('members','POST',member(folder,overrides),true)).status,400);
  assert.equal((await call('members','POST',member(folder,{},false),true)).status,400);
  const svg=member(folder);svg.set('photos',new Blob(['<svg>bad photo</svg>'],{type:'image/svg+xml'}),'bad.svg');assert.equal((await call('members','POST',svg,true)).status,400);
  assert.equal(raw.prepare('SELECT COUNT(*) n FROM garage_members').get().n,0);
@@ -45,12 +45,13 @@ test('perfil del piloto: WhatsApp, foto independiente, edición y borrado',async
  const folder=(await(await call('folders','POST',{name:'Pilotos'},true)).json()).id;
  const form=member(folder,{phone:'+34 600 123 456'});form.set('profilePhoto',new Blob([new Uint8Array([255,216,255,224,0,0,0,0,0,0,0,0,0])],{type:'image/jpeg'}),'piloto.jpg');
  const created=await call('members','POST',form,true);assert.equal(created.status,201);const id=(await created.json()).id;
- let profile=(await(await call('members?folder='+folder)).json())[0];assert.equal(profile.phone,'34600123456');assert.equal(profile.whatsappUrl,'https://wa.me/34600123456');assert.equal(profile.profileImage,'/api/garage/profiles/'+id+'/photo');
+ let publicProfile=(await(await call('members?folder='+folder)).json())[0];assert.ok(!('phone' in publicProfile));assert.ok(!('whatsappUrl' in publicProfile));
+ let profile=(await(await call('members?folder='+folder,'GET',null,true)).json())[0];assert.equal(profile.phone,'34600123456');assert.equal(profile.whatsappUrl,'https://wa.me/34600123456');assert.equal(profile.profileImage,'/api/garage/profiles/'+id+'/photo');
  const path=profile.profileImage.replace('/api/garage/','');assert.equal((await call(path)).status,200);
  const edit=member(folder,{phone:'0034 611 222 333'},false);assert.equal((await call('members/'+id,'POST',edit,true)).status,200);
- profile=(await(await call('members?folder='+folder)).json())[0];assert.equal(profile.whatsappUrl,'https://wa.me/34611222333');assert.ok(profile.profileImage);assert.equal(profile.images.length,1);
+ profile=(await(await call('members?folder='+folder,'GET',null,true)).json())[0];assert.equal(profile.whatsappUrl,'https://wa.me/34611222333');assert.ok(profile.profileImage);assert.equal(profile.images.length,1);
  for(const phone of ['javascript:alert(1)','123','+34/600123456'])assert.equal((await call('members/'+id,'POST',member(folder,{phone},false),true)).status,400);
- const remove=member(folder,{phone:'',removeProfile:'yes'},false);assert.equal((await call('members/'+id,'POST',remove,true)).status,200);
- profile=(await(await call('members?folder='+folder)).json())[0];assert.equal(profile.whatsappUrl,null);assert.equal(profile.profileImage,null);assert.equal((await call(path)).status,404);
+ const remove=member(folder,{phone:'+34 611 222 333',removeProfile:'yes'},false);assert.equal((await call('members/'+id,'POST',remove,true)).status,200);
+ profile=(await(await call('members?folder='+folder,'GET',null,true)).json())[0];assert.equal(profile.whatsappUrl,'https://wa.me/34611222333');assert.equal(profile.profileImage,null);assert.equal((await call(path)).status,404);
  assert.equal((await call('members/'+id,'DELETE',undefined,true)).status,200);assert.equal(raw.prepare('SELECT COUNT(*) n FROM garage_profiles').get().n,0);
  }finally{raw.close();}});

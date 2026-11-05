@@ -6,6 +6,6 @@ Los cuatro encuadres se prepararon a partir de las capturas con la herramienta d
 
 Galería: dos columnas en ordenador, una en móvil, sin huecos, última fotografía en su relación de aspecto completa. Alt descriptivo y carga diferida, tamaños reservados por CSS. Se respetan los emblemas de las propias imágenes y el tratamiento de la marca existente.
 
-WhatsApp: widget único fijo abajo a la derecha, +34 605 245 856. Mantiene abierto/cerrado y borrador en sessionStorage al navegar por páginas de la web, sin robar foco al restaurar. El scroll no lo oculta. No envía mensajes automáticamente; el enlace continúa en WhatsApp. Abrirlo durante una carrera conserva la pausa ya implementada.
+WhatsApp: widget único fijo abajo a la derecha. Mantiene abierto/cerrado en sessionStorage al navegar, sin guardar el teléfono ni robar foco al restaurar. Pide el teléfono, lo contrasta con una ficha aprobada y solo entonces muestra el enlace privado del grupo. El scroll no lo oculta. Abrirlo durante una carrera conserva la pausa ya implementada.
 
 Verificación: siete recursos distintos cargan, foto 2 nueva, imágenes sin botones/ampliación, flujo de álbumes anterior conservado; widget fijo al hacer scroll, mensaje codificado y borrador/ventana restaurados al navegar. Pruebas de todo el sitio y comprobación de JPEG servidos en producción.

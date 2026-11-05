@@ -9,7 +9,8 @@ const noteDrafts = new Map();
 let lastSignature = '', refreshing = false, polling = false;
 const signature = items => items.map(item => `${item.id}:${item.status}:${item.editVersion||''}`).join('|');
 function showPendingCount(count) { $('[data-pending-summary]').textContent = count ? `Tienes ${count} ${count === 1 ? 'anuncio pendiente' : 'anuncios pendientes'} de autorización.` : 'No hay anuncios pendientes de autorización.'; }
-let key = new URLSearchParams(location.hash.slice(1)).get('activar'), focused = false;
+const fragment = new URLSearchParams(location.hash.slice(1));
+let key = fragment.get('activar'), whatsappInvite = fragment.get('whatsapp'), focused = false;
 if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 async function api(path, body) {
   const response = await fetch('/api/' + path, { method: body ? 'POST' : 'GET', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
@@ -19,6 +20,23 @@ async function api(path, body) {
     throw new Error(result.error || 'No se ha podido completar la operación.');
   }
   return result;
+}
+async function refreshWhatsAppSettings(){
+ const note=$('[data-whatsapp-settings-status]');
+ if(!note)return;
+ try{const state=await api('club/whatsapp-settings');note.textContent=state.configured?'El acceso privado al grupo está configurado. Pega un enlace nuevo solo si quieres sustituirlo.':'Todavía falta guardar el enlace privado del grupo.';}
+ catch(error){note.textContent=error.message;}
+}
+async function saveWhatsAppInvite(inviteUrl){
+ const note=$('[data-whatsapp-settings-status]');
+ await api('club/whatsapp-settings',{inviteUrl});if(note)note.textContent='Enlace privado guardado. Ya pueden validarse los miembros aprobados.';
+}
+function prepareWhatsAppInvite(){
+ if(!whatsappInvite)return false;
+ const form=$('[data-whatsapp-settings-form]'),note=$('[data-whatsapp-settings-status]');
+ if(form){form.elements.inviteUrl.value=whatsappInvite;if(note)note.textContent='Revisa el enlace recibido y pulsa «Guardar enlace privado» para confirmar el cambio.';}
+ whatsappInvite=null;
+ return true;
 }
 function node(tag, text) { const el = document.createElement(tag); if (text) setVrsText(el, text); return el; }
 async function refreshMail(retryQueued = false) {
@@ -101,7 +119,9 @@ async function enter(user) {
   if (new URLSearchParams(location.search).get('volver') === 'galeria') { location.assign('galeria.html#gestion'); return; }
   if (new URLSearchParams(location.search).get('volver') === 'garaje') { location.assign('garaje.html#gestion'); return; }
   const initialStatus=new URLSearchParams(location.search).get('estado');if(['pending','approved','rejected','sold'].includes(initialStatus))$('[data-filter]').value=initialStatus;
-  $('[data-user]').textContent = user.email; await refresh(); await refreshMail(true);
+  $('[data-user]').textContent = user.email;
+  if(!prepareWhatsAppInvite())await refreshWhatsAppSettings();
+  await refresh(); await refreshMail(true);
 }
 if (key) { $('[data-login-title]').textContent = 'Activar acceso privado'; $('[data-setup-copy]').hidden = false; login.elements.password.autocomplete = 'new-password'; }
 login.addEventListener('submit', async event => {
@@ -119,6 +139,12 @@ $('[data-mail-retry]').addEventListener('click', async event => {
   const button = event.currentTarget; button.disabled = true;
   try { await api('admin/review-mail/retry', {}); $('[data-mail-status]').textContent = 'Reintentando los avisos pendientes…'; setTimeout(() => void refreshMail(), 5000); }
   catch (error) { status.textContent = error.message; } finally { button.disabled = false; }
+});
+$('[data-whatsapp-settings-form]')?.addEventListener('submit',async event=>{
+ event.preventDefault();const form=event.currentTarget,button=form.querySelector('button');button.disabled=true;
+ try{await saveWhatsAppInvite(form.elements.inviteUrl.value);form.reset();}
+ catch(error){$('[data-whatsapp-settings-status]').textContent=error.message;}
+ finally{button.disabled=false;}
 });
 $('[data-logout]').addEventListener('click', async () => {
   try { await api('admin/logout', {}); window.dispatchEvent(new Event('club-session-change')); panel.hidden = true; login.hidden = false; status.textContent = 'Sesión cerrada.'; }
