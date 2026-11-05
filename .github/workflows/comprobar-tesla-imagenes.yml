@@ -1,0 +1,35 @@
+name: Comprobar Tesla por imágenes
+on:
+  push:
+    branches: ['codex/tesla-imagenes-20261105']
+  pull_request:
+    paths: ['dist/racing-tesla-*.mjs', 'dist/assets/tesla-photo/**', 'scripts/check-tesla-photos.cjs', '.github/workflows/comprobar-tesla-imagenes.yml']
+permissions:
+  contents: read
+jobs:
+  imagenes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Pruebas de física, cámaras y selección de imágenes
+        run: node --test tests/*.test.mjs
+      - name: Preparar Three.js y Playwright
+        run: |
+          mkdir -p dist/vendor
+          curl --fail --retry 3 https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js -o dist/vendor/three.module.js
+          curl --fail --retry 3 https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.core.js -o dist/vendor/three.core.js
+          npm install --prefix /tmp/tesla-browser --no-save playwright
+      - name: Comprobar las dieciséis vistas en Chrome
+        run: node scripts/check-tesla-photos.cjs
+        env:
+          NODE_PATH: /tmp/tesla-browser/node_modules
+          CHROME_BIN: /usr/bin/google-chrome
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tesla-imagenes-comprobacion
+          path: artifacts/tesla-imagenes-*.png

@@ -26,11 +26,14 @@ test('Tesla_Model3.glb es un modelo binario local con geometría',async()=>{
  assert.ok(triangles>1_000&&triangles<100_000,'presupuesto de triángulos apto para web');
 });
 
-test('el mismo GLB se usa durante la carrera y la repetición',async()=>{
+test('las imágenes son la presentación principal y el GLB se conserva como respaldo',async()=>{
  const [world,vehicles]=await Promise.all([
   readFile(new URL('../dist/racing-world3d.mjs',import.meta.url),'utf8'),
   readFile(new URL('../dist/racing-vehicles3d.mjs',import.meta.url),'utf8')
  ]);
+ assert.match(world,/loadTeslaImages/);
+ assert.match(world,/if\(!teslaImages\)try/);
+ assert.match(world,/tesla-photographic-multiview/);
  assert.match(world,/GLTFLoader/);
  assert.match(world,/assets\/Tesla_Model3\.glb/);
  assert.match(world,/tesla-glb-side/);
@@ -38,3 +41,4 @@ test('el mismo GLB se usa durante la carrera y la repetición',async()=>{
  assert.match(vehicles,/Matrícula ALBERTO/);
  assert.match(vehicles,/groundContactShadow/);
 });
+

@@ -1,0 +1,13 @@
+# Tesla por imágenes
+
+La presentación principal del Tesla utiliza dos atlas transparentes: ocho ángulos bajos y los mismos ocho elevados. Son recreaciones fotográficas generadas siguiendo las referencias de esta conversación, no fotografías reales ni una reproducción oficial o verificada del Standard europeo 2026. Las fotografías reales localizadas en la búsqueda no proporcionan por sí solas un juego completo y coherente del mismo coche desde todos los ángulos.
+
+La matrícula ALBERTO está integrada en las imágenes de frente, trasera y tres cuartos. Las vistas laterales no muestran una matrícula, como ocurre en un coche real. El formato de los atlas permite sustituirlos por una sesión fotográfica real consistente sin cambiar las físicas. Las imágenes nuevas no están reflejadas horizontalmente para simular los lados opuestos.
+
+La selección usa el ángulo relativo y la altura de la cámara. Hay histéresis en los límites y una transición de 140 ms entre vistas. Las vistas elevadas cubren la cámara aérea; la repetición usa la misma presentación que la carrera, en vez de volver al GLB. Los centros de rueda de las vistas bajas tienen animación de llanta. En los ángulos elevados, donde apenas se ven las llantas, no se inventan discos superpuestos.
+
+El giro visual toma la dirección del trazado y los desplazamientos laterales de la trayectoria, limita los cambios bruscos y suaviza el rumbo según la distancia. No modifica el estado físico, las colisiones, el rival competitivo, el máximo de 250 km/h ni el comportamiento del nitro. El coche sigue teniendo una sombra de contacto. Una imagen plana no reproduce una suspensión ni cuatro contactos geométricos independientes sobre una superficie irregular; se mantiene el anclaje visual al centro del plano del asfalto.
+
+El GLB básico permanece como respaldo y no se descarga si los dos atlas cargan correctamente. Las vistas generadas tienen limitaciones: hay ocho direcciones por altura, las transiciones entre siluetas pueden verse de cerca y no equivalen a una reconstrucción tridimensional. Las dimensiones de las imágenes conservan su proporción, sin estirar la carrocería para adaptarla a cada cámara.
+
+Comprobaciones: pruebas de dirección, ocho ángulos y selección elevada; pruebas existentes de física, nitro y llegada; comprobación de sintaxis. La prueba de navegador crea el Tesla real del módulo, carga ambos atlas, recorre las dieciséis vistas, comprueba que la carrocería básica queda oculta y genera capturas con dimensiones de escritorio y móvil. Las capturas de un navegador de escritorio con tamaño móvil no sustituyen mediciones en un teléfono físico. El entorno local no permite arrancar Chromium; la comprobación se ejecuta en GitHub Actions.
