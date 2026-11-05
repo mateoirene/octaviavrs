@@ -24,7 +24,7 @@ function photoSprite(){
  const material=new THREE.SpriteMaterial({transparent:true,depthWrite:false,alphaTest:.025,toneMapped:false});
  const uniforms={spin:{value:0},rimA:{value:new THREE.Vector4()},rimB:{value:new THREE.Vector4()}};
  material.onBeforeCompile=shader=>{Object.assign(shader.uniforms,uniforms);shader.fragmentShader='uniform float spin;uniform vec4 rimA;uniform vec4 rimB;vec2 spinRim(vec2 uv,vec4 r){if(r.z<=0.0)return uv;vec2 p=(uv-r.xy)/r.zw;if(dot(p,p)>.8)return uv;float c=cos(spin),s=sin(spin);return r.xy+mat2(c,-s,s,c)*p*r.zw;}\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#ifdef USE_MAP\nvec2 photoUV=spinRim(spinRim(vMapUv,rimA),rimB);diffuseColor*=texture2D(map,photoUV);\n#endif');};material.customProgramCacheKey=()=>'tesla-photographic-rims-v1';
- const sprite=new THREE.Sprite(material);sprite.name='Tesla blanco · imagen por ángulo · ALBERTO';sprite.position.y=.72;sprite.userData.uniforms=uniforms;return sprite;
+ const sprite=new THREE.Sprite(material);sprite.name='Tesla blanco · imagen por ángulo · ALBERTO';sprite.center.set(.5,0);sprite.position.y=.002;sprite.userData.uniforms=uniforms;return sprite;
 }
 export function attachTeslaImages(group,atlas){
  const body=[...group.children].filter(child=>!child.userData.groundContactShadow),sprites=[photoSprite(),photoSprite()],local=new THREE.Vector3();for(const s of sprites){s.visible=false;group.add(s);}
@@ -34,7 +34,7 @@ export function attachTeslaImages(group,atlas){
   group.updateWorldMatrix(true,false);camera.getWorldPosition(local);group.worldToLocal(local);const next=teslaImageView(local.x,local.y,local.z,selected),dt=lastTime===null?1:Math.max(0,Math.min(.1,time-lastTime));lastTime=time;
   if(!selected||next.key!==selected.key){old=selected;front=1-front;assign(sprites[front],next);selected=next;transition=old?0:1;}
   transition=Math.min(1,transition+dt/.14);for(const child of body)child.visible=false;
-  for(let i=0;i<2;i++){const s=sprites[i];s.visible=i===front||!!old&&transition<1;s.material.opacity=i===front?transition:1-transition;s.userData.uniforms.spin.value=-(group.userData.photoDistance||0)/.335;}
+  for(let i=0;i<2;i++){const s=sprites[i];s.visible=i===front||!!old&&transition<1;s.material.opacity=i===front?transition:1-transition;const distance=Math.max(.001,Math.hypot(local.x,local.z)),nearOffset=s.scale.y*.5*Math.sin(Math.max(0,next.elevation));s.position.set(local.x/distance*nearOffset,.002,local.z/distance*nearOffset);s.userData.uniforms.spin.value=-(group.userData.photoDistance||0)/.335;}
   group.userData.photoBillboards=transition<1?2:1;group.userData.teslaPhotoView=selected.key;return selected.key;
  },dispose(){for(const s of sprites){s.material.dispose();group.remove(s);}}};
  group.userData.teslaPhoto=controller;group.userData.vehicleSource='photographic-recreation-atlas';return controller;
