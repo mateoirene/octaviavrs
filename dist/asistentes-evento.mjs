@@ -1,4 +1,4 @@
-import {createEventAttendeeManager} from './event-attendees.mjs?v=20261107-asistentes-movil';
+import {createEventAttendeeManager} from './event-attendees.mjs?v=20261107-importes';
 
 const status=document.querySelector('[data-page-status]');
 const loginPanel=document.querySelector('[data-login-panel]');

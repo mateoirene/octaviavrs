@@ -19,3 +19,8 @@
  .attendees-event-heading h2{overflow-wrap:anywhere}
  .attendees-login-panel{padding:18px;margin-bottom:18px}
 }
+
+.event-attendees .event-attendees-table td.attendee-amount{font-weight:800;font-variant-numeric:tabular-nums}
+.event-attendees .event-attendees-table td.attendee-amount-paid{color:#80ed99}
+.event-attendees .event-attendees-table td.attendee-amount-due{color:#ff808a}
+.event-attendees .event-attendees-table td.attendee-amount-zero{color:#fff}
