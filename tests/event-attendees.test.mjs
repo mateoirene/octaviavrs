@@ -19,7 +19,7 @@ function fixture(){
 
 const attendee={pilotName:'Raúl VRS',attendees:3,plate:'1234 VRS',calcotada:2,vegetarian:1,childMenu:0,depositEuros:'60.50',balanceEuros:'45',paid:false};
 
-test('la lista de asistentes es privada, valida datos y permite CRUD sin filtrar información personal',async()=>{
+test('la consulta es pública y las modificaciones requieren administrador',async()=>{
  const {raw,call}=fixture();try{
   assert.equal((await call('events/event-one/attendees')).status,200);
   assert.equal((await call('events/event-one/attendees',{method:'POST',body:attendee})).status,401);
@@ -31,8 +31,8 @@ test('la lista de asistentes es privada, valida datos y permite CRUD sin filtrar
   assert.equal(created.pilotName,'Raúl VRS');assert.equal(created.depositCents,6050);assert.equal(created.balanceCents,4500);assert.ok(!('updatedBy' in created));
   const publicEvents=await(await call('events')).json();assert.ok(!JSON.stringify(publicEvents).includes('Raúl VRS'));assert.ok(!JSON.stringify(publicEvents).includes('1234 VRS'));
   assert.equal((await call('events/event-two/attendees/'+created.id,{method:'POST',body:attendee,auth:true})).status,404);
-  const updated=await(await call('events/event-one/attendees/'+created.id,{method:'POST',body:{...attendee,paid:true,balanceEuros:'0'},auth:true})).json();assert.equal(updated.paid,true);assert.equal(updated.balanceCents,0);
-  const rows=await(await call('events/event-one/attendees',{auth:true})).json();assert.equal(rows.length,1);assert.equal(rows[0].plate,'1234 VRS');
+  const updated=await(await call('events/event-one/attendees/'+created.id,{method:'POST',body:{...attendee,paid:true,balanceEuros:'0',children:1,calcotada:1,calcotadaWithout:1,dessert:'Crema catalana'},auth:true})).json();assert.equal(updated.paid,true);assert.equal(updated.balanceCents,0);
+  const rows=await(await call('events/event-one/attendees',{auth:true})).json();assert.equal(rows.length,1);assert.equal(rows[0].plate,'1234 VRS');assert.equal(rows[0].children,1);assert.equal(rows[0].calcotadaWithout,1);assert.equal(rows[0].dessert,'Crema catalana');const publicRows=await(await call('events/event-one/attendees')).json();assert.equal(publicRows[0].dessert,'Crema catalana');
   assert.equal((await call('events/event-two/attendees/'+created.id,{method:'DELETE',auth:true})).status,404);
   assert.equal((await call('events/event-one',{method:'DELETE',auth:true})).status,200);assert.equal(raw.prepare('SELECT COUNT(*) n FROM club_event_attendees').get().n,0);
   const notifications=JSON.stringify(raw.prepare('SELECT title,message,href FROM club_notifications').all());assert.ok(!notifications.includes('Raúl VRS'));assert.ok(!notifications.includes('1234 VRS'));
