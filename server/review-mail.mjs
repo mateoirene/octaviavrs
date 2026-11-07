@@ -1,4 +1,4 @@
-export const REVIEW_RECIPIENT = 'mozos.raul@gmail.com';
+export const REVIEW_RECIPIENT = 'cluboctaviavrscat@gmail.com';
 export const REVIEW_BASE = 'https://octaviaap.pages.dev';
 export function mailConfigured(env) { return typeof env.RESEND_API_KEY === 'string' && env.RESEND_API_KEY.trim().length > 0; }
 export function reviewMessage(listing, env) {

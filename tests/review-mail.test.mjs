@@ -14,7 +14,7 @@ function fixture() {
 }
 test('el aviso usa solo el destinatario autorizado y un enlace al anuncio que requiere acceso', () => {
   const mail = reviewMessage({ id: 'piece/1', title: 'Pieza\r\nCabecera falsa', category: 'Motor', price: 35, seller: 'Socio', location: 'Girona' }, {});
-  assert.deepEqual(mail.to, ['mozos.raul@gmail.com']);
+  assert.deepEqual(mail.to, ['cluboctaviavrscat@gmail.com']);
   assert.ok(!mail.subject.includes('\n')); assert.match(mail.text, /admin\.html\?anuncio=piece%2F1/);
   assert.match(mail.text, /iniciar sesión/); assert.equal(mail.html, undefined);
 });
@@ -30,7 +30,7 @@ test('confirma la aceptación del proveedor y evita reenvíos de avisos ya envia
   const { db, raw, listing } = fixture(); let calls = 0;
   try {
     const env = { RESEND_API_KEY: 'test-only', MARKET_FROM_EMAIL: 'Club <club@example.com>' };
-    const fetcher = async (url, options) => { calls++; assert.equal(url, 'https://api.resend.com/emails'); assert.equal(options.headers['Idempotency-Key'], 'club-market-review-test-listing'); assert.deepEqual(JSON.parse(options.body).to, ['mozos.raul@gmail.com']); return new Response(JSON.stringify({ id: 'email-test' }), { status: 200 }); };
+    const fetcher = async (url, options) => { calls++; assert.equal(url, 'https://api.resend.com/emails'); assert.equal(options.headers['Idempotency-Key'], 'club-market-review-test-listing'); assert.deepEqual(JSON.parse(options.body).to, ['cluboctaviavrscat@gmail.com']); return new Response(JSON.stringify({ id: 'email-test' }), { status: 200 }); };
     assert.equal((await dispatchReviewMail(db, env, listing.id, fetcher)).sent, true);
     assert.equal((await dispatchReviewMail(db, env, listing.id, fetcher)).skipped, true); assert.equal(calls, 1);
     assert.equal(raw.prepare('SELECT status FROM market_review_mail').get().status, 'sent');
