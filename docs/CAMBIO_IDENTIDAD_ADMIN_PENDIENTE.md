@@ -1,6 +1,6 @@
 # Cambio de identidad administrativa autorizado
 
-Cambio de D1 aplicado el 7 de noviembre de 2026 tras autorización expresa. Publicación del código pendiente de comprobación final.
+Cambio de D1 aplicado el 7 de noviembre de 2026 tras autorización expresa. Código publicado y comprobación completa de la web publicada superada.
 
 Origen: mozos.raul@gmail.com
 Destino: cluboctaviavrscat@gmail.com
@@ -39,3 +39,5 @@ Se sustituye la identidad de la cuenta indicada. No se eliminan ni alteran otros
 ## Evidencia
 
 Acción de cambio D1: https://github.com/mateoirene/octaviavrs/actions/runs/42374228353 (correcta). Pruebas locales: 134 superadas, incluido cambio de identidad con conservación de contraseña y dos sesiones. No se realizó un inicio de sesión real con contraseña en producción: no se dispone de ella y no se solicita por chat.
+
+Verificación real posterior: https://github.com/mateoirene/octaviavrs/actions/runs/42374725540 (correcta). Confirmó el correo de destino y la ausencia del origen en la cuenta migrada sin nuevas escrituras; la comprobación completa de recursos y APIs de producción pasó.
