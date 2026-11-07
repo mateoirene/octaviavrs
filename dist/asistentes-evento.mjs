@@ -1,4 +1,4 @@
-import {createEventAttendeeManager} from './event-attendees.mjs?v=20261107-asistentes';
+import {createEventAttendeeManager} from './event-attendees.mjs?v=20261107-asistentes-movil';
 
 const status=document.querySelector('[data-page-status]');
 const loginPanel=document.querySelector('[data-login-panel]');
@@ -15,7 +15,7 @@ async function json(path,options={}){
  return data;
 }
 async function attendeeApi(path,method='GET',body){return json('/api/club/'+path,{method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});}
-function showLogin(){status.textContent='Inicia sesión con una cuenta administradora para consultar esta lista.';loginLink.href='admin.html?volver=asistentes&evento='+encodeURIComponent(eventId);loginPanel.hidden=false;root.hidden=true;heading.hidden=true;}
+function showLogin(){loginLink.href='admin.html?volver=asistentes&evento='+encodeURIComponent(eventId);loginPanel.hidden=false;}
 function dateLabel(value){return new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));}
 
 async function start(){
@@ -29,7 +29,7 @@ async function start(){
   document.querySelector('[data-event-date]').textContent=dateLabel(event.date)+(event.time?' · '+event.time:'');
   document.querySelector('[data-admin-email]').textContent=user?.email||'Consulta de asistentes';
   document.title='Asistentes · '+event.title+' · Club Octavia VRS';
-  heading.hidden=false;root.hidden=false;status.hidden=true;
+  heading.hidden=false;root.hidden=false;status.hidden=true;if(!user)showLogin();
   root.replaceChildren(createEventAttendeeManager({event,api:attendeeApi,expanded:true,readOnly:!user}));
  }catch(error){status.hidden=false;status.textContent=error.message;}
 }
