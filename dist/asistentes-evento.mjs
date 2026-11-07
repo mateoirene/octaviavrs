@@ -1,4 +1,4 @@
-import {createEventAttendeeManager} from './event-attendees.mjs?v=20261105-pantalla-completa';
+import {createEventAttendeeManager} from './event-attendees.mjs?v=20261107-asistentes';
 
 const status=document.querySelector('[data-page-status]');
 const loginPanel=document.querySelector('[data-login-panel]');
@@ -21,16 +21,16 @@ function dateLabel(value){return new Intl.DateTimeFormat('es-ES',{day:'numeric',
 async function start(){
  if(!validEventId){status.textContent='El evento solicitado no es válido.';return;}
  let user;
- try{user=await json('/api/admin/session');}catch(error){if(error.status===401){showLogin();return;}status.textContent=error.message;return;}
+ try{user=await json('/api/admin/session');}catch(error){if(error.status===401){user=null;}else{status.textContent=error.message;return;}}
  try{
   const events=await attendeeApi('events'),event=events.find(item=>item.id===eventId&&!item.birthday&&!item.holiday);
   if(!event)throw Error('El evento ya no existe o no está disponible.');
   document.querySelector('[data-event-title]').textContent=event.title;
   document.querySelector('[data-event-date]').textContent=dateLabel(event.date)+(event.time?' · '+event.time:'');
-  document.querySelector('[data-admin-email]').textContent=user.email;
+  document.querySelector('[data-admin-email]').textContent=user?.email||'Consulta de asistentes';
   document.title='Asistentes · '+event.title+' · Club Octavia VRS';
   heading.hidden=false;root.hidden=false;status.hidden=true;
-  root.replaceChildren(createEventAttendeeManager({event,api:attendeeApi,expanded:true}));
+  root.replaceChildren(createEventAttendeeManager({event,api:attendeeApi,expanded:true,readOnly:!user}));
  }catch(error){status.hidden=false;status.textContent=error.message;}
 }
 

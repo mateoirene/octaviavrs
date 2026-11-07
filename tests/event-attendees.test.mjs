@@ -21,7 +21,9 @@ const attendee={pilotName:'Raúl VRS',attendees:3,plate:'1234 VRS',calcotada:2,v
 
 test('la lista de asistentes es privada, valida datos y permite CRUD sin filtrar información personal',async()=>{
  const {raw,call}=fixture();try{
-  assert.equal((await call('events/event-one/attendees')).status,401);
+  assert.equal((await call('events/event-one/attendees')).status,200);
+  assert.equal((await call('events/event-one/attendees',{method:'POST',body:attendee})).status,401);
+  assert.equal((await call('events/event-one/attendees/missing',{method:'DELETE'})).status,401);
   assert.equal((await call('events/missing/attendees',{auth:true})).status,404);
   assert.equal((await call('events/event-one/attendees',{method:'POST',body:attendee,auth:true,origin:'https://evil.example'})).status,403);
   for(const invalid of [{attendees:0},{attendees:1.5},{calcotada:-1},{attendees:2,calcotada:2,vegetarian:1},{depositEuros:'10.999'}])assert.equal((await call('events/event-one/attendees',{method:'POST',body:{...attendee,...invalid},auth:true})).status,400);

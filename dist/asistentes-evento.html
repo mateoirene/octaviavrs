@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="style.css?v=20261024-emblema">
   <link rel="stylesheet" href="events-calendar.css?v=20261105-pantalla-completa">
   <link rel="stylesheet" href="event-detail.css?v=20261105">
-  <link rel="stylesheet" href="navigation-premium.css?v=20261027">
+  <link rel="stylesheet" href="navigation-premium.css?v=20261107-asistentes">
   <link rel="stylesheet" href="engine-pointer.css?v=20261026-nativo">
 </head>
 <body class="attendees-admin-page">
@@ -25,18 +25,18 @@
     <h1>Lista completa<br><em>de asistentes.</em></h1>
     <div class="attendees-event-heading" data-event-heading hidden>
       <p data-event-date></p><h2 data-event-title></h2>
-      <p>Sesión iniciada como <strong data-admin-email></strong>. Aquí puedes añadir, editar y eliminar asistentes.</p>
+      <p>Sesión iniciada como <strong data-admin-email></strong>. Consulta la lista. Solo los administradores pueden añadir, editar y eliminar asistentes.</p>
     </div>
-    <p class="attendees-page-status" data-page-status role="status" aria-live="polite">Comprobando el acceso de administración…</p>
+    <p class="attendees-page-status" data-page-status role="status" aria-live="polite">Cargando lista de asistentes…</p>
     <section class="attendees-login-panel" data-login-panel hidden>
       <h2>Inicia sesión para abrir la lista</h2>
-      <p>Los nombres, matrículas e importes son privados y solo se cargan después de comprobar la cuenta de administración.</p>
+      <p>Acceso de administración para modificar la lista.</p>
       <a class="button" data-login-link href="admin.html">Entrar como administrador →</a>
     </section>
     <div data-attendees-root hidden></div>
   </main>
   <footer><p>Club Octavia VRS Cataluña</p><a href="mailto:cluboctaviavrscat@gmail.com">cluboctaviavrscat@gmail.com</a></footer>
-  <script type="module" src="asistentes-evento.mjs?v=20261105-pantalla-completa"></script>
+  <script type="module" src="asistentes-evento.mjs?v=20261107-asistentes"></script>
   <script defer src="interactions.js?v=20261022-1"></script>
   <script src="engine-pointer.js?v=20261026-nativo" defer></script>
 </body>

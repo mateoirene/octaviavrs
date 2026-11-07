@@ -208,3 +208,10 @@ CREATE TABLE IF NOT EXISTS club_suggestions (
  created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS club_suggestions_date ON club_suggestions(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS club_event_attendee_options (
+ attendee_id TEXT PRIMARY KEY REFERENCES club_event_attendees(id) ON DELETE CASCADE,
+ children_count INTEGER NOT NULL DEFAULT 0,
+ calcotada_without_count INTEGER NOT NULL DEFAULT 0,
+ dessert TEXT NOT NULL DEFAULT ''
+);

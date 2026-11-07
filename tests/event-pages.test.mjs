@@ -21,7 +21,7 @@ test('la pantalla completa de asistentes conserva los datos tras la sesión admi
  assert.ok(html.includes('noindex,nofollow,noarchive'));
  assert.ok(!html.includes('analytics.js'));
  assert.ok(script.indexOf("json('/api/admin/session')")<script.indexOf("attendeeApi('events')"));
- assert.ok(script.includes('createEventAttendeeManager({event,api:attendeeApi,expanded:true})'));
+ assert.ok(script.includes('createEventAttendeeManager({event,api:attendeeApi,expanded:true,readOnly:!user})'));
  assert.ok(script.includes('admin.html?volver=asistentes&evento='));
  assert.ok(calendar.includes('asistentes-evento.html?evento='));
  assert.ok(calendar.includes("target='_blank'"));

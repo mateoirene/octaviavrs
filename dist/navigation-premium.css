@@ -40,3 +40,6 @@ header>nav[aria-label="Navegación principal"]>a[href$="#noticias"]{--nav-icon:u
 @media(max-width:760px){.site-header{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;padding:0}.site-header>.masthead{grid-column:1;grid-row:1}.site-header>.club-speed-clock{grid-column:1;grid-row:2;width:166px;max-width:calc(100% - 8%);margin:14px 4% 0;justify-self:end}.site-header>.club-speed-clock .club-clock-dial{width:138px}.site-header>.club-speed-clock .club-clock-digital{font-size:18px}.site-header>nav[aria-label="Navegación principal"]{grid-column:1;grid-row:3;grid-template-columns:repeat(2,minmax(0,1fr));padding:14px 4% 18px}.site-header>nav[aria-label="Navegación principal"]>a:last-of-type:nth-of-type(odd){grid-column:1/-1;grid-template-columns:26px auto;justify-content:center}}
 
 
+
+/* Reloj móvil centrado sin alterar la distribución de escritorio. */
+@media(max-width:760px){.site-header>.club-speed-clock{justify-self:center;width:210px;max-width:90%;margin:14px auto 8px}.site-header>.club-speed-clock .club-clock-dial{width:164px}.site-header>.club-speed-clock .club-clock-digital{font-size:21px}}
