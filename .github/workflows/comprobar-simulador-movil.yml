@@ -1,0 +1,28 @@
+name: Comprobar estabilidad gráfica en móvil
+on:
+  push:
+    branches: ['codex/mobile-graphics-20261109']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  movil:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Preparar navegador
+        run: npm install --prefix /tmp/race-mobile --no-save playwright
+      - name: Diagnosticar la versión pública en vertical y horizontal
+        run: node scripts/check-racing-mobile.cjs
+        env:
+          NODE_PATH: /tmp/race-mobile/node_modules
+          CHROME_BIN: /usr/bin/google-chrome
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulador-movil-diagnostico
+          path: artifacts/mobile-*
