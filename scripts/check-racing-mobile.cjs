@@ -1,8 +1,11 @@
 const {chromium}=require('playwright');
-const {mkdir,writeFile}=require('node:fs/promises');
+const {mkdir,writeFile,readFile}=require('node:fs/promises');
 const assert=require('node:assert/strict');
+const {createServer}=require('node:http');
+const {resolve,extname}=require('node:path');
 (async()=>{
- const base=process.env.RACE_TEST_URL||'https://octaviaap.pages.dev/simulador',verify=process.env.ASSERT_MOBILE_REPAIR==='1';
+ let base=process.env.RACE_TEST_URL||'https://octaviaap.pages.dev/simulador',verify=process.env.ASSERT_MOBILE_REPAIR==='1';
+ let server;if(process.env.RACE_TEST_LOCAL==='1'){const root=resolve('dist');server=createServer(async(req,res)=>{try{const u=new URL(req.url,'http://localhost');if(u.pathname.startsWith('/api/')){res.setHeader('Content-Type','application/json');if(/admin|review|manage/.test(req.url)){res.writeHead(401);res.end(JSON.stringify({error:'Sin sesión de prueba'}));}else res.end(JSON.stringify(u.pathname.includes('championship')?{rounds:25,standings:[]}:[]));return;}const p=resolve(root,'.'+(u.pathname==='/'?'/simulador.html':u.pathname));if(!p.startsWith(root+'/'))throw Error('path');res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.mp3':'audio/mpeg'})[extname(p)]||'application/octet-stream');res.end(await readFile(p));}catch{res.writeHead(404);res.end();}});await new Promise(r=>server.listen(0,'127.0.0.1',r));base='http://127.0.0.1:'+server.address().port+'/simulador.html';}
  const browser=await chromium.launch({executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  await mkdir('artifacts',{recursive:true});const reports=[];
  try{for(const [label,viewport]of [['portrait',{width:390,height:844}],['landscape',{width:844,height:390}]]){
@@ -22,8 +25,9 @@ const assert=require('node:assert/strict');
   const lossSupported=await page.evaluate(()=>{const c=document.querySelector('.race-world3d'),gl=c?.getContext('webgl2'),ext=gl?.getExtension('WEBGL_lose_context');if(!ext)return false;window.__testRestore=()=>ext.restoreContext();ext.loseContext();return true;});
   let lost=null,restored=null;
   if(lossSupported){await page.waitForTimeout(600);lost=await snapshot();await page.evaluate(()=>window.__testRestore());await page.waitForTimeout(2500);restored=await snapshot();await page.locator('[data-racing-stage]').screenshot({path:'artifacts/mobile-'+label+'-restored.png'});}
+  const preview=await page.locator('[data-racing-stage]').screenshot({type:'jpeg',quality:75});console.log('MOBILE_PREVIEW_'+label+' '+preview.toString('base64'));
   const report={label,initial,driving,lossSupported,lost,restored,hdrRequests:requests.length,errors,warnings,failures};reports.push(report);console.log('MOBILE_DIAGNOSTIC '+JSON.stringify(report));
   if(verify){assert.equal(initial.data.mobileGraphics,'true',label+' uses mobile budget even in landscape');assert.equal(initial.antialias,false);assert.equal(requests.length,0,'mobile must not allocate HDR/PMREM');assert.equal(driving.data.renderer,'webgl2');assert.equal(driving.hidden,false);assert.ok(lossSupported);assert.equal(lost.data.renderer,'2d-fallback');assert.equal(restored.data.renderer,'webgl2');assert.equal(restored.hidden,false);assert.ok(Number(restored.data.contextRestores)>=1);assert.deepEqual(errors,[]);}
   await context.close();
- }}finally{await writeFile('artifacts/mobile-diagnostics.json',JSON.stringify(reports,null,2));await browser.close();}
+ }}finally{await writeFile('artifacts/mobile-diagnostics.json',JSON.stringify(reports,null,2));await browser.close();server?.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

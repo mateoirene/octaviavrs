@@ -3,10 +3,15 @@ on:
   push:
     branches: ['codex/mobile-graphics-20261109']
   workflow_dispatch:
+  workflow_run:
+    workflows: ['Publicar web del club']
+    types: [completed]
+    branches: [main]
 permissions:
   contents: read
 jobs:
   movil:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -16,11 +21,36 @@ jobs:
           node-version: '24'
       - name: Preparar navegador
         run: npm install --prefix /tmp/race-mobile --no-save playwright
-      - name: Diagnosticar la versión pública en vertical y horizontal
+      - name: Preparar las imágenes fuera de las pruebas
+        if: github.event_name != 'workflow_run'
+        run: node scripts/prepare-local-images.mjs
+      - name: Recuperar fotografías
+        if: github.event_name != 'workflow_run'
+        uses: actions/cache@v4
+        with:
+          path: dist/assets/race
+          key: octavia-race-photos-20261023-v1
+      - name: Recuperar materiales y motor
+        if: github.event_name != 'workflow_run'
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist/vendor
+            dist/assets/track3d
+          key: octavia-track3d-three0180-asphalt02-v1
+      - name: Preparar los recursos del simulador
+        if: github.event_name != 'workflow_run'
+        run: |
+          node scripts/prepare-race-assets.mjs
+          node scripts/prepare-track3d.mjs
+          node --test tests/*.test.mjs
+      - name: Comprobar el móvil en vertical y horizontal
         run: node scripts/check-racing-mobile.cjs
         env:
           NODE_PATH: /tmp/race-mobile/node_modules
           CHROME_BIN: /usr/bin/google-chrome
+          RACE_TEST_LOCAL: ${{ github.event_name != 'workflow_run' && '1' || '0' }}
+          ASSERT_MOBILE_REPAIR: '1'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

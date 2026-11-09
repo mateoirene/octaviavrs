@@ -53,6 +53,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Preparar imágenes locales para todas las publicaciones
+        run: node scripts/prepare-local-images.mjs
       - name: Comprobar privacidad y moderación
         if: steps.cambios.outputs.solo_css != 'true'
         run: node --test tests/*.test.mjs
@@ -111,3 +113,4 @@ jobs:
       - name: Verificar fotografías y acceso al circuito publicado
         if: steps.destino.outputs.ready == 'true'
         run: node scripts/check-racing-live.mjs
+
