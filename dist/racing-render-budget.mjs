@@ -3,7 +3,7 @@ export function graphicsProfile({width=1024,height=768,coarsePointer=false,cores
  return {mobile,limited,targetFps:limited?30:60,pixelRatio:limited?1:1.6,minPixelRatio:limited?.7:.85,maxPixels:limited?650000:2200000,antialias:!limited,shadows:!limited,hdr:!limited,terrainStep:limited?36:12};
 }
 export function currentGraphicsProfile(){
- const n=globalThis.navigator||{},query=globalThis.matchMedia;
+ const n=globalThis.navigator||{},query=globalThis.matchMedia?.bind(globalThis);
  return graphicsProfile({width:globalThis.innerWidth||1024,height:globalThis.innerHeight||768,coarsePointer:!!query?.('(pointer:coarse)').matches||!!query?.('(any-pointer:coarse)').matches,cores:n.hardwareConcurrency||4,memory:n.deviceMemory||8,low:new URLSearchParams(globalThis.location?.search||'').get('quality')==='low'});
 }
 export function bufferPixelRatio(profile,width,height,quality=profile.pixelRatio,dpr=1){return Math.max(.1,Math.min(dpr,quality,Math.sqrt(profile.maxPixels/Math.max(1,width*height))));}
