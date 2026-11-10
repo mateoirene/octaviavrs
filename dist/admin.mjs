@@ -120,7 +120,7 @@ async function enter(user) {
   if (new URLSearchParams(location.search).get('volver') === 'garaje') { location.assign('garaje.html#gestion'); return; }
   if (new URLSearchParams(location.search).get('volver') === 'asistentes') { const eventId=new URLSearchParams(location.search).get('evento')||'';if(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,100}$/.test(eventId)){location.assign('asistentes-evento.html?evento='+encodeURIComponent(eventId));return;} }
   const initialStatus=new URLSearchParams(location.search).get('estado');if(['pending','approved','rejected','sold'].includes(initialStatus))$('[data-filter]').value=initialStatus;
-  $('[data-user]').textContent = user.email;
+  $('[data-user]').textContent = 'Propietario único · ' + user.email;
   if(!prepareWhatsAppInvite())await refreshWhatsAppSettings();
   await refresh(); await refreshMail(true);
 }
@@ -151,9 +151,4 @@ $('[data-logout]').addEventListener('click', async () => {
   try { await api('admin/logout', {}); window.dispatchEvent(new Event('club-session-change')); panel.hidden = true; login.hidden = false; status.textContent = 'Sesión cerrada.'; }
   catch (error) { status.textContent = error.message; }
 });
-$('[data-add-user]').addEventListener('submit', async event => {
-  event.preventDefault(); const form = event.currentTarget, button = form.querySelector('button'); button.disabled = true;
-  try { await api('admin/users', Object.fromEntries(new FormData(form))); form.reset(); status.textContent = 'Acceso creado. El otro administrador ya puede iniciar sesión con su correo y contraseña.'; }
-  catch (error) { status.textContent = error.message; } finally { button.disabled = false; }
-});
-try { await enter(await api('admin/session')); } catch (error) { if (!key) status.textContent = error.message === 'Inicia sesión para continuar.' ? 'Inicia sesión con la cuenta de administración del club para ver y autorizar los anuncios.' : error.message; }
+try { await enter(await api('admin/session')); } catch (error) { if (!key) status.textContent = error.message === 'Inicia sesión como propietario para continuar.' ? 'Inicia sesión con la cuenta propietaria del club para ver y gestionar la administración.' : error.message; }

@@ -10,8 +10,8 @@ const INVITE='https://chat.whatsapp.com/AAAAAAAAAAAAAAAAAAAAAA?s=cl&p=a&iam=2';
 function fixture(){
  const raw=new DatabaseSync(':memory:');
  raw.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
- raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('admin','admin@example.com','unused','salt',1);
- raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('whatsapp-admin').digest('hex'),'admin',Math.floor(Date.now()/1000)+3600);
+ raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('c15706ae-7b72-4779-9785-8c2f5c1e50ea','admin@example.com','unused','salt',1);
+ raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('whatsapp-admin').digest('hex'),'c15706ae-7b72-4779-9785-8c2f5c1e50ea',Math.floor(Date.now()/1000)+3600);
  const prepare=sql=>{const statement=raw.prepare(sql);let args=[];const values=()=>args.map(value=>value instanceof ArrayBuffer?Buffer.from(value):value);const query={bind(...parameters){args=parameters;return query;},async first(){return statement.get(...values())||null;},async all(){return {results:statement.all(...values())};},async run(){return {meta:{changes:Number(statement.run(...values()).changes)}};}};return query;};
  const db={prepare,async batch(items){raw.exec('BEGIN');try{const results=[];for(const item of items)results.push(await item.run());raw.exec('COMMIT');return results;}catch(error){raw.exec('ROLLBACK');throw error;}}};
  const request=(path,{method='GET',body,auth=false,origin='https://club.example'}={})=>handleMarketRequest(new Request('https://club.example/api/'+path,{method,headers:{Origin:origin,...(auth?{Cookie:'club_session=whatsapp-admin'}:{}),...(body&&!(body instanceof FormData)?{'Content-Type':'application/json'}:{})},...(body?{body:body instanceof FormData?body:JSON.stringify(body)}:{})}),{MARKET_DB:db});

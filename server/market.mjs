@@ -9,7 +9,7 @@ import {handleRacingRequest} from './racing.mjs';
 import { handleGalleryRequest } from './gallery.mjs';
 import { handleGarageRequest } from './garage.mjs';
 import { dispatchReviewMail, reviewMailStatus } from './review-mail.mjs';
-import { ACTIVATION_HASH, ADMIN_EMAIL_HASHES } from './config.mjs';
+import { ACTIVATION_HASH, OWNER_ADMIN_ID, OWNER_ADMIN_EMAIL } from './config.mjs';
 const enc = new TextEncoder();
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(value))), x => x.toString(16).padStart(2,'0')).join('');
 const random = () => crypto.randomUUID()+crypto.randomUUID();
@@ -22,12 +22,13 @@ const cookie = token => `club_session=${token}; Path=/; HttpOnly; Secure; SameSi
 async function password(value,salt){const key=await crypto.subtle.importKey('raw',enc.encode(value),'PBKDF2',false,['deriveBits']);return Array.from(new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},key,256)),x=>x.toString(16).padStart(2,'0')).join('');}
 const now = () => Math.floor(Date.now()/1000);
 const sessionToken = request => request.headers.get('cookie')?.match(/(?:^|;\s*)club_session=([^;]+)/)?.[1]||'';
-async function session(db,request){const token=sessionToken(request);if(!token)return null;return db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(await hash(token),now()).first();}
+async function session(db,request){const token=sessionToken(request);if(!token)return null;return db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND a.id=?').bind(await hash(token),now(),OWNER_ADMIN_ID).first();}
+async function sessionIdentity(db,request){const token=sessionToken(request);if(!token)return null;return db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(await hash(token),now()).first();}
 async function newSession(db,id){await db.prepare('DELETE FROM market_sessions WHERE expires_at<?').bind(now()).run();const token=random();await db.prepare('INSERT INTO market_sessions VALUES(?,?,?)').bind(await hash(token),id,now()+SESSION_TTL_SECONDS).run();return token;}
 async function renewSession(db,request){const token=sessionToken(request);if(!token)return '';await db.prepare('UPDATE market_sessions SET expires_at=? WHERE token_hash=? AND expires_at>?').bind(now()+SESSION_TTL_SECONDS,await hash(token),now()).run();return token;}
 async function limit(db,request,purpose,max){const bucket=Math.floor(now()/900);const key=await hash(`${purpose}:${request.headers.get('CF-Connecting-IP')||'unknown'}:${bucket}`);const row=await db.prepare('INSERT INTO market_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(key,now()+1800).first();if(row.count>max)fail('Demasiados intentos. Espera 15 minutos.',429);await db.prepare('DELETE FROM market_limits WHERE expires_at<?').bind(now()).run();}
 function text(form,key,min,max){const value=String(form.get(key)||'').trim();if(value.length<min||value.length>max)fail(`Revisa el campo ${key}.`);return value;}
-async function credentials(body){const email=String(body.email||'').trim().toLowerCase();if(!ADMIN_EMAIL_HASHES.includes(await hash(email)))fail('Esta cuenta no está autorizada.',403);if(typeof body.password!=='string'||body.password.length<12||body.password.length>128)fail('La contraseña debe tener entre 12 y 128 caracteres.');const salt=random();return {id:crypto.randomUUID(),email,salt,digest:await password(body.password,salt)};}
+async function credentials(body){const email=String(body.email||'').trim().toLowerCase();if(email!==OWNER_ADMIN_EMAIL)fail('Esta cuenta no está autorizada.',403);if(typeof body.password!=='string'||body.password.length<12||body.password.length>128)fail('La contraseña debe tener entre 12 y 128 caracteres.');const salt=random();return {id:OWNER_ADMIN_ID,email,salt,digest:await password(body.password,salt)};}
 async function listings(db,status,privateView=false){
 const rows=(await db.prepare("SELECT l.*,COALESCE(v.token,'') edit_version FROM market_listings l LEFT JOIN market_edit_versions v ON v.listing_id=l.id WHERE l.status=? ORDER BY l.created_at DESC LIMIT 200").bind(status).all()).results;
 const photos=(await db.prepare('SELECT id,listing_id FROM market_photos WHERE listing_id IN (SELECT id FROM market_listings WHERE status=? ORDER BY created_at DESC LIMIT 200) ORDER BY position').bind(status).all()).results;
@@ -44,7 +45,7 @@ async function announceMutation(request,response,db,context){
  if(event)await recordClubEvent(db,event,context);
  }catch{}return response;
 }
-export async function handleMarketRequest(request,env,context){try{
+async function handleMarketRequestInner(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
@@ -82,18 +83,18 @@ export async function handleMarketRequest(request,env,context){try{
  if(path==='/api/admin/setup'&&method==='POST'){
  await limit(db,request,'setup',5);const body=await request.json();if(await db.prepare('SELECT id FROM market_admins LIMIT 1').first())fail('El acceso ya está activado. Inicia sesión.',409);if(await hash(String(body.key||''))!==ACTIVATION_HASH)fail('Enlace de activación no válido.',403);const user=await credentials(body);
  try{await db.batch([db.prepare("INSERT INTO market_settings VALUES('initialized','yes')"),db.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').bind(user.id,user.email,user.digest,user.salt,now())]);}catch{fail('El acceso ya está activado.',409);}
- return json({email:user.email},201,{'Set-Cookie':cookie(await newSession(db,user.id))});
+ return json({id:user.id,email:user.email},201,{'Set-Cookie':cookie(await newSession(db,user.id))});
  }
  if(path==='/api/admin/login'&&method==='POST'){
- await limit(db,request,'login',5);const body=await request.json();const user=await db.prepare('SELECT * FROM market_admins WHERE email=?').bind(String(body.email||'').trim().toLowerCase()).first();if(!user||typeof body.password!=='string'||await password(body.password,user.salt)!==user.password_hash)fail('Correo o contraseña incorrectos.',401);return json({email:user.email},200,{'Set-Cookie':cookie(await newSession(db,user.id))});
+ await limit(db,request,'login',5);const body=await request.json();const user=await db.prepare('SELECT * FROM market_admins WHERE email=? AND id=?').bind(String(body.email||'').trim().toLowerCase(),OWNER_ADMIN_ID).first();if(!user||typeof body.password!=='string'||await password(body.password,user.salt)!==user.password_hash)fail('Correo o contraseña incorrectos.',401);return json({id:user.id,email:user.email},200,{'Set-Cookie':cookie(await newSession(db,user.id))});
  }
  if(path.startsWith('/api/admin/')){
- const user=await session(db,request);if(!user)fail('Inicia sesión para continuar.',401);
+ const user=await session(db,request);if(!user)fail('Inicia sesión como propietario para continuar.',401);
  if(path==='/api/admin/review-mail'&&method==='GET')return json(await reviewMailStatus(db,env));
  if(path==='/api/admin/review-mail/retry'&&method==='POST'){await limit(db,request,'mail-retry',10);const pending=(await db.prepare("SELECT m.listing_id FROM market_review_mail m JOIN market_listings l ON l.id=m.listing_id WHERE l.status='pending' AND m.status IN ('queued','failed') ORDER BY m.created_at LIMIT 5").all()).results;const delivery=Promise.all(pending.map(row=>dispatchReviewMail(db,env,row.listing_id))).catch(()=>[]);if(context?.waitUntil)context.waitUntil(delivery);else await delivery;return json(await reviewMailStatus(db,env));}
  if(path==='/api/admin/session'&&method==='GET'){const token=await renewSession(db,request);return json(user,200,token?{'Set-Cookie':cookie(token)}:{});}
  if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')).run();return json({ok:true},200,{'Set-Cookie':cookie('')});}
- if(path==='/api/admin/users'&&method==='POST'){const next=await credentials(await request.json());if(await db.prepare('SELECT id FROM market_admins WHERE email=?').bind(next.email).first())fail('Esta cuenta ya tiene acceso.',409);await db.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').bind(next.id,next.email,next.digest,next.salt,now()).run();return json({email:next.email},201);}
+ if(path==='/api/admin/users'&&method==='POST')fail('La creación de nuevos administradores está desactivada.',403);
  if(path==='/api/admin/listings'&&method==='GET'){const status=new URL(request.url).searchParams.get('status')||'pending';if(!['pending','approved','rejected','sold'].includes(status))fail('Estado no válido.');return json(await listings(db,status,true));}
  if(/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path)&&method==='POST'){await limit(db,request,'market-edit',40);const result=await editMarketListing(request,db,user,path.split('/')[4]);await recordClubEvent(db,{id:crypto.randomUUID(),title:'Anuncio del mercadillo actualizado',href:result.status==='approved'?'mercadillo.html':'admin.html',audience:result.status==='approved'?'public':'admin'},context).catch(()=>{});return json(result);}
  if(path.startsWith('/api/admin/listings/')&&method==='POST'){const body=await request.json();
@@ -112,3 +113,6 @@ export async function handleMarketRequest(request,env,context){try{
  }
  return json({error:'Ruta no encontrada.'},404);
  }catch(error){if(/(?:Álbum|Tutorial) completo/.test(error.message||''))return json({error:'Se ha alcanzado el límite de archivos. Actualiza e inténtalo de nuevo.'},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}
+
+function adminAuditTarget(request){const url=new URL(request.url),path=url.pathname,method=request.method;if(path.startsWith('/api/admin/'))return true;if(path==='/api/suggestions')return method==='GET';if(path.startsWith('/api/suggestions/'))return true;if(path==='/api/bricos'&&url.searchParams.has('manage'))return true;if(path.startsWith('/api/bricos/')&&!path.endsWith('/comments'))return true;if(path.startsWith('/api/gallery/')&&method!=='GET')return true;if(path.startsWith('/api/garage/')&&((method!=='GET'&&path!=='/api/garage/submit')||url.searchParams.has('review')||url.searchParams.has('manage')))return true;if(path.startsWith('/api/club/')&&path!=='/api/club/whatsapp-access'&&(method!=='GET'||url.searchParams.has('manage')||path==='/api/club/whatsapp-settings'))return true;if(path.startsWith('/api/analytics/')&&!['/api/analytics/config','/api/analytics/collect'].includes(path))return true;if(path==='/api/club/notifications'||path.startsWith('/api/push/')&&path!=='/api/push/key')return true;return false;}
+export async function handleMarketRequest(request,env,context){const db=env.MARKET_DB;if(!db||!adminAuditTarget(request))return handleMarketRequestInner(request,env,context);const id=crypto.randomUUID(),path=new URL(request.url).pathname;let actor=null;try{actor=await sessionIdentity(db,request);await db.prepare('INSERT INTO admin_audit_log(id,admin_id,method,route,status,created_at) VALUES(?,?,?,?,0,?)').bind(id,actor?.id||null,request.method,path,now()).run();}catch{return json({error:'No se pudo registrar el acceso administrativo.'},503);}const response=await handleMarketRequestInner(request,env,context);try{if(['/api/admin/login','/api/admin/setup'].includes(path)&&response.ok){const body=await response.clone().json().catch(()=>null);if(body?.id)actor={id:body.id};}await db.prepare('UPDATE admin_audit_log SET admin_id=?,status=? WHERE id=?').bind(actor?.id||null,response.status,id).run();}catch{}return response;}

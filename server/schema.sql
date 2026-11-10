@@ -8,6 +8,29 @@ CREATE TABLE IF NOT EXISTS market_sessions (
  token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES market_admins(id) ON DELETE CASCADE,
  expires_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+ id TEXT PRIMARY KEY, admin_id TEXT, method TEXT NOT NULL, route TEXT NOT NULL,
+ status INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS market_admins_only_owner_insert
+BEFORE INSERT ON market_admins
+WHEN NEW.id <> 'c15706ae-7b72-4779-9785-8c2f5c1e50ea'
+BEGIN
+ SELECT RAISE(ABORT, 'Only the verified owner may be an administrator');
+END;
+CREATE TRIGGER IF NOT EXISTS market_admins_owner_id_immutable
+BEFORE UPDATE OF id ON market_admins
+WHEN OLD.id = 'c15706ae-7b72-4779-9785-8c2f5c1e50ea'
+ AND NEW.id <> 'c15706ae-7b72-4779-9785-8c2f5c1e50ea'
+BEGIN
+ SELECT RAISE(ABORT, 'The owner identity cannot be transferred');
+END;
+CREATE TRIGGER IF NOT EXISTS market_admins_owner_no_delete
+BEFORE DELETE ON market_admins
+WHEN OLD.id = 'c15706ae-7b72-4779-9785-8c2f5c1e50ea'
+BEGIN
+ SELECT RAISE(ABORT, 'The owner account cannot be deleted');
+END;
 CREATE TABLE IF NOT EXISTS market_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS market_listings (
  id TEXT PRIMARY KEY, title TEXT NOT NULL, category TEXT NOT NULL, description TEXT NOT NULL,

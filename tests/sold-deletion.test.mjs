@@ -8,8 +8,8 @@ const origin = 'https://octaviaap.pages.dev';
 function fixture(stamp) {
   const raw = new DatabaseSync(':memory:');
   raw.exec(readFileSync(new URL('../server/schema.sql', import.meta.url), 'utf8'));
-  raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('admin', 'admin@example.com', 'unused', 'salt', stamp);
-  raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('delete-test-session').digest('hex'), 'admin', stamp + 100000);
+  raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('c15706ae-7b72-4779-9785-8c2f5c1e50ea', 'admin@example.com', 'unused', 'salt', stamp);
+  raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('delete-test-session').digest('hex'), 'c15706ae-7b72-4779-9785-8c2f5c1e50ea', stamp + 100000);
   const prepare = sql => { const statement = raw.prepare(sql); let args = []; const api = {
     bind(...values) { args = values; return api; },
     async first() { return statement.get(...args) || null; },
@@ -20,7 +20,7 @@ function fixture(stamp) {
     raw.prepare("INSERT INTO market_listings(id,title,category,description,price,condition,compatibility,location,seller,contact_type,contact_value,contact_url,status,created_at,updated_at) VALUES(?,?,'Motor','Descripción de la pieza',100,'Usado','Octavia','Girona','Socio','email','seller@example.com','mailto:seller@example.com',?,?,?)").run(id, 'Pieza ' + id, status, updatedAt - 100, updatedAt);
     raw.prepare("INSERT INTO market_photos VALUES(?,?,'image/jpeg',?,0)").run('photo-' + id, id, Buffer.from([255,216,255,0]));
     raw.prepare("INSERT INTO market_review_mail(listing_id,created_at) VALUES(?,?)").run(id, updatedAt);
-    raw.prepare("INSERT INTO market_reviews(listing_id,old_status,new_status,actor,note,created_at) VALUES(?,'pending',?,'admin','Nota privada',?)").run(id, status, updatedAt);
+    raw.prepare("INSERT INTO market_reviews(listing_id,old_status,new_status,actor,note,created_at) VALUES(?,'pending',?,'c15706ae-7b72-4779-9785-8c2f5c1e50ea','Nota privada',?)").run(id, status, updatedAt);
   }
   async function call(id, { body, auth = true, source = origin, list = false } = {}) {
     const path = list ? '/api/admin/listings?status=sold' : '/api/admin/listings/' + id;

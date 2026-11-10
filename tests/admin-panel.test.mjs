@@ -16,10 +16,11 @@ test('el panel muestra pendientes, conserva notas al actualizar y permite aproba
     reset() {}
   }
   const html = readFileSync(new URL('../dist/admin.html', import.meta.url), 'utf8');
-  for (const attr of ['status','login','panel','filter','admin-category','pending-summary','show-pending','list','mail-status','mail-retry','user','refresh','logout','add-user']) {
+  for (const attr of ['status','login','panel','filter','admin-category','pending-summary','show-pending','list','mail-status','mail-retry','user','refresh','logout']) {
     assert.ok(html.includes('data-' + attr), 'Control presente: ' + attr);
     selectors.set('[data-' + attr + ']', new Element());
   }
+  assert.ok(!html.includes('data-add-user'), 'La interfaz no permite crear otros administradores');
   selectors.get('[data-panel]').hidden = true;
   selectors.get('[data-filter]').value = 'pending';
   globalThis.document = { hidden: false, activeElement: null, querySelector: selector => selectors.get(selector), createElement: tag => new Element(tag), createTextNode: text => Object.assign(new Element('text'), { textContent: text }), addEventListener() {}, getElementById() { return null; } };

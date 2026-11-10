@@ -9,9 +9,9 @@ import {attendeeTotals} from '../dist/event-attendees.mjs';
 
 function fixture(){
  const raw=new DatabaseSync(':memory:');raw.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
- raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('admin','admin@example.com','unused','salt',1);
- raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('attendee-token').digest('hex'),'admin',Math.floor(Date.now()/1000)+3600);
- const insert=raw.prepare('INSERT INTO club_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');insert.run('event-one','2099-01-20','Calçotada de prueba','','Barcelona','13:00','17:00','','',1,1,'admin');insert.run('event-two','2099-02-20','Ruta de prueba','','Girona','09:00','12:00','','',1,1,'admin');
+ raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('c15706ae-7b72-4779-9785-8c2f5c1e50ea','admin@example.com','unused','salt',1);
+ raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('attendee-token').digest('hex'),'c15706ae-7b72-4779-9785-8c2f5c1e50ea',Math.floor(Date.now()/1000)+3600);
+ const insert=raw.prepare('INSERT INTO club_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');insert.run('event-one','2099-01-20','Calçotada de prueba','','Barcelona','13:00','17:00','','',1,1,'c15706ae-7b72-4779-9785-8c2f5c1e50ea');insert.run('event-two','2099-02-20','Ruta de prueba','','Girona','09:00','12:00','','',1,1,'c15706ae-7b72-4779-9785-8c2f5c1e50ea');
  const prepare=sql=>{const statement=raw.prepare(sql);let args=[];const query={bind(...values){args=values;return query;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return query;};
  const db={prepare},call=(path,{method='GET',body,auth=false,origin='https://club.example'}={})=>handleMarketRequest(new Request('https://club.example/api/club/'+path,{method,headers:{Origin:origin,...(body?{'Content-Type':'application/json'}:{}),...(auth?{Cookie:'club_session=attendee-token'}:{})},...(body?{body:JSON.stringify(body)}:{})}),{MARKET_DB:db});
  return {raw,call};
@@ -19,7 +19,7 @@ function fixture(){
 
 const attendee={pilotName:'Raúl VRS',attendees:3,plate:'1234 VRS',calcotada:2,vegetarian:1,childMenu:0,depositEuros:'60.50',balanceEuros:'45',paid:false};
 
-test('la consulta es pública y las modificaciones requieren administrador',async()=>{
+test('la consulta de asistentes es pública y las modificaciones requieren administración',async()=>{
  const {raw,call}=fixture();try{
   assert.equal((await call('events/event-one/attendees')).status,200);
   assert.equal((await call('events/event-one/attendees',{method:'POST',body:attendee})).status,401);

@@ -11,8 +11,8 @@ import {tmpdir} from 'node:os';
 import {handleMarketRequest} from '../server/market.mjs';
 
 const root=resolve('dist'),raw=new DatabaseSync(':memory:');raw.exec(await readFile('server/schema.sql','utf8'));
-raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('event-admin','event-admin@example.com','unused','salt',1);
-const token=crypto.randomUUID();raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update(token).digest('hex'),'event-admin',Math.floor(Date.now()/1000)+3600);
+raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('c15706ae-7b72-4779-9785-8c2f5c1e50ea','event-admin@example.com','unused','salt',1);
+const token=crypto.randomUUID();raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update(token).digest('hex'),'c15706ae-7b72-4779-9785-8c2f5c1e50ea',Math.floor(Date.now()/1000)+3600);
 const prepare=sql=>{const statement=raw.prepare(sql);let args=[];const query={bind(...values){args=values;return query;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return query;};
 const db={prepare,async batch(items){const results=[];for(const item of items)results.push(await item.run());return results;}};
 const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp'};

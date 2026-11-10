@@ -6,8 +6,8 @@ import { readFileSync } from 'node:fs';
 import { handleMarketRequest } from '../server/market.mjs';
 function fixture() {
  const raw=new DatabaseSync(':memory:');raw.exec(readFileSync(new URL('../server/schema.sql',import.meta.url),'utf8'));
- raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('admin','admin@example.com','unused','salt',1);
- raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('garage-test').digest('hex'),'admin',Math.floor(Date.now()/1000)+3600);
+ raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('c15706ae-7b72-4779-9785-8c2f5c1e50ea','admin@example.com','unused','salt',1);
+ raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('garage-test').digest('hex'),'c15706ae-7b72-4779-9785-8c2f5c1e50ea',Math.floor(Date.now()/1000)+3600);
  const prepare=sql=>{const stmt=raw.prepare(sql);let args=[];const values=()=>args.map(value=>value instanceof ArrayBuffer?Buffer.from(value):value);const api={bind(...parameters){args=parameters;return api;},async first(){return stmt.get(...values())||null;},async all(){return {results:stmt.all(...values())};},async run(){return {meta:{changes:Number(stmt.run(...values()).changes)}};}};return api;};
  const db={prepare,async batch(items){raw.exec('BEGIN');try{for(const item of items)await item.run();raw.exec('COMMIT');}catch(error){raw.exec('ROLLBACK');throw error;}}};
  const call=(path,method='GET',body,auth=false,origin='https://club.example')=>handleMarketRequest(new Request('https://club.example/api/garage/'+path,{method,headers:{Origin:origin,...(auth?{Cookie:'club_session=garage-test'}:{}),...(body&&!(body instanceof FormData)?{'Content-Type':'application/json'}:{})},body:body instanceof FormData?body:body?JSON.stringify(body):undefined}),{MARKET_DB:db});
