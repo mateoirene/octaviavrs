@@ -79,7 +79,7 @@ async function handleMarketRequestInner(request,env,context){try{
  await db.batch(statements);
  const delivery=dispatchReviewMail(db,env,id).catch(()=>({sent:false}));
  if(context?.waitUntil)context.waitUntil(delivery);else await delivery;
- await recordClubEvent(db,{id:'pending:'+id,title:'Nuevo anuncio pendiente',href:'admin.html',audience:'admin',kind:'pending-market'},context).catch(()=>{});
+  await recordClubEvent(db,{id:'pending:'+id,title:'Nuevo anuncio pendiente',href:'admin-mercadillo.html',audience:'admin',kind:'pending-market'},context).catch(()=>{});
  return json({id,status:'pending'},201);
  }
  if(path==='/api/admin/setup'&&method==='POST'){
@@ -98,7 +98,7 @@ async function handleMarketRequestInner(request,env,context){try{
  if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')).run();return json({ok:true},200,{'Set-Cookie':cookie('')});}
  if(path==='/api/admin/users'&&method==='POST')fail('La creación de nuevos administradores está desactivada.',403);
  if(path==='/api/admin/listings'&&method==='GET'){const status=new URL(request.url).searchParams.get('status')||'pending';if(!['pending','approved','rejected','sold'].includes(status))fail('Estado no válido.');return json(await listings(db,status,true));}
- if(/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path)&&method==='POST'){await limit(db,request,'market-edit',40);const result=await editMarketListing(request,db,user,path.split('/')[4]);await recordClubEvent(db,{id:crypto.randomUUID(),title:'Anuncio del mercadillo actualizado',href:result.status==='approved'?'mercadillo.html':'admin.html',audience:result.status==='approved'?'public':'admin'},context).catch(()=>{});return json(result);}
+ if(/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path)&&method==='POST'){await limit(db,request,'market-edit',40);const result=await editMarketListing(request,db,user,path.split('/')[4]);await recordClubEvent(db,{id:crypto.randomUUID(),title:'Anuncio del mercadillo actualizado',href:result.status==='approved'?'mercadillo.html':'admin-mercadillo.html',audience:result.status==='approved'?'public':'admin'},context).catch(()=>{});return json(result);}
  if(path.startsWith('/api/admin/listings/')&&method==='POST'){const body=await request.json();
  if(body.action==='delete'){
  if(body.confirm!==true)fail('Confirma que quieres eliminar definitivamente este anuncio.');
@@ -111,7 +111,7 @@ async function handleMarketRequestInner(request,env,context){try{
  if(!removed.meta.changes)fail('El anuncio ha cambiado. Actualiza la lista.',409);
  return json({ok:true,deleted:true});
  }
- const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);await recordClubEvent(db,{id:body.action==='approve'?'listing:'+path.split('/').pop():crypto.randomUUID(),title:body.action==='approve'?'Nueva pieza publicada en el mercadillo':'Anuncio del mercadillo revisado',href:body.action==='approve'?'mercadillo.html':'admin.html',audience:body.action==='approve'?'public':'admin'},context).catch(()=>{});return json({ok:true});}
+  const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);await recordClubEvent(db,{id:body.action==='approve'?'listing:'+path.split('/').pop():crypto.randomUUID(),title:body.action==='approve'?'Nueva pieza publicada en el mercadillo':'Anuncio del mercadillo revisado',href:body.action==='approve'?'mercadillo.html':'admin-mercadillo.html',audience:body.action==='approve'?'public':'admin'},context).catch(()=>{});return json({ok:true});}
  }
  return json({error:'Ruta no encontrada.'},404);
  }catch(error){if(/(?:Álbum|Tutorial) completo/.test(error.message||''))return json({error:'Se ha alcanzado el límite de archivos. Actualiza e inténtalo de nuevo.'},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}

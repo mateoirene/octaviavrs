@@ -96,7 +96,7 @@ export async function initMarket(root, fetcher = fetch) {
     const response = await fetcher('/api/market/listings', { cache: 'no-cache' });
     if (!response.ok) throw new Error('No se pudo cargar el mercadillo.');
     const items = availableListings(await response.json());
-    try{const auth=await fetch('/api/admin/session',{cache:'no-store'});if(auth.ok&&(await auth.json()).id)for(const item of items)item.editHref='admin.html?estado=approved&anuncio='+encodeURIComponent(item.id)+'&editar=1';}catch{}
+    try{const auth=await fetch('/api/admin/session',{cache:'no-store'});if(auth.ok&&(await auth.json()).id)for(const item of items)item.editHref='admin-mercadillo.html?estado=approved&anuncio='+encodeURIComponent(item.id)+'&editar=1';}catch{}
     const categories = MARKET_CATEGORIES;
     for (const name of categories) {
       const option = element('option', '', name);
