@@ -8,6 +8,8 @@ on:
       - 'server/**'
       - 'functions/**'
       - 'tests/**'
+      - 'migrations/**'
+      - '.github/backup/**'
       - '.github/workflows/publicar.yml'
   workflow_dispatch:
 permissions:
@@ -18,7 +20,7 @@ concurrency:
 jobs:
   publicar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     env:
       CLOUDFLARE_ACCOUNT_ID: '71fb53fce0685a83a5b15712414cfc25'
     steps:
@@ -91,6 +93,57 @@ jobs:
         run: node scripts/cloudflare-target.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      # Respaldo completo cifrado de la D1 de producción antes de tocar datos.
+      - name: Preparar Python para el respaldo
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Crear respaldo completo y cifrado de producción
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        run: node .github/backup/crear-copia.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          BACKUP_PUBLIC_KEY: |
+            -----BEGIN PUBLIC KEY-----
+            MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAlohmGtAR2bzi5f7CvqGN
+            MPaPtatASz3cUtvBS7YPcrxjuM5/hQDEEsJT6RWTDTvzng8yhUdP04dwz3gMC9iY
+            LNaJLZ7B2PyrY5HdS8XyrIdDQ5C3nlxPmIWZ84lvYMJ74rE5RV1MX7aTGOU2P7pN
+            bfLTkKqoguLfHxEUTpnGqlJxJB6+dARRXk4R0a3mHouAE/LPGShKF24GP3Im5dkz
+            Lno1IzKyWoMY0SSNQmYa1STvoaCb+/EAmmrfGhEOZijdnhi/fAlMUX89TLP7jWsd
+            +SuDIkaJRl9TLQQSEN2dLp/Wt1m/yOdspM7AO+t7yKshCqHuT1fr23ZvBwbQLtb9
+            z2KV4MmZ9ZYbBU2pJUSNowaUiuui9O9r94SHXVaA1DyVcgQwiUdLmKQF1V9v6bUr
+            5D3fiUvEaKiwHYOMJUgO8/MPODvT8J1Lp9EqI3Fmsj0wkG6VKnWKaWanS/4rx404G6
+            rrx1bLgzpIxkJSir7/poLb+yY5mbxW5AsLfd2/FWxN6LnlOlVlQ1Ch65hMXnRAh4
+            RhcH/CLaim+rGfFYvrbF4opVbK1OU+gS2TRztJKY70pQ5MzmAXjZ1UpwzjxkEbW2
+            /zPY0+kk9TMGh2SpRWm9Rs8CAwEAAQ==
+            -----END PUBLIC KEY-----
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Conservar el respaldo previo al cambio
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: copia-seguridad-octavia-web-previa-${{ github.run_id }}
+          path: /tmp/octavia-security/entrega
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Aplicar migración del centro de control
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-10-cms.sql
+      - name: Aplicar migración de visibilidad de fichas
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-10-garage-member-visibility.sql
       - name: Preparar almacenamiento del mercadillo
         if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/market-storage.mjs

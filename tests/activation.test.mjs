@@ -13,7 +13,7 @@ writeFileSync(join(directory,'garage.mjs'),readFileSync(new URL('../server/garag
 writeFileSync(join(directory,'push.mjs'),readFileSync(new URL('../server/push.mjs',import.meta.url)));
 writeFileSync(join(directory,'club.mjs'),readFileSync(new URL('../server/club.mjs',import.meta.url)));
 writeFileSync(join(directory,'review-mail.mjs'),readFileSync(new URL('../server/review-mail.mjs',import.meta.url)));
-for(const name of ['suggestions.mjs','market-fields.mjs','market-edit.mjs','news.mjs','birthdays.mjs','bricos.mjs','media.mjs','event-attendees.mjs','whatsapp.mjs'])writeFileSync(join(directory,name),readFileSync(new URL('../server/'+name,import.meta.url)));
+for(const name of ['suggestions.mjs','market-fields.mjs','market-edit.mjs','news.mjs','birthdays.mjs','bricos.mjs','media.mjs','cms.mjs','event-attendees.mjs','whatsapp.mjs'])writeFileSync(join(directory,name),readFileSync(new URL('../server/'+name,import.meta.url)));
 writeFileSync(join(directory,'market.mjs'),readFileSync(new URL('../server/market.mjs',import.meta.url)));
 const ownerId='c15706ae-7b72-4779-9785-8c2f5c1e50ea',ownerEmail='cluboctaviavrscat@gmail.com';
 writeFileSync(join(directory,'config.mjs'),`export const ACTIVATION_HASH=${JSON.stringify(await digest('test-only-activation'))};export const OWNER_ADMIN_ID=${JSON.stringify(ownerId)};export const OWNER_ADMIN_EMAIL=${JSON.stringify(ownerEmail)};`);
