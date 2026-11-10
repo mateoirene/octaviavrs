@@ -45,7 +45,7 @@ jobs:
               *) solo_css=false ;;
             esac
             case "$archivo" in
-              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*|.github/workflows/publicar.yml) ;;
+              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*) ;;
               *) solo_visual=false ;;
             esac
           done <<< "$archivos"
