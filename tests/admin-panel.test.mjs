@@ -15,7 +15,7 @@ test('el panel muestra pendientes, conserva notas al actualizar y permite aproba
     querySelector(selector) { return this.children.find(child => child.tagName === selector.toUpperCase()); }
     reset() {}
   }
-  const html = readFileSync(new URL('../dist/admin.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../dist/admin-mercadillo.html', import.meta.url), 'utf8');
   for (const attr of ['status','login','panel','filter','admin-category','pending-summary','show-pending','list','mail-status','mail-retry','user','refresh','logout']) {
     assert.ok(html.includes('data-' + attr), 'Control presente: ' + attr);
     selectors.set('[data-' + attr + ']', new Element());

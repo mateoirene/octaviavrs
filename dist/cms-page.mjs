@@ -1,0 +1,5 @@
+import {renderRichText} from './cms-rich-text.mjs';
+const slug=new URLSearchParams(location.search).get('slug');
+const status=document.querySelector('[data-page-status]');
+if(slug){try{const preview=new URLSearchParams(location.search).get('cms-preview')==='1',response=await fetch('/api/cms/page?slug='+encodeURIComponent(slug)+(preview?'&preview=1':''),{cache:'no-store'}),data=await response.json();if(!response.ok)throw Error(data.error||'Página no disponible.');document.title=data.title+' · Octavia VRS Catalunya';document.querySelector('[data-page-title]').textContent=data.title;document.querySelector('[data-page-description]').textContent=data.description;renderRichText(document.querySelector('[data-page-body]'),data.body);status.textContent='';}catch(error){document.querySelector('[data-page-title]').textContent='Página no disponible';status.textContent=error.message;}}
+else{document.querySelector('[data-page-title]').textContent='Página no disponible';status.textContent='Falta el identificador de la página.';}

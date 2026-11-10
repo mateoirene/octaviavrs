@@ -15,3 +15,4 @@
 #noticias .club-news-station{margin-inline:auto}#noticias .club-news-controls button,#noticias .club-news-return{min-height:44px}#noticias .club-news-controls button{min-width:44px}
 
 .club-clock-led{stroke:#ff5260;stroke-width:.45}.club-clock-led.is-lit{fill:#ff4052;filter:drop-shadow(0 0 3px #ff2638) drop-shadow(0 0 6px #ff2638)}
+.club-news-screen video[data-news-video]{width:100%;height:100%;display:block;object-fit:cover;background:#030608}.club-news-screen video[data-news-video][hidden]{display:none}
