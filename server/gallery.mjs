@@ -3,15 +3,16 @@ const reply=(body,status=200)=>new Response(JSON.stringify(body),{status,headers
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const categories=['Almuerzos','Comidas','Rutas','Kdds','Calçotada','Otros'];
 export async function handleGalleryRequest(request,db,admin){
- const url=new URL(request.url),path=url.pathname,method=request.method,id=path.split('/').pop();
+ const url=new URL(request.url),path=url.pathname,method=request.method,parts=path.split('/'),poster=parts.at(-1)==='poster',id=poster?parts.at(-2):parts.at(-1);
  if(method!=='GET'&&!admin)return reply({error:'Inicia sesión como administrador para gestionar la galería.'},401);
  if(path==='/api/gallery/folders'&&method==='GET'){
-  const rows=(await db.prepare('SELECT f.*,COUNT(p.id) AS photos,(SELECT id FROM gallery_photos WHERE folder_id=f.id AND content_type LIKE \'image/%\' ORDER BY created_at,id LIMIT 1) AS cover FROM gallery_folders f LEFT JOIN gallery_photos p ON p.folder_id=f.id GROUP BY f.id ORDER BY f.event_date DESC,f.created_at DESC').all()).results;
-  return reply(rows.map(row=>({...row,category:row.category==='Quedadas'?'Kdds':row.category,cover:row.cover?'/api/gallery/photos/'+row.cover:null})));
+  const rows=(await db.prepare('SELECT f.*,COUNT(p.id) AS photos,(SELECT id FROM gallery_photos WHERE folder_id=f.id AND content_type LIKE \'image/%\' ORDER BY created_at,id LIMIT 1) AS cover,(SELECT id FROM gallery_photos WHERE folder_id=f.id AND content_type LIKE \'video/%\' ORDER BY created_at,id LIMIT 1) AS video_cover,(SELECT COUNT(*) FROM gallery_photos WHERE folder_id=f.id AND content_type LIKE \'video/%\') AS videos FROM gallery_folders f LEFT JOIN gallery_photos p ON p.folder_id=f.id GROUP BY f.id ORDER BY f.event_date DESC,f.created_at DESC').all()).results;
+  return reply(rows.map(row=>{const cover=row.cover||row.video_cover;return{...row,category:row.category==='Quedadas'?'Kdds':row.category,cover:cover?'/api/gallery/photos/'+cover+(row.cover?'':'/poster'):null,coverVideo:!row.cover&&!!row.video_cover};}));
  }
- if(path==='/api/gallery/photos'&&method==='GET')return reply((await db.prepare('SELECT id,caption,content_type FROM gallery_photos WHERE folder_id=? ORDER BY created_at,id').bind(url.searchParams.get('folder')||'').all()).results.map(row=>({...row,url:'/api/gallery/photos/'+row.id})));
+ if(path==='/api/gallery/photos'&&method==='GET')return reply((await db.prepare("SELECT id,caption,content_type FROM gallery_photos WHERE folder_id=? ORDER BY CASE WHEN content_type LIKE 'image/%' THEN 0 ELSE 1 END,created_at,id").bind(url.searchParams.get('folder')||'').all()).results.map(row=>({...row,url:'/api/gallery/photos/'+row.id,...(row.content_type.startsWith('video/')?{posterUrl:'/api/gallery/photos/'+row.id+'/poster'}:{})})));
  if(path.startsWith('/api/gallery/photos/')&&method==='GET'){
   const photo=await db.prepare('SELECT content_type,data FROM gallery_photos WHERE id=?').bind(id).first();if(!photo)fail('Foto no disponible.',404);
+  if(poster){if(!photo.content_type.startsWith('video/')||!photo.data?.byteLength)fail('Vista previa no disponible.',404);return new Response(photo.data,{headers:{'Content-Type':'image/jpeg','Cache-Control':'public,max-age=31536000,immutable','X-Content-Type-Options':'nosniff'}});}
   const streamed=await serveClubMedia(request,db,id);if(streamed)return streamed;
   return new Response(new Uint8Array(photo.data),{headers:{'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  }
@@ -32,9 +33,10 @@ export async function handleGalleryRequest(request,db,admin){
  if(path==='/api/gallery/photos'&&method==='POST'){
   const form=await request.formData(),folder=String(form.get('folderId')||''),caption=String(form.get('caption')||'').trim();
   if(!await db.prepare('SELECT id FROM gallery_folders WHERE id=?').bind(folder).first())fail('Selecciona una carpeta existente.');if(form.get('consent')!=='yes')fail('Confirma que tienes permiso para publicar las fotos y vídeos.');if(caption.length>160)fail('El texto de la foto es demasiado largo.');
-  const media=await readClubMedia(form.get('photo')),video=media.mime.startsWith('video/'),photoId=crypto.randomUUID();
+  const media=await readClubMedia(form.get('photo')),video=media.mime.startsWith('video/'),photoId=crypto.randomUUID();let posterBytes=new ArrayBuffer(0);
+  if(video){const posterFile=form.get('poster');if(posterFile instanceof File&&posterFile.type==='image/jpeg'&&posterFile.size>0&&posterFile.size<=128*1024)posterBytes=await posterFile.arrayBuffer();}
   const insert=db.prepare('INSERT INTO gallery_photos SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM gallery_photos WHERE folder_id=?)<100').bind(photoId,folder,caption,media.mime,video?new ArrayBuffer(0):media.bytes.buffer,Math.floor(Date.now()/1000),folder);
-  if(video){if((await db.prepare('SELECT COUNT(*) n FROM gallery_photos WHERE folder_id=?').bind(folder).first()).n>=100)fail('El álbum ya tiene 100 fotos o vídeos.',409);await db.batch([db.prepare('INSERT INTO gallery_photos VALUES(?,?,?,?,?,?)').bind(photoId,folder,caption,media.mime,new ArrayBuffer(0),Math.floor(Date.now()/1000)),...mediaStatements(db,photoId,media)]);}else{const result=await insert.run();if(!result.meta.changes)fail('El álbum ya tiene 100 fotos o vídeos. Elimina alguno antes de añadir más.',409);}
+  if(video){if((await db.prepare('SELECT COUNT(*) n FROM gallery_photos WHERE folder_id=?').bind(folder).first()).n>=100)fail('El álbum ya tiene 100 fotos o vídeos.',409);await db.batch([db.prepare('INSERT INTO gallery_photos VALUES(?,?,?,?,?,?)').bind(photoId,folder,caption,media.mime,posterBytes,Math.floor(Date.now()/1000)),...mediaStatements(db,photoId,media)]);}else{const result=await insert.run();if(!result.meta.changes)fail('El álbum ya tiene 100 fotos o vídeos. Elimina alguno antes de añadir más.',409);}
   return reply({id:photoId},201);
  }
  if(path.startsWith('/api/gallery/photos/')&&method==='DELETE'){await db.prepare('DELETE FROM club_media_files WHERE id=?').bind(id).run();const result=await db.prepare('DELETE FROM gallery_photos WHERE id=?').bind(id).run();if(!result.meta.changes)fail('La foto ya no existe.',404);return reply({ok:true});}
