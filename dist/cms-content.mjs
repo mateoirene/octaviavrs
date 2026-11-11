@@ -10,6 +10,7 @@ function applySettings(settings){
  if(/^#[\da-f]{6}$/i.test(appearance.accent||''))root.style.setProperty('--red',appearance.accent);
  if(/^#[\da-f]{6}$/i.test(appearance.surface||''))root.style.setProperty('--cms-surface',appearance.surface);
  if(appearance.bannerImage){const url=safeUrl(appearance.bannerImage),hero=$('.hero-img');if(url&&hero)hero.src=url;}
+ if(appearance.backgroundImage){const url=safeUrl(appearance.backgroundImage);if(url)root.style.setProperty('--page-background','linear-gradient(#080c1080,#080c1080),url('+JSON.stringify(url)+') center/cover fixed no-repeat');}
  const pageSeo=seo.pages?.[page]||{};if(pageSeo.title||seo.title)document.title=pageSeo.title||seo.title;
  meta('meta[name="description"]',pageSeo.description||seo.description||'');meta('meta[name="robots"]',pageSeo.robots||seo.robots||'index,follow');
  meta('meta[property="og:title"]',pageSeo.title||seo.title||'');meta('meta[property="og:description"]',pageSeo.description||seo.description||'');
