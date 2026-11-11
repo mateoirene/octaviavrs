@@ -1,11 +1,11 @@
 name: Vista previa aislada de Autovía
 on:
   push:
-    branches: [codex/highway-3d-20261111]
+    branches: [codex/highway-3d-20261111, codex/simulador-multiplataforma]
 permissions:
   contents: read
 concurrency:
-  group: vista-previa-autovia-pr23
+  group: vista-previa-simulador-${{ github.ref_name }}
   cancel-in-progress: true
 jobs:
   preview:
@@ -24,6 +24,7 @@ jobs:
       - run: node scripts/highway-browser-check.mjs
         env:
           HIGHWAY_SHOTS: '1'
+          HIGHWAY_BENCH_SECONDS: '60'
       - name: Publicar solo la vista previa sin D1
         run: node scripts/deploy-highway-preview.mjs
         env:

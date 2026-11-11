@@ -8,3 +8,8 @@ test('a high-core phone keeps a mobile budget in either orientation',()=>{
 test('drawing buffers stay inside a phone budget regardless of DPR',()=>{const p=graphicsProfile({width:844,height:390,coarsePointer:true});for(const [w,h]of [[390,490],[844,390],[1920,1080]]){const r=bufferPixelRatio(p,w,h,p.pixelRatio,3);assert.ok(r<=1);assert.ok(w*h*r*r<=p.maxPixels+1);}});
 test('painting at 30 FPS does not require dropping physics ticks',()=>{const g=createPaintGate(30);let paints=0,physics=0;for(let t=0;t<1000;t+=1000/60){physics++;if(g.due(t))paints++;}assert.ok(physics>=60);assert.ok(paints>=29&&paints<=31);g.reset();assert.equal(g.due(0),true);assert.equal(g.due(1),false);assert.equal(g.due(2,true),true);});
 test('sustained overload lowers resolution without a terminal fallback or pause penalty',()=>{const p=graphicsProfile({coarsePointer:true,width:844,height:390}),b=createResolutionBudget(p);let result;for(let t=0;t<20000;t+=160)result=b.sample(t,true)||result;assert.equal(b.quality,p.minPixelRatio);assert.equal('available'in b,false);assert.ok(result.mean>=150);b.sample(30000,false);assert.equal(b.sample(60000,true),null);b.reset();assert.equal(b.sample(1,true),null);});
+test('automatic quality recovers gradually after sustained stable frames',()=>{
+ const p=graphicsProfile(),b=createResolutionBudget(p);let t=0;
+ for(let i=0;i<100;i++){t+=100;b.sample(t,true);}const reduced=b.quality;assert.ok(reduced<p.pixelRatio);
+ for(let i=0;i<400;i++){t+=1000/p.targetFps;b.sample(t,true);}assert.ok(b.quality>reduced);assert.ok(b.quality<=p.pixelRatio);
+});

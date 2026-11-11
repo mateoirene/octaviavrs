@@ -2,6 +2,8 @@ import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {mergeGeometries} from './vendor/BufferGeometryUtils.js';
 import {HIGHWAY_MODELS} from './highway-models.mjs';
+import {createHighwayOctavia} from './highway-octavia.mjs';
+import {createTrafficDistanceTemplate} from './highway-traffic-lod.mjs';
 
 const palette=['#163d65','#d5d8d6','#7c2830','#373c42','#bdab8a','#1d655f'];
 function cleanGeometry(mesh,matrix){
@@ -18,7 +20,7 @@ function joinGroups(items){
 function fitImage(texture,limit){const im=texture?.image;if(!im||Math.max(im.width,im.height)<=limit)return;const c=document.createElement('canvas'),k=limit/Math.max(im.width,im.height);c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);texture.image=c;texture.needsUpdate=true;}
 
 export async function loadVehicleTemplates(profile){
- const loader=new GLTFLoader(),files=await Promise.all(HIGHWAY_MODELS.map(n=>loader.loadAsync(n.asset)));
+ const loader=new GLTFLoader(),files=await Promise.all(HIGHWAY_MODELS.map(n=>n.asset?loader.loadAsync(n.asset):{scene:createHighwayOctavia()}));
  const resources={geometries:new Set(),materials:new Set(),textures:new Set()},templates=[];
  for(let type=0;type<files.length;type++){
   const config=HIGHWAY_MODELS[type],source=files[type].scene,holder=new T.Group();holder.add(source);
@@ -42,7 +44,7 @@ export async function loadVehicleTemplates(profile){
    for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(mat[key]){fitImage(mat[key],profile.mobile?1024:2048);resources.textures.add(mat[key]);}
    resources.materials.add(mat);materialCache.set(original.uuid,mat);return mat;
   }
-  const wheelRoots=type===0?config.wheelRoots.map(n=>source.getObjectByName(n)):[];
+  const wheelRoots=type===0?source.userData.wheels.map(w=>w.pivot):[];
   const wheelCenters=type===0?wheelRoots.map(n=>n.getWorldPosition(new T.Vector3())):[];
   if(type===1){
    const tyres=[];source.traverse(n=>{if(n.isMesh&&/tire/i.test(n.name))tyres.push(new T.Box3().setFromObject(n).getCenter(new T.Vector3()));});
@@ -62,24 +64,32 @@ export async function loadVehicleTemplates(profile){
    // GLTFLoader material primitives are separate meshes in these assets.
    const material=adapt(parts[0]),g=cleanGeometry(mesh,mesh.matrixWorld);
    if(wheel>=0){g.translate(-wheelCenters[wheel].x,-wheelCenters[wheel].y,-wheelCenters[wheel].z);wheels[wheel].push({geometry:g,material});}
-   else if(type===0&&/Interior|Engine|Axles/i.test(mesh.name))interior.push({geometry:g,material});
+   else if(type===0&&/Interior|Engine|Axles|Cabin/i.test(mesh.name))interior.push({geometry:g,material});
    else body.push({geometry:g,material});
   });
-  const template={body:joinGroups(body),interior:joinGroups(interior),wheels:wheels.map(joinGroups),wheelCenters,type,source: type===0?'Car Concept · CC BY 4.0':'Sedan Innerscene · CC0'};
+  const template={body:joinGroups(body),interior:joinGroups(interior),wheels:wheels.map(joinGroups),wheelCenters,type,source: type===0?'Octavia · geometría original del proyecto':'Sedan Innerscene · CC0'};
   for(const part of [...template.body,...template.interior,...template.wheels.flat()])resources.geometries.add(part.geometry);
   templates.push(template);
+  // The fleet owns the converted materials. Release source materials and maps
+  // that were deliberately omitted (including the old contact shadow).
+  const originals=new Set();source.traverse(n=>{if(n.isMesh)for(const m of Array.isArray(n.material)?n.material:[n.material])originals.add(m);});
+  for(const m of originals){for(const v of Object.values(m))if(v?.isTexture&&!resources.textures.has(v))v.dispose();m.dispose();}
+  for(const t of source.userData.ownedTextures||[])if(!resources.textures.has(t))t.dispose();
  }
+ const distant=createTrafficDistanceTemplate();templates.push(distant);
+ for(const p of [...distant.body,...distant.wheels.flat()]){resources.geometries.add(p.geometry);resources.materials.add(p.material);}
  return {templates,resources};
 }
 
 export function createVehicleFleet(scene,templates,max=19){
  const dummy=new T.Object3D(),base=new T.Matrix4(),wheelMatrix=new T.Matrix4(),rotation=new T.Quaternion(),roll=new T.Quaternion(),axisX=new T.Vector3(1,0,0),axisY=new T.Vector3(0,1,0),color=new T.Color();
- const dashCanvas=document.createElement('canvas');dashCanvas.width=512;dashCanvas.height=128;const dashContext=dashCanvas.getContext('2d'),dashTexture=new T.CanvasTexture(dashCanvas);dashTexture.colorSpace=T.SRGBColorSpace;const dashGeometry=new T.PlaneGeometry(.44,.11),dashMaterial=new T.MeshBasicMaterial({map:dashTexture}),dashboard=new T.Mesh(dashGeometry,dashMaterial);dashboard.matrixAutoUpdate=false;scene.add(dashboard);let displayed=-1;
+ const dashCanvas=document.createElement('canvas');dashCanvas.width=512;dashCanvas.height=128;const dashContext=dashCanvas.getContext('2d'),dashTexture=new T.CanvasTexture(dashCanvas);dashTexture.colorSpace=T.SRGBColorSpace;const dashGeometry=new T.PlaneGeometry(.32,.14),dashMaterial=new T.MeshBasicMaterial({map:dashTexture}),dashboard=new T.Mesh(dashGeometry,dashMaterial);dashboard.matrixAutoUpdate=false;scene.add(dashboard);let displayed=-1;
  const batches=templates.map(template=>{
   function batch(part,count){const m=new T.InstancedMesh(part.geometry,part.material,count);m.instanceMatrix.setUsage(T.DynamicDrawUsage);m.frustumCulled=false;scene.add(m);return m;}
   return {template,body:template.body.map(p=>batch(p,max)),interior:template.interior.map(p=>batch(p,1)),wheels:template.wheels.map(parts=>parts.map(p=>batch(p,max)))};
  });
  function update(vehicles,view){
+  for(const t of templates)for(const p of [...t.body,...t.interior])if(/glass/i.test(p.material.name))p.material.opacity=view==='driver'?.16:.9;
   for(const b of batches){const cars=vehicles.filter(c=>c.type===b.template.type);for(const m of [...b.body,...b.wheels.flat()])m.count=cars.length;
    for(let i=0;i<cars.length;i++){
     const car=cars[i];dummy.position.set(car.x,car.y+(car.bounce||0),car.z);dummy.rotation.set(car.pitch||0,car.angle,car.roll||0);dummy.scale.setScalar(car.scale||1);dummy.updateMatrix();base.copy(dummy.matrix);
@@ -91,7 +101,7 @@ export function createVehicleFleet(scene,templates,max=19){
     }
    }
    const player=cars.find(c=>c.player);for(const m of b.interior){m.visible=!!player;if(player){dummy.position.set(player.x,player.y+(player.bounce||0),player.z);dummy.rotation.set(player.pitch||0,player.angle,player.roll||0);dummy.scale.setScalar(1);dummy.updateMatrix();m.setMatrixAt(0,dummy.matrix);}}
-   if(player){dashboard.visible=view==='driver';const kmh=Math.round((player.speed||0)*3.6);if(kmh!==displayed){dashContext.fillStyle='#0b1015';dashContext.fillRect(0,0,512,128);dashContext.strokeStyle='#88c8d2';dashContext.lineWidth=3;dashContext.strokeRect(3,3,506,122);dashContext.fillStyle='#d6f2f1';dashContext.font='600 83px monospace';dashContext.textAlign='center';dashContext.fillText(String(kmh),256,87);dashContext.font='16px sans-serif';dashContext.fillText('km/h  ·  AUTOVÍA VRS',256,116);dashTexture.needsUpdate=true;displayed=kmh;}base.copy(dummy.matrix);dummy.position.set(0,.987,-.97);dummy.rotation.set(-.12,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();dashboard.matrix.multiplyMatrices(base,dummy.matrix);dashboard.matrixWorldNeedsUpdate=true;}
+   if(player){dashboard.visible=view==='driver';const kmh=Math.round((player.speed||0)*3.6);if(kmh!==displayed){dashContext.fillStyle='#0b1015';dashContext.fillRect(0,0,512,128);dashContext.strokeStyle='#88c8d2';dashContext.lineWidth=3;dashContext.strokeRect(3,3,506,122);dashContext.fillStyle='#d6f2f1';dashContext.font='600 83px monospace';dashContext.textAlign='center';dashContext.fillText(String(kmh),256,87);dashContext.font='16px sans-serif';dashContext.fillText('km/h  ·  AUTOVÍA VRS',256,116);dashTexture.needsUpdate=true;displayed=kmh;}base.copy(dummy.matrix);dummy.position.set(0,1.09,-.835);dummy.rotation.set(-.12,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();dashboard.matrix.multiplyMatrices(base,dummy.matrix);dashboard.matrixWorldNeedsUpdate=true;}
    for(const m of [...b.body,...b.wheels.flat(),...b.interior]){m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;}
   }
  }
