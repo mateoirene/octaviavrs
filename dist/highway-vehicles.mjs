@@ -1,0 +1,90 @@
+import * as T from './vendor/three.module.js';
+import {GLTFLoader} from './vendor/GLTFLoader.js';
+import {mergeGeometries} from './vendor/BufferGeometryUtils.js';
+
+const palette=['#163d65','#d5d8d6','#7c2830','#373c42','#bdab8a','#1d655f'];
+function cleanGeometry(mesh,matrix){
+ const g=mesh.geometry.index?mesh.geometry.toNonIndexed():mesh.geometry.clone();g.applyMatrix4(matrix);
+ for(const name of Object.keys(g.attributes))if(!['position','normal','uv','uv1'].includes(name))g.deleteAttribute(name);
+ if(!g.attributes.normal)g.computeVertexNormals();
+ for(const name of ['uv','uv1'])if(!g.attributes[name])g.setAttribute(name,new T.BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
+ return g;
+}
+function joinGroups(items){
+ const groups=new Map();for(const {geometry,material}of items){const key=material.uuid;if(!groups.has(key))groups.set(key,{material,geometries:[]});groups.get(key).geometries.push(geometry);}
+ return [...groups.values()].map(({material,geometries})=>{const geometry=mergeGeometries(geometries,false);geometries.forEach(g=>g.dispose());return {geometry,material};});
+}
+function fitImage(texture,limit){const im=texture?.image;if(!im||Math.max(im.width,im.height)<=limit)return;const c=document.createElement('canvas'),k=limit/Math.max(im.width,im.height);c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);texture.image=c;texture.needsUpdate=true;}
+
+export async function loadVehicleTemplates(profile){
+ const loader=new GLTFLoader(),files=await Promise.all(['car-concept.glb','sedan.glb'].map(n=>loader.loadAsync('assets/highway/'+n)));
+ const resources={geometries:new Set(),materials:new Set(),textures:new Set()},templates=[];
+ for(let type=0;type<files.length;type++){
+  const source=files[type].scene,holder=new T.Group();holder.add(source);
+  // Car Concept's documented forward axis is +Z; the sedan is checked from its lamp positions below.
+  holder.rotation.y=Math.PI;
+  holder.updateMatrixWorld(true);let bounds=new T.Box3().setFromObject(holder),size=bounds.getSize(new T.Vector3());
+  if(type===1&&size.x>size.z){holder.rotation.y=Math.PI/2;holder.updateMatrixWorld(true);bounds.setFromObject(holder);size=bounds.getSize(size);}
+  const scale=(type===0?4.65:4.7)/size.z;holder.scale.setScalar(scale);holder.updateMatrixWorld(true);bounds.setFromObject(holder);const center=bounds.getCenter(new T.Vector3());holder.position.set(-center.x,-bounds.min.y,-center.z);holder.updateMatrixWorld(true);
+  const materialCache=new Map();
+  function adapt(original){
+   if(materialCache.has(original.uuid))return materialCache.get(original.uuid);
+   // Transmission would add an expensive scene render for every windshield. Standard transparent glass keeps the interior visible.
+   const glass=/glass/i.test(original.name),paint=/Paint 1|^blue$/i.test(original.name);
+   const mat=new T.MeshStandardMaterial({name:original.name,color:original.color,metalness:original.metalness||0,roughness:Math.max(.18,original.roughness??.6),map:original.map,normalMap:original.normalMap,roughnessMap:original.roughnessMap,metalnessMap:original.metalnessMap,aoMap:original.aoMap,aoMapIntensity:original.aoMapIntensity,emissive:original.emissive,emissiveMap:original.emissiveMap,emissiveIntensity:original.emissiveIntensity||0,side:original.side});
+   if(paint){mat.color.set('#ffffff');mat.metalness=.72;mat.roughness=.24;mat.userData.paint=true;}
+   if(glass){mat.color.set('#96c2d4');mat.metalness=.12;mat.roughness=.13;mat.transparent=true;mat.opacity=type===0?.19:.72;mat.depthWrite=false;}
+   if(/Brakelight|^tail$/i.test(mat.name)){mat.emissive.set('#ff2011');mat.emissiveIntensity=.6;mat.userData.brake=true;}
+   if(/Headlight|^lamp$/i.test(mat.name)){mat.emissive.set('#fff0d0');mat.emissiveIntensity=.65;}
+   for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(mat[key]){fitImage(mat[key],profile.mobile?1024:2048);resources.textures.add(mat[key]);}
+   resources.materials.add(mat);materialCache.set(original.uuid,mat);return mat;
+  }
+  const wheelRoots=type===0?['WheelFrontL','WheelFrontR','WheelRearL','WheelRearR'].map(n=>source.getObjectByName(n)):[];
+  const wheelCenters=type===0?wheelRoots.map(n=>n.getWorldPosition(new T.Vector3())):[];
+  if(type===1){
+   const tyres=[];source.traverse(n=>{if(n.isMesh&&/tire/i.test(n.name))tyres.push(new T.Box3().setFromObject(n).getCenter(new T.Vector3()));});
+   tyres.sort((a,b)=>a.z-b.z||a.x-b.x);wheelCenters.push(...tyres);
+  }
+  if(wheelCenters.length!==4)throw Error('El modelo debe tener cuatro ruedas identificables');
+  const body=[],interior=[],wheels=[[],[],[],[]];
+  source.traverse(mesh=>{
+   if(!mesh.isMesh)return;
+   resources.geometries.add(mesh.geometry);
+   let wheel=-1;
+   if(type===0){let parent=mesh;while(parent&&parent!==holder){const i=wheelRoots.indexOf(parent);if(i>=0){wheel=i;break;}parent=parent.parent;}}
+   else if(/(?:Front|Rear)_(?:tire|rim|hub|spoke|brake)/i.test(mesh.name)){const c=new T.Box3().setFromObject(mesh).getCenter(new T.Vector3());wheel=wheelCenters.reduce((a,b,i)=>c.distanceToSquared(b)<c.distanceToSquared(wheelCenters[a])?i:a,0);}
+   const parts=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+   // GLTFLoader material primitives are separate meshes in these assets.
+   const material=adapt(parts[0]),g=cleanGeometry(mesh,mesh.matrixWorld);
+   if(wheel>=0){g.translate(-wheelCenters[wheel].x,-wheelCenters[wheel].y,-wheelCenters[wheel].z);wheels[wheel].push({geometry:g,material});}
+   else if(type===0&&/Interior|Engine|Axles/i.test(mesh.name))interior.push({geometry:g,material});
+   else body.push({geometry:g,material});
+  });
+  const template={body:joinGroups(body),interior:joinGroups(interior),wheels:wheels.map(joinGroups),wheelCenters,type,source: type===0?'Car Concept · CC BY 4.0':'Sedan Innerscene · CC0'};
+  for(const part of [...template.body,...template.interior,...template.wheels.flat()])resources.geometries.add(part.geometry);
+  templates.push(template);
+ }
+ return {templates,resources};
+}
+
+export function createVehicleFleet(scene,templates,max=19){
+ const dummy=new T.Object3D(),base=new T.Matrix4(),wheelMatrix=new T.Matrix4(),rotation=new T.Quaternion(),roll=new T.Quaternion(),axisX=new T.Vector3(1,0,0),axisY=new T.Vector3(0,1,0),color=new T.Color();
+ const batches=templates.map(template=>{
+  function batch(part,count){const m=new T.InstancedMesh(part.geometry,part.material,count);m.instanceMatrix.setUsage(T.DynamicDrawUsage);m.frustumCulled=false;scene.add(m);return m;}
+  return {template,body:template.body.map(p=>batch(p,max)),interior:template.interior.map(p=>batch(p,1)),wheels:template.wheels.map(parts=>parts.map(p=>batch(p,max)))};
+ });
+ function update(vehicles,view){
+  for(const b of batches){const cars=vehicles.filter(c=>c.type===b.template.type);for(const m of [...b.body,...b.wheels.flat()])m.count=cars.length;
+   for(let i=0;i<cars.length;i++){
+    const car=cars[i];dummy.position.set(car.x,car.y+(car.bounce||0),car.z);dummy.rotation.set(car.pitch||0,car.angle,car.roll||0);dummy.scale.setScalar(car.scale||1);dummy.updateMatrix();base.copy(dummy.matrix);
+    for(const m of b.body){m.setMatrixAt(i,base);if(m.material.userData.paint)m.setColorAt(i,color.set(car.player?'#1d638f':palette[car.id%palette.length]));}
+    for(let j=0;j<4;j++){
+     const c=b.template.wheelCenters[j];dummy.position.copy(c);dummy.scale.setScalar(1);rotation.setFromAxisAngle(axisY,c.z<0?(car.steering||0)*.36:0);roll.setFromAxisAngle(axisX,-car.distance/.36);dummy.quaternion.copy(rotation).multiply(roll);dummy.updateMatrix();wheelMatrix.multiplyMatrices(base,dummy.matrix);for(const m of b.wheels[j])m.setMatrixAt(i,wheelMatrix);
+    }
+   }
+   const player=cars.find(c=>c.player);for(const m of b.interior){m.visible=!!player&&(view==='driver'||view==='chase');if(player){dummy.position.set(player.x,player.y+(player.bounce||0),player.z);dummy.rotation.set(player.pitch||0,player.angle,player.roll||0);dummy.scale.setScalar(1);dummy.updateMatrix();m.setMatrixAt(0,dummy.matrix);}}
+   for(const m of [...b.body,...b.wheels.flat(),...b.interior]){m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;}
+  }
+ }
+ return {update,meshes:batches.flatMap(b=>[...b.body,...b.interior,...b.wheels.flat()]),setLights(brake,night){for(const t of templates)for(const p of [...t.body,...t.interior]){if(p.material.userData.brake)p.material.emissiveIntensity=brake?4:night?1.2:.45;}},dispose(){for(const b of batches)for(const m of [...b.body,...b.wheels.flat(),...b.interior]){scene.remove(m);m.dispose();}}};
+}

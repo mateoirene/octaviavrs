@@ -1,65 +1,89 @@
 import * as T from './vendor/three.module.js';
-import {createOctavia,rollVehicle} from './racing-vehicles3d.mjs?v=20261028-tesla-glb';
+import {HDRLoader} from './vendor/HDRLoader.js';
 import {roadFrame,ROAD_HALF,TRAFFIC_LIMIT} from './highway-physics.mjs';
+import {loadVehicleTemplates,createVehicleFleet} from './highway-vehicles.mjs';
 import {currentGraphicsProfile,bufferPixelRatio,createResolutionBudget} from './racing-render-budget.mjs?v=20261109-mobile';
 
-export function createHighwayWorld(host){
- const profile=currentGraphicsProfile(),budget=createResolutionBudget(profile);
- const renderer=new T.WebGLRenderer({antialias:profile.antialias,powerPreference:'default'});
- renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;
- renderer.setClearColor('#91b6cc');host.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Autovía tridimensional del club');
- const scene=new T.Scene();scene.fog=new T.Fog('#91b6cc',210,560);
- scene.add(new T.HemisphereLight('#dfedff','#72704a',2.5));const sun=new T.DirectionalLight('#fff1ce',3);sun.position.set(-70,100,-80);scene.add(sun);
- const camera=new T.PerspectiveCamera(59,1,.12,800),target=new T.Vector3(),matrix=new T.Matrix4(),dummy=new T.Object3D();
- const materials=[],geometries=[],textures=[];
- const material=(color,extra={})=>{const m=new T.MeshStandardMaterial({color,roughness:.88,...extra});materials.push(m);return m;};
- const box=new T.BoxGeometry(1,1,1);geometries.push(box);
- function mesh(geo,mat){const m=new T.Mesh(geo,mat);scene.add(m);return m;}
- function instances(geo,mat,count){const m=new T.InstancedMesh(geo,mat,count);m.instanceMatrix.setUsage(T.DynamicDrawUsage);m.frustumCulled=false;scene.add(m);return m;}
- function put(m,i,x,y,z,sx,sy,sz,angle=0){dummy.position.set(x,y,z);dummy.scale.set(sx,sy,sz);dummy.rotation.set(0,angle,0);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);}
- // Original asphalt texture: a small deterministic canvas, no remote assets.
- const textureCanvas=document.createElement('canvas');textureCanvas.width=textureCanvas.height=128;const ctx=textureCanvas.getContext('2d'),pixels=ctx.createImageData(128,128);
- for(let i=0;i<pixels.data.length;i+=4){const c=48+((i*13^(i>>5))%15);pixels.data.set([c,c+2,c+3,255],i);}ctx.putImageData(pixels,0,0);
- const asphaltTexture=new T.CanvasTexture(textureCanvas);asphaltTexture.wrapS=asphaltTexture.wrapT=T.RepeatWrapping;asphaltTexture.colorSpace=T.SRGBColorSpace;textures.push(asphaltTexture);
+export async function createHighwayWorld(host){
+ const profile=currentGraphicsProfile(),budget=createResolutionBudget(profile),renderer=new T.WebGLRenderer({antialias:!profile.mobile,powerPreference:'high-performance'});
+ renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
+ host.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Carretera, vehículos e interior tridimensionales');
+ const scene=new T.Scene(),roadScene=new T.Group();scene.add(roadScene);scene.fog=new T.Fog('#a4b5b8',180,650);
+ const hemi=new T.HemisphereLight('#dcecff','#68634c',1.6),sun=new T.DirectionalLight('#ffefdb',3);sun.position.set(-130,180,-150);scene.add(hemi,sun);
+ const camera=new T.PerspectiveCamera(58,1,.08,1000),dummy=new T.Object3D(),target=new T.Vector3(),desired=new T.Vector3(),look=new T.Vector3();
+ const geometries=new Set(),materials=new Set(),textures=new Set(),instances=[];
+ let templates,resources,sky,environment,disposed=false,lost=false,first=true,width=1,height=1,timeOfDay='day',lastTime=0,lastDistance=0,anchor=null,frameCount=0,fpsAt=0,lastView='',cameraTransition=1;
+ try{
+  const data=await loadVehicleTemplates(profile);templates=data.templates;resources=data.resources;
+  sky=await new HDRLoader().loadAsync('assets/track3d/sky.hdr');sky.mapping=T.EquirectangularReflectionMapping;const pmrem=new T.PMREMGenerator(renderer);environment=pmrem.fromEquirectangular(sky);pmrem.dispose();scene.environment=environment.texture;scene.background=sky;scene.backgroundBlurriness=.025;
+ }catch(error){renderer.dispose();renderer.domElement.remove();throw error;}
+ const fleet=createVehicleFleet(scene,templates,TRAFFIC_LIMIT+1);
+ const loader=new T.TextureLoader(),maps=await Promise.all(['asphalt-color.jpg','asphalt-normal.jpg','asphalt-rough.jpg'].map(n=>loader.loadAsync('assets/track3d/'+n)));
+ for(const [i,map]of maps.entries()){map.wrapS=map.wrapT=T.RepeatWrapping;map.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());if(i===0)map.colorSpace=T.SRGBColorSpace;textures.add(map);}
+ const mat=(color,extra={})=>{const m=new T.MeshStandardMaterial({color,roughness:.9,...extra});materials.add(m);return m;};
+ const box=new T.BoxGeometry(1,1,1);geometries.add(box);
+ function batch(geometry,material,count,parent=roadScene){geometries.add(geometry);const m=new T.InstancedMesh(geometry,material,count);m.instanceMatrix.setUsage(T.DynamicDrawUsage);m.frustumCulled=false;parent.add(m);instances.push(m);return m;}
+ function put(m,i,p,size=[1,1,1],angle=0,pitch=0){dummy.position.set(...p);dummy.rotation.set(pitch,angle,0);dummy.scale.set(...size);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);}
+ function canvasTexture(w,h,paint){const c=document.createElement('canvas');c.width=w;c.height=h;paint(c.getContext('2d'),w,h);const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;textures.add(texture);return texture;}
+ const leafTexture=canvasTexture(256,384,(c,w,h)=>{c.fillStyle='#715c40';c.fillRect(123,180,10,204);let seed=5;for(let i=0;i<260;i++){seed=(seed*16807)%2147483647;const a=seed/2147483647*6.283,r=Math.sqrt((i%73)/73),x=128+Math.cos(a)*r*113,y=140+Math.sin(a)*r*133;c.fillStyle=['#304d30','#48663a','#5c7741','#72854a'][i%4];c.beginPath();c.ellipse(x,y,12+i%12,10+i%8,a,0,6.283);c.fill();}});
+ const leafMat=mat('#d8e4b6',{map:leafTexture,alphaTest:.45,side:T.DoubleSide,roughness:1});
+ const treeGeo=new T.PlaneGeometry(1,1),trees=batch(treeGeo,leafMat,160);
+ const wallTexture=canvasTexture(256,256,(c,w,h)=>{c.fillStyle='#c3b6a2';c.fillRect(0,0,w,h);for(let y=18;y<h;y+=42)for(let x=10;x<w;x+=42){c.fillStyle='#ddd3c3';c.fillRect(x-3,y-3,27,31);c.fillStyle='#48636b';c.fillRect(x,y,21,25);c.fillStyle='#a6b8b9';c.fillRect(x+10,y,2,25);}});wallTexture.wrapS=wallTexture.wrapT=T.RepeatWrapping;
+ const buildings=batch(box,mat('#d0c9b9',{map:wallTexture}),24),roofs=batch(new T.ConeGeometry(1,1,4),mat('#866957'),24);
+ const signTexture=canvasTexture(512,192,(c,w,h)=>{c.fillStyle='#1b655e';c.fillRect(0,0,w,h);c.strokeStyle='#eef0df';c.lineWidth=6;c.strokeRect(8,8,w-16,h-16);c.fillStyle='#fff';c.textAlign='center';c.font='bold 34px sans-serif';c.fillText('AUTOVÍA · OCTAVIA VRS',w/2,66);c.font='29px sans-serif';c.fillText('↑  Club Catalunya   2 km',w/2,120);c.font='22px sans-serif';c.fillText('Conducción libre',w/2,157);});
+ const signs=batch(box,mat('#ffffff',{map:signTexture}),6),posts=batch(box,mat('#8c9695',{metalness:.65}),166);
+ const railShape=new T.Shape();railShape.moveTo(-.11,0);railShape.lineTo(-.16,.1);railShape.lineTo(-.1,.2);railShape.lineTo(-.16,.3);railShape.lineTo(-.11,.4);railShape.lineTo(.03,.4);railShape.lineTo(.03,0);railShape.closePath();
+ const railGeo=new T.ExtrudeGeometry(railShape,{depth:4.05,bevelEnabled:false,steps:1});railGeo.translate(0,0,-2);
+ const rails=batch(railGeo,mat('#b9c4c3',{metalness:.75,roughness:.4}),320);
+ const marks=batch(box,mat('#ede8d7',{roughness:.86}),320);
+ const bridgeDeck=batch(box,mat('#9c9a8f',{roughness:.93}),2),bridgePillars=batch(box,mat('#92978f'),8),bridgeRails=batch(box,mat('#87928f',{metalness:.4}),8);
+ const archGeo=new T.CylinderGeometry(8.5,8.5,4.1,24,1,true,0,Math.PI);archGeo.rotateX(Math.PI/2);archGeo.rotateZ(Math.PI/2);geometries.add(archGeo);
+ const tunnel=batch(archGeo,mat('#a3a196',{side:T.DoubleSide,roughness:.95}),36);
  const strips=[];
- function strip(left,right,mat){const g=new T.BufferGeometry(),positions=new Float32Array(161*6),uv=new Float32Array(161*4),indices=[];for(let i=0;i<=160;i++){uv.set([0,i/2,1,i/2],i*4);if(i<160){const n=i*2;indices.push(n,n+1,n+2,n+1,n+3,n+2);}}g.setAttribute('position',new T.BufferAttribute(positions,3).setUsage(T.DynamicDrawUsage));g.setAttribute('uv',new T.BufferAttribute(uv,2));g.setIndex(indices);geometries.push(g);const m=mesh(g,mat);m.frustumCulled=false;strips.push({g,left,right});}
- strip(-100,100,material('#788953'));strip(-8,8,material('#a69c86'));strip(-ROAD_HALF,ROAD_HALF,material('#aaaaaa',{map:asphaltTexture}));
- const markings=instances(box,material('#f6f2d5'),160),rails=instances(box,material('#aeb8b8',{metalness:.55}),160);
- const bodies=instances(box,material('#ffffff',{metalness:.35,roughness:.36}),TRAFFIC_LIMIT),cabins=instances(box,material('#233845',{metalness:.3,roughness:.2}),TRAFFIC_LIMIT),tails=instances(box,material('#ed3b2c',{emissive:'#8d1509'}),TRAFFIC_LIMIT*2);
- const wheelGeo=new T.CylinderGeometry(.33,.33,.22,8);wheelGeo.rotateZ(Math.PI/2);geometries.push(wheelGeo);const wheels=instances(wheelGeo,material('#171b20'),TRAFFIC_LIMIT*4);
- const shadowGeo=new T.PlaneGeometry(1,1);shadowGeo.rotateX(-Math.PI/2);geometries.push(shadowGeo);const shadows=instances(shadowGeo,new T.MeshBasicMaterial({color:'#17201c',transparent:true,opacity:.24,depthWrite:false}),TRAFFIC_LIMIT);materials.push(shadows.material);
- const treeGeo=new T.ConeGeometry(1,1,6);geometries.push(treeGeo);const trees=instances(treeGeo,material('#345c3c'),100),trunks=instances(box,material('#66513a'),100),buildings=instances(box,material('#d2c3a6'),18);
- const signs=instances(box,material('#196f65'),8),posts=instances(box,material('#acb8b5'),8);
- const signCanvas=document.createElement('canvas');signCanvas.width=512;signCanvas.height=160;const sc=signCanvas.getContext('2d');sc.fillStyle='#166c62';sc.fillRect(0,0,512,160);sc.strokeStyle='white';sc.lineWidth=6;sc.strokeRect(6,6,500,148);sc.fillStyle='white';sc.textAlign='center';sc.font='bold 32px sans-serif';sc.fillText('AUTOVÍA · CLUB VRS',256,60);sc.font='26px sans-serif';sc.fillText('↑  CONDUCCIÓN LIBRE  ↑',256,114);const signTexture=new T.CanvasTexture(signCanvas);signTexture.colorSpace=T.SRGBColorSpace;textures.push(signTexture);signs.material.map=signTexture;signs.material.needsUpdate=true;
- const player=createOctavia({paint:'blue'});scene.add(player);
- let width=1,height=1,disposed=false,lost=false,first=true,lastDistance=0,lastView='',lastTime=0,frames=0,frameStart=0;
- const onLost=e=>{e.preventDefault();lost=true;host.dataset.context='lost';host.dispatchEvent(new Event('highway-context-lost'));};
- const onRestore=()=>{lost=false;first=true;budget.reset();host.dataset.context='ready';host.dispatchEvent(new Event('highway-context-restored'));};
- renderer.domElement.addEventListener('webglcontextlost',onLost);renderer.domElement.addEventListener('webglcontextrestored',onRestore);
- function resize(){const b=host.getBoundingClientRect();width=Math.max(1,b.width);height=Math.max(1,b.height);renderer.setPixelRatio(bufferPixelRatio(profile,width,height,budget.quality,devicePixelRatio));renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}
- function point(s,x=0,lift=0,origin){const f=roadFrame(s);return [f.x-origin.x+x*f.right[0],f.y+lift,-(s-origin.s)+x*f.right[1]];}
- function render(state,view='chase',now=performance.now()){
-  if(disposed||lost)return;const origin=roadFrame(state.distance),base=Math.floor(state.distance/8)*8-48;
-  for(const {g,left,right}of strips){const a=g.attributes.position.array;for(let i=0;i<=160;i++){const s=base+i*4;for(const [j,x]of [left,right].entries()){const p=point(s,x,left===-100?-.12:left===-8?-.045:0,origin);a.set(p,i*6+j*3);}}g.attributes.position.needsUpdate=true;g.computeVertexNormals();}
-  for(let i=0;i<40;i++){const s=Math.floor(state.distance/16)*16-32+i*16,f=roadFrame(s);for(let j=0;j<4;j++){const x=[-5.2,-1.8,1.8,5.2][j],p=point(s,x,.025,origin);put(markings,i*4+j,...p,.12,.025,j===0||j===3?16:6,-f.heading);}}
-  for(let i=0;i<80;i++){const s=base+i*8,f=roadFrame(s);for(let side=0;side<2;side++){const p=point(s,side?7.6:-7.6,.65,origin);put(rails,i*2+side,...p,.16,.48,8.1,-f.heading);}}
-  for(let i=0;i<100;i++){const index=Math.floor(state.distance/22)-3+i,s=index*22,side=Math.abs(index%2)?1:-1,x=side*(14+Math.abs(Math.sin(index*7))*34),scale=3+Math.abs(Math.sin(index*3))*4,p=point(s,x,scale*.7,origin);put(trees,i,...p,scale,scale*1.6,scale);put(trunks,i,p[0],p[1]-scale*.7,p[2],.45,scale,.45);}
-  for(let i=0;i<18;i++){const index=Math.floor(state.distance/90)-2+i,s=index*90,p=point(s,(Math.abs(index%2)?1:-1)*(65+18*Math.sin(index)),5,origin);put(buildings,i,...p,10,10+6*Math.sin(index)**2,16);}
-  for(let i=0;i<8;i++){const s=(Math.floor(state.distance/160)-1+i)*160,p=point(s,9,5,origin);put(signs,i,...p,6,1.9,.15);put(posts,i,p[0],p[1]-2.5,p[2],.18,5,.18);}
-  const count=state.traffic.length;bodies.count=cabins.count=shadows.count=count;tails.count=count*2;wheels.count=count*4;
-  state.traffic.forEach((car,i)=>{const f=roadFrame(car.distance),p=point(car.distance,car.x,0,origin),angle=-f.heading,modelHeight=car.id%4===0?1.9:1.2;put(bodies,i,p[0],p[1]+.66,p[2],1.82,modelHeight,4.7,angle);put(cabins,i,p[0],p[1]+1.35,p[2]-.1,1.5,.65,2.4,angle);bodies.setColorAt(i,new T.Color(['#d8d6cc','#257eae','#a92e32','#c1a371','#59646c'][car.id%5]));put(shadows,i,p[0],p[1]+.015,p[2],2.1,1,5,angle);for(let j=0;j<4;j++){const side=j%2?1:-1,z=j<2?-1.45:1.45,x=p[0]+Math.cos(angle)*side*.87+Math.sin(angle)*z,zz=p[2]-Math.sin(angle)*side*.87+Math.cos(angle)*z;put(wheels,i*4+j,x,p[1]+.34,zz,1,1,1,angle);}for(let j=0;j<2;j++)put(tails,i*2+j,p[0]+(j?1:-1)*.64,p[1]+.9,p[2]+2.37,.35,.16,.06,angle);});
-  if(bodies.instanceColor)bodies.instanceColor.needsUpdate=true;
-  for(const m of [markings,rails,bodies,cabins,tails,wheels,trees,trunks,buildings,signs,posts,shadows])m.instanceMatrix.needsUpdate=true;
-  const p=point(state.distance,state.x,0,origin);player.position.set(...p);player.rotation.y=-origin.heading-state.steering*.035;player.visible=view==='chase';rollVehicle(player,Math.max(0,state.distance-lastDistance),state.steering);lastDistance=state.distance;
-  const back=view==='chase'?9:view==='bonnet'?1:-.45,lift=view==='chase'?3.5:view==='bonnet'?1.7:1.22;
-  const desired=new T.Vector3(p[0]-origin.dx*back,p[1]+lift,p[2]+back),look=point(state.distance+35,state.x,.9,origin),dt=Math.min(.1,(now-lastTime)/1000||1/60);lastTime=now;
-  if(first||lastView!==view){camera.position.copy(desired);target.set(...look);first=false;}else{const alpha=1-Math.exp(-dt*9);camera.position.lerp(desired,alpha);target.lerp(new T.Vector3(...look),alpha);}
-  lastView=view;camera.lookAt(target);camera.fov=59+state.speed/MAX_SPEED_FOR_FOV*8;camera.updateProjectionMatrix();renderer.render(scene,camera);
-  const sample=budget.sample(now,state.phase==='running');if(sample?.changed)resize();
-  frames++;if(now-frameStart>1000){host.dataset.fps=String(Math.round(frames*1000/(now-frameStart)));frames=0;frameStart=now;}
-  host.dataset.drawCalls=String(renderer.info.render.calls);host.dataset.triangles=String(renderer.info.render.triangles);host.dataset.quality=budget.quality.toFixed(2);host.dataset.renderer='webgl2';
+ function strip(left,right,material,terrain=false){const count=161,across=terrain?33:2,positions=new Float32Array(count*across*3),uv=new Float32Array(count*across*2),ix=[];for(let i=0;i<count;i++)for(let j=0;j<across;j++){const k=i*across+j,x=left+(right-left)*j/(across-1);uv.set([terrain?x/40:x/4,i],k*2);if(i<count-1&&j<across-1)ix.push(k,k+1,k+across,k+1,k+across+1,k+across);}const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(positions,3).setUsage(T.DynamicDrawUsage));g.setAttribute('uv',new T.BufferAttribute(uv,2));g.setIndex(ix);const m=new T.Mesh(g,material);m.frustumCulled=false;roadScene.add(m);geometries.add(g);strips.push({g,left,right,across,terrain});}
+ strip(-300,300,mat('#68785b'),true);strip(-7.3,7.3,mat('#9b9987',{map:maps[0],roughness:1}));strip(-ROAD_HALF,ROAD_HALF,mat('#cccccc',{map:maps[0],normalMap:maps[1],roughnessMap:maps[2],normalScale:new T.Vector2(.55,.55),roughness:.94}));
+ const shadowTexture=canvasTexture(128,256,(c,w,h)=>{const g=c.createRadialGradient(w/2,h/2,5,w/2,h/2,h/2);g.addColorStop(0,'#0000009a');g.addColorStop(.5,'#00000066');g.addColorStop(1,'#00000000');c.fillStyle=g;c.fillRect(0,0,w,h);});
+ const shadowGeo=new T.PlaneGeometry(1,1);shadowGeo.rotateX(-Math.PI/2);const shadows=batch(shadowGeo,new T.MeshBasicMaterial({map:shadowTexture,transparent:true,opacity:.65,depthWrite:false}),TRAFFIC_LIMIT+1,scene);materials.add(shadows.material);
+ const headlights=new T.SpotLight('#fff2d4',0,110,.32,.65,1.4);scene.add(headlights,headlights.target);
+ function point(s,x=0,lift=0,o=anchor){const f=roadFrame(s);return [f.x-o.x+x*f.right[0],f.y+lift+(f.bank||0)*x,-(s-o.s)+x*f.right[1]];}
+ function terrainHeight(s,x){const f=roadFrame(s);return f.y-.18+Math.max(0,Math.abs(x)-13)*(.09+.055*Math.sin(s/89+x/50))+Math.max(0,Math.abs(x)-18)/12*Math.sin(s/34+x/18);}
+ function rebuild(distance){
+  anchor=roadFrame(Math.floor(distance/8)*8);const start=anchor.s-48;
+  for(const {g,left,right,across,terrain}of strips){const a=g.attributes.position.array;for(let i=0;i<=160;i++){const s=start+i*4;for(let j=0;j<across;j++){const x=left+(right-left)*j/(across-1),p=point(s,x,left===-7.3?-.04:0);if(terrain)p[1]=terrainHeight(s,x);a.set(p,(i*across+j)*3);}}g.attributes.position.needsUpdate=true;g.computeVertexNormals();}
+  for(let i=0;i<80;i++){const s=Math.floor(distance/8)*8-48+i*8,f=roadFrame(s);for(let j=0;j<4;j++){const x=[-5.18,-1.8,1.8,5.18][j];put(marks,i*4+j,point(s,x,.018),[.12,.016,j===0||j===3?8.04:3.5],-f.heading,-Math.atan(f.grade||0));}}
+  for(let i=0;i<160;i++){const s=start+i*4,f=roadFrame(s);for(let side=0;side<2;side++)put(rails,i*2+side,point(s,side?7.1:-7.1,.48),[1,1,1],-f.heading,-Math.atan(f.grade||0));}
+  for(let i=0;i<160;i++){const s=Math.floor(distance/8)*8-48+Math.floor(i/2)*8;put(posts,i,point(s,i%2?7.1:-7.1,.4),[.12,.8,.12]);}
+  for(let i=0;i<80;i++){const index=Math.floor(distance/8)-7+i,s=index*8,side=Math.abs(index%2)?1:-1,x=side*(14+Math.abs(Math.sin(index*7))*32),h=5+Math.abs(Math.sin(index*3))*5,p=point(s,x);p[1]=terrainHeight(s,x)+h/2;put(trees,i*2,p,[h*.85,h,1],.2+index%3);put(trees,i*2+1,p,[h*.85,h,1],Math.PI/2+.2+index%3);}
+  for(let i=0;i<24;i++){const n=Math.floor(distance/32)-3+i,s=n*32,x=(n%2?1:-1)*(60+Math.abs(Math.sin(n))*42),h=5+Math.abs(Math.sin(n*5))*11,p=point(s,x);p[1]=terrainHeight(s,x)+h/2;put(buildings,i,p,[12,h,15],.2);put(roofs,i,[p[0],p[1]+h/2+1,p[2]],[9,2,11],Math.PI/4+.2);}
+  for(let i=0;i<6;i++){const s=(Math.floor(distance/120)-1+i)*120,f=roadFrame(s),p=point(s,9.8,5);put(signs,i,p,[6,2.25,.12],-f.heading);put(posts,160+i,[p[0],p[1]-2.5,p[2]],[.14,5,.14]);}
+  for(let i=0;i<2;i++){const s=(Math.floor(distance/630)+i)*630+220,f=roadFrame(s),p=point(s,0,6);put(bridgeDeck,i,p,[42,.7,9],-f.heading);for(let j=0;j<4;j++){put(bridgePillars,i*4+j,point(s+(j%2?3:-3),j<2?-13:13,2.9),[1.3,5.8,1.3],-f.heading);put(bridgeRails,i*4+j,point(s+(j%2?4:-4),j<2?-10:10,6.7),[20,.8,.15],-f.heading);}}
+  const tunnelStart=Math.floor(distance/1600)*1600+900;for(let i=0;i<36;i++){const s=tunnelStart+i*4,f=roadFrame(s);put(tunnel,i,point(s,0,.1),[1,1,1],-f.heading);}
+  for(const m of instances)m.instanceMatrix.needsUpdate=true;
  }
+ function resize(){const r=host.getBoundingClientRect();width=Math.max(1,r.width);height=Math.max(1,r.height);renderer.setPixelRatio(bufferPixelRatio(profile,width,height,budget.quality,devicePixelRatio));renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}
+ function render(state,view='chase',now=performance.now()){
+  if(disposed||lost)return;const origin=roadFrame(state.distance),dt=Math.min(.1,(now-lastTime)/1000||1/60);lastTime=now;
+  if(!anchor||Math.abs(state.distance-anchor.s)>=8)rebuild(state.distance);roadScene.position.set(anchor.x-origin.x,0,state.distance-anchor.s);
+  const p=point(state.distance,state.x,0,origin),suspension=Math.sin(state.distance*2.1)*Math.min(.016,state.speed*.0004),rollAngle=-(state.lateralAccel||0)*.006,pitch=(state.acceleration||0)*.003;
+  const vehicles=[{player:true,id:0,type:0,x:p[0],y:p[1],z:p[2],angle:-origin.heading-(state.yaw||0),pitch:-Math.atan(origin.grade||0)+pitch,roll:rollAngle,bounce:suspension,distance:state.distance,steering:state.steering}];
+  for(const car of state.traffic){const gap=car.distance-state.distance;if(gap>300||gap< -35)continue;const f=roadFrame(car.distance),a=point(car.distance,car.x,0,origin);vehicles.push({id:car.id,type:car.id%3===0?0:1,x:a[0],y:a[1],z:a[2],angle:-f.heading-(car.lateralSpeed||0)/Math.max(8,car.speed),pitch:-Math.atan(f.grade||0),scale:car.id%3===0?.98:1,distance:car.distance,steering:(car.lateralSpeed||0)*.3});}
+  fleet.update(vehicles,view);fleet.setLights(state.braking,timeOfDay==='night');
+  shadows.count=vehicles.length;vehicles.forEach((v,i)=>put(shadows,i,[v.x,v.y+.022,v.z],[2.7,1,5.5],v.angle));shadows.instanceMatrix.needsUpdate=true;
+  const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:6.2,lift:7.3,ahead:13,aim:0,fov:53},driver:{back:.24,lift:.91,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
+  const pose=poses[view]||poses.chase;
+  desired.set(p[0]-origin.dx*pose.back,p[1]+pose.lift+suspension*.25,p[2]+pose.back);const lp=point(state.distance+pose.ahead,state.x,pose.aim,origin);look.set(...lp);
+  if(first||Math.abs(state.distance-lastDistance)>100){camera.position.copy(desired);target.copy(look);first=false;}else{camera.position.x-=origin.x-roadFrame(lastDistance).x;camera.position.z+=state.distance-lastDistance;target.x-=origin.x-roadFrame(lastDistance).x;target.z+=state.distance-lastDistance;const alpha=1-Math.exp(-dt*(view==='driver'?14:7));camera.position.lerp(desired,alpha);target.lerp(look,alpha);}
+  if(lastView!==view){cameraTransition=0;lastView=view;}cameraTransition=Math.min(1,cameraTransition+dt*3);lastDistance=state.distance;
+  camera.lookAt(target);camera.fov+=(pose.fov+state.speed/(230/3.6)*5-camera.fov)*(1-Math.exp(-dt*5));camera.updateProjectionMatrix();
+  headlights.intensity=timeOfDay==='night'?65:0;headlights.position.set(p[0],p[1]+.65,p[2]-1.6);const aim=point(state.distance+70,state.x,0,origin);headlights.target.position.set(...aim);
+  renderer.render(scene,camera);const sample=budget.sample(now,state.phase==='running');if(sample?.changed)resize();
+  if(!fpsAt)fpsAt=now;frameCount++;if(now-fpsAt>=1000){host.dataset.fps=String(Math.round(frameCount*1000/(now-fpsAt)));fpsAt=now;frameCount=0;}
+  Object.assign(host.dataset,{renderer:'webgl2',drawCalls:String(renderer.info.render.calls),triangles:String(renderer.info.render.triangles),quality:budget.quality.toFixed(2),vehicleSource:'licensed-gltf',visibleTraffic:String(vehicles.length-1),camera:view,modelName:'Car Concept provisional',memoryGeometries:String(renderer.info.memory.geometries),memoryTextures:String(renderer.info.memory.textures),timeOfDay});
+ }
+ function setTimeOfDay(value){timeOfDay=['day','sunset','night'].includes(value)?value:'day';const night=timeOfDay==='night',sunset=timeOfDay==='sunset';sun.color.set(sunset?'#ffb36c':'#fff0db');sun.intensity=night?.05:sunset?1.8:3;hemi.intensity=night?.16:sunset?.95:1.6;scene.background=night?new T.Color('#071020'):sky;scene.backgroundIntensity=sunset?.65:1;scene.environmentIntensity=night?.18:sunset?.7:1;scene.fog.color.set(night?'#0c1723':sunset?'#ae998a':'#a4b5b8');renderer.toneMappingExposure=night?.9:1.05;}
+ function onLost(e){e.preventDefault();lost=true;host.dataset.context='lost';host.dispatchEvent(new Event('highway-context-lost'));}
+ function onRestore(){lost=false;first=true;budget.reset();host.dataset.context='ready';host.dispatchEvent(new Event('highway-context-restored'));}
+ renderer.domElement.addEventListener('webglcontextlost',onLost);renderer.domElement.addEventListener('webglcontextrestored',onRestore);
  const observer=new ResizeObserver(resize);observer.observe(host);resize();
- return {render,resize,get ready(){return !lost&&!disposed;},canvas:renderer.domElement,dispose(){if(disposed)return;disposed=true;observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',onLost);renderer.domElement.removeEventListener('webglcontextrestored',onRestore);const gs=new Set(geometries),ms=new Set(materials);player.traverse(m=>{if(m.geometry)gs.add(m.geometry);for(const mat of (Array.isArray(m.material)?m.material:[m.material]).filter(Boolean))ms.add(mat);});player.userData.disposeMaterials?.();for(const g of gs)g.dispose();for(const m of ms){m.map?.dispose();m.dispose();}for(const t of textures)t.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();}};
+ return {render,resize,setTimeOfDay,resetCamera(){first=true;},get ready(){return !lost&&!disposed;},canvas:renderer.domElement,dispose(){if(disposed)return;disposed=true;observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',onLost);renderer.domElement.removeEventListener('webglcontextrestored',onRestore);fleet.dispose();for(const g of [...geometries,...resources.geometries])g.dispose();for(const m of [...materials,...resources.materials])m.dispose();for(const t of [...textures,...resources.textures])t.dispose();sky.dispose();environment.dispose();for(const i of instances)i.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();}};
 }
-const MAX_SPEED_FOR_FOV=230/3.6;
