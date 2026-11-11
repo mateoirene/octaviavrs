@@ -1,5 +1,5 @@
 import {nativeWebAnalytics} from './cloudflare-analytics-native.mjs';
-import { appendFileSync,writeFileSync } from 'node:fs';
+import { appendFileSync,writeFileSync,mkdirSync } from 'node:fs';
 
 const token = process.env.CLOUDFLARE_API_TOKEN;
 const account = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -34,7 +34,18 @@ try {
   const data = await response.json();
   const project = data.result;
   if (!data.success || project?.name !== 'octaviaap' || project.subdomain !== 'octaviaap.pages.dev') throw new Error('No se ha confirmado el proyecto octaviaap.pages.dev. No se publicará.');
+  if(process.env.PRESERVE_CLOUDFLARE_CONFIG==='true'){
+    // Static simulator updates must not provision analytics or mutate Pages config.
+    const beacon=project.build_config?.web_analytics_token;
+    if(/^[a-f0-9]{32}$/i.test(beacon||''))writeFileSync(new URL('../server/analytics-native.mjs',import.meta.url),'export const nativeAnalytics='+JSON.stringify({CF_ANALYTICS_TOKEN:beacon})+';'+String.fromCharCode(10));
+    console.log('Configuración Cloudflare conservada; sin aprovisionamiento de analítica.');
+  }else{
   const native=await nativeWebAnalytics({account,token,project});writeFileSync(new URL('../server/analytics-native.mjs',import.meta.url),'export const nativeAnalytics='+JSON.stringify(native.publicConfig)+';'+String.fromCharCode(10));console.log('CLOUDFLARE_WEB_ANALYTICS: '+native.state);summary('Cloudflare Web Analytics: '+native.state+'. Carga del beacon sujeta a consentimiento.');
+  }
+  if(!project.canonical_deployment?.id)throw Error('No se confirmó una publicación recuperable anterior.');
+  mkdirSync('artifacts',{recursive:true});
+  writeFileSync('artifacts/produccion-previa.json',JSON.stringify({project:project.name,deploymentId:project.canonical_deployment.id,url:project.canonical_deployment.url,branch:project.production_branch,commit:project.canonical_deployment.deployment_trigger?.metadata?.commit_hash},null,2));
+
   const branch = project.production_branch;
   if (typeof branch !== 'string' || !/^[A-Za-z0-9._/-]+$/.test(branch)) throw new Error('No se ha confirmado la rama de producción. No se publicará.');
   if (!process.env.GITHUB_OUTPUT) throw new Error('Este script debe ejecutarse dentro de GitHub Actions.');
