@@ -1,0 +1,28 @@
+name: Comprobar autovía sin publicar
+on:
+  push:
+    branches: [codex/highway-3d-20261111]
+  pull_request:
+    paths: ['dist/highway*', 'dist/racing.mjs', 'dist/simulador.html', 'tests/highway*', 'scripts/highway-browser-check.mjs', '.github/workflows/comprobar-autovia.yml']
+permissions:
+  contents: read
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/prepare-local-images.mjs
+      - run: node scripts/prepare-race-assets.mjs
+      - run: node scripts/prepare-track3d.mjs
+      - run: node --test tests/*.test.mjs
+      - run: node scripts/highway-browser-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pruebas-autovia
+          path: artifacts/autovia*
+          if-no-files-found: warn

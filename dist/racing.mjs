@@ -219,9 +219,17 @@ let resizeFrame=0;new ResizeObserver(()=>{cancelAnimationFrame(resizeFrame);resi
 
 fetch('assets/race/credits.json').then(response=>response.ok?response.json():[]).then(credits=>{const list=document.querySelector('[data-race-credits]');if(!list)return;for(const credit of credits.filter(item=>!['cockpit','rival'].includes(item.id))){const li=document.createElement('li'),link=document.createElement('a'),license=document.createElement('a');link.href=credit.source;link.textContent=credit.title+' — '+credit.author;link.target='_blank';link.rel='noopener noreferrer';license.href=credit.licenseUrl;license.textContent=credit.license;license.target='_blank';license.rel='noopener noreferrer';li.append(link,document.createTextNode(' · '),license,document.createTextNode('. '+credit.changes));list.append(li);}}).catch(()=>{});
 
-if(new URLSearchParams(location.search).get('render')!=='2d'){
- import('./racing-world3d.mjs?v=20261109-mobile').then(module=>module.createRacingWorld(stage)).then(world=>{if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}).catch(error=>{console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';});
-}else stage.dataset.renderer='2d-fallback';
+let circuitSuspended=false,circuitWorldLoading=false;
+async function loadCircuitWorld(){
+ if(circuitSuspended||world3d||circuitWorldLoading)return;
+ if(new URLSearchParams(location.search).get('render')==='2d'){stage.dataset.renderer='2d-fallback';return;}
+ circuitWorldLoading=true;
+ try{const module=await import('./racing-world3d.mjs?v=20261109-mobile');const world=await module.createRacingWorld(stage);if(circuitSuspended){world?.dispose();return;}if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;world.resize(width,height);draw();}
+ catch(error){console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';}
+ finally{circuitWorldLoading=false;if(!circuitSuspended&&!world3d&&stage.dataset.renderer!=='2d-fallback')void loadCircuitWorld();}
+}
+window.addEventListener('octavia-experience-change',event=>{circuitSuspended=event.detail.highway;if(circuitSuspended){leave();finishReplay.stop();world3d?.dispose();world3d=null;stage.dataset.renderer='suspended';}else{resize();void loadCircuitWorld();draw();}});
+void loadCircuitWorld();
 
 nitroBadge().then(()=>draw()).catch(()=>{});
 prepareAerialSurfaces().then(()=>draw()).catch(()=>{});
