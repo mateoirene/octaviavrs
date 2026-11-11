@@ -1,5 +1,15 @@
 # Evolución de Autovía · propuesta #23
 
+## Continuación: escenario y comprobación en el propio dispositivo
+
+Se añade terreno con la textura de césped existente del club (resolución limitada en móvil), fachadas con ventanas proporcionadas a la altura y color variable, pilares apoyados en el terreno y un túnel continuo con espesor en los portales. Se retiran las señales exteriores dentro del túnel para que no atraviesen sus paredes. La pintura conserva ahora la intensidad original del mapa de normales, reduciendo el brillo granulado excesivo. No se cambia el motor ni se añaden recursos de pago.
+
+El menú de Autovía permite **Medir rendimiento · 30 s**. Hay que arrancar o continuar primero y conducir treinta segundos activos; las pausas no cuentan y las demoras reales del renderizado sí. Al terminar, **Guardar medición** descarga un JSON local con FPS, percentil 95, fotogramas, GPU declarada, resolución y ajustes. No se envía al servidor ni contiene nombre de piloto, correo, identificadores personales o tokens. La identificación Android del navegador se registra como declarada, sin afirmar una prueba física por parte del agente.
+
+Cámara, calidad y ambiente se guardan en una clave local independiente de los récords del circuito. El audio sigue requiriendo una acción del usuario. Los ajustes dañados o un bloqueo del almacenamiento no impiden conducir.
+
+La continuación se respalda en `backup/pre-scenery-refinement-20261111`, con base remota `ef86ca0ba33e7d3c31cd3c993bf7e7941ec2d975`. Validación local: 165 pruebas antes del último caso de señalización, cinco pruebas nuevas de estructuras/sesión y una prueba posterior específica de señalización; CI repite toda la batería actual. Chrome con Intel UHD completó la medición de 30 s y el informe exportable: 29,93 FPS, percentil 95 de 33,4 ms, 898 intervalos. Sigue siendo GPU de escritorio con pantalla móvil emulada, no un Android físico. Se conservan las limitaciones de modelo provisional, dirección artística y falta de certificación a 60 FPS descritas al final de este documento.
+
 Se continúa en `codex/highway-3d-20261111`, sin fusionar `main`, alterar D1, modificar administración ni ejecutar el flujo de producción. La base de esta evolución queda recuperable en `backup/pre-professional-20261111` (remota) y en el ZIP `octaviavrs-antes-fase-A.zip`. El respaldo original anterior a toda la autovía también se conserva.
 
 ## Avances por fases
