@@ -1,0 +1,13 @@
+body[data-seasonal-theme]{--seasonal-accent:#ed383f;--seasonal-wash:#ed383f12}
+body[data-seasonal-theme="christmas"],body[data-seasonal-theme="new_year"]{--seasonal-accent:#d2b36d;--seasonal-wash:#b99a5612}
+body[data-seasonal-theme="halloween"]{--seasonal-accent:#e58a4c;--seasonal-wash:#e58a4c12}
+body[data-seasonal-theme="spring"],body[data-seasonal-theme="sant_jordi"]{--seasonal-accent:#c87975;--seasonal-wash:#c8797512}
+body[data-seasonal-theme="summer"],body[data-seasonal-theme="sant_joan"]{--seasonal-accent:#ddb85c;--seasonal-wash:#ddb85c12}
+body[data-seasonal-theme="autumn"]{--seasonal-accent:#c68553;--seasonal-wash:#c6855312}
+body[data-seasonal-theme="winter"]{--seasonal-accent:#9bb9cb;--seasonal-wash:#9bb9cb12}
+body[data-seasonal-theme="birthday"]{--seasonal-accent:#dd8ea6;--seasonal-wash:#dd8ea612}
+body[data-seasonal-theme="catalunya"]{--seasonal-accent:#d5ac62;--seasonal-wash:#d5ac6212}
+.seasonal-accent{min-height:30px;display:flex;align-items:center;justify-content:center;gap:12px;padding:5px 14px;border-bottom:1px solid color-mix(in srgb,var(--seasonal-accent) 25%,transparent);background:linear-gradient(90deg,transparent,var(--seasonal-wash),transparent);color:var(--seasonal-accent);font-size:10px;letter-spacing:.15em;text-align:center;text-transform:uppercase}
+.seasonal-accent strong{font-weight:700}
+.seasonal-accent-icon{font-size:13px;line-height:1}
+@media(max-width:600px){.seasonal-accent{min-height:28px;gap:9px;font-size:9px;letter-spacing:.12em}}
