@@ -34,10 +34,11 @@ export function stepRace(state,input,delta) {
   if (!dt) return {lap:false,finished:false};
   const before=[state,...state.rivals].map(car=>({distance:car.distance,x:car.x}));beforeNitroStep(state,input);
   const segment = state.track[Math.floor((state.distance % state.trackLength)/SEGMENT_LENGTH)];
-  const steering = (input.right?1:0)-(input.left?1:0);
+  const amount=v=>v===true?1:Number.isFinite(v)?Math.max(0,Math.min(1,v)):0;
+  const steering = amount(input.right)-amount(input.left);
   state.steering += (steering-state.steering)*Math.min(1,dt*10);
-  const boosted=playerNitro(state);const acceleration = input.accelerate ? 7.5*(1-state.speed/MAX_SPEED*.55) : -2.4;
-  state.speed = boosted?NITRO_SPEED:Math.max(0,Math.min(MAX_SPEED,state.speed+(acceleration-(input.brake?27:0))*dt));
+  const boosted=playerNitro(state);const acceleration = input.accelerate ? amount(input.accelerate)*7.5*(1-state.speed/MAX_SPEED*.55) : -2.4;
+  state.speed = boosted?NITRO_SPEED:Math.max(0,Math.min(MAX_SPEED,state.speed+(acceleration-amount(input.brake)*27)*dt));
   const speedRatio = state.speed/MAX_SPEED;
   state.x += (steering*(.8+1.35*speedRatio)*speedRatio-segment.curve*speedRatio*speedRatio*state.settings.grip)*dt;
   if(Math.abs(state.x)>1)stopNitro(state,'offroad','player');
