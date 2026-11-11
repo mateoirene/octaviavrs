@@ -3,6 +3,7 @@ import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {mergeGeometries} from './vendor/BufferGeometryUtils.js';
 import {HIGHWAY_MODELS} from './highway-models.mjs';
 import {createHighwayOctavia} from './highway-octavia.mjs';
+import {createTrafficDistanceTemplate} from './highway-traffic-lod.mjs';
 
 const palette=['#163d65','#d5d8d6','#7c2830','#373c42','#bdab8a','#1d655f'];
 function cleanGeometry(mesh,matrix){
@@ -75,6 +76,8 @@ export async function loadVehicleTemplates(profile){
   for(const m of originals){for(const v of Object.values(m))if(v?.isTexture&&!resources.textures.has(v))v.dispose();m.dispose();}
   for(const t of source.userData.ownedTextures||[])if(!resources.textures.has(t))t.dispose();
  }
+ const distant=createTrafficDistanceTemplate();templates.push(distant);
+ for(const p of [...distant.body,...distant.wheels.flat()]){resources.geometries.add(p.geometry);resources.materials.add(p.material);}
  return {templates,resources};
 }
 
