@@ -33,6 +33,7 @@ export async function loadVehicleTemplates(profile){
    // Transmission would add an expensive scene render for every windshield. Standard transparent glass keeps the interior visible.
    const glass=/glass/i.test(original.name),paint=/Paint 1|^blue$/i.test(original.name);
    const mat=new T.MeshStandardMaterial({name:original.name,color:original.color,metalness:original.metalness||0,roughness:Math.max(.18,original.roughness??.6),map:original.map,normalMap:original.normalMap,roughnessMap:original.roughnessMap,metalnessMap:original.metalnessMap,aoMap:original.aoMap,aoMapIntensity:original.aoMapIntensity,emissive:original.emissive,emissiveMap:original.emissiveMap,emissiveIntensity:original.emissiveIntensity||0,side:original.side});
+   mat.normalScale.copy(original.normalScale||new T.Vector2(1,1));
    if(paint){mat.color.set('#ffffff');mat.metalness=.72;mat.roughness=.24;mat.userData.paint=true;}
    if(glass){mat.color.set('#96c2d4');mat.metalness=.12;mat.roughness=.13;mat.transparent=true;mat.opacity=type===0?.19:.72;mat.depthWrite=false;}
    if(/Brakelight|^tail$/i.test(mat.name)){mat.emissive.set('#ff2011');mat.emissiveIntensity=.6;mat.userData.brake=true;}
