@@ -80,7 +80,10 @@ export async function createHighwayWorld(host){
   shadows.count=vehicles.length;vehicles.forEach((v,i)=>put(shadows,i,[v.x,v.y+.022,v.z],[2.7,1,5.5],v.angle,v.groundPitch||0,v.groundRoll||0));shadows.instanceMatrix.needsUpdate=true;
   const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:8.4,lift:7.3,ahead:3.2,aim:0,fov:56},driver:{...HIGHWAY_MODELS[0].driverEye,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
   const pose={...(poses[view]||poses.chase)};if(width/height<.8&&view==='chase'){pose.back=10.2;pose.lift=3.4;}
-  desired.set(p[0]-origin.dx*pose.back,p[1]+pose.lift+suspension*.25,p[2]+pose.back);const lp=point(state.distance+pose.ahead,state.x,pose.aim,origin);look.set(...lp);
+  // Crossing the body on a smoothed chase-to-cabin path exposes seats and
+  // clips the roof. Cut between interior/exterior; smooth exterior views.
+  if(lastView!==view&&(view==='driver'||lastView==='driver'))first=true;
+  const side=pose.side||0;desired.set(p[0]-origin.dx*pose.back+origin.right[0]*side,p[1]+pose.lift+suspension*.25,p[2]+pose.back+origin.right[1]*side);const lp=point(state.distance+pose.ahead,state.x+side,pose.aim,origin);look.set(...lp);
   if(first||Math.abs(state.distance-lastDistance)>100){camera.position.copy(desired);target.copy(look);first=false;}else{camera.position.x-=origin.x-roadFrame(lastDistance).x;camera.position.z+=state.distance-lastDistance;target.x-=origin.x-roadFrame(lastDistance).x;target.z+=state.distance-lastDistance;const alpha=1-Math.exp(-dt*(view==='driver'?14:7));camera.position.lerp(desired,alpha);target.lerp(look,alpha);}
   if(lastView!==view){cameraTransition=0;lastView=view;}cameraTransition=Math.min(1,cameraTransition+dt*3);lastDistance=state.distance;
   camera.lookAt(target);camera.fov+=(pose.fov+state.speed/(230/3.6)*5-camera.fov)*(1-Math.exp(-dt*5));camera.updateProjectionMatrix();
