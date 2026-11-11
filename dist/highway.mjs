@@ -11,7 +11,8 @@ const audio=createHighwayAudio(),radio=new Audio(new URL('./assets/audio/radio-c
 function stopAudio(){audio.mute();radio.pause();root.querySelector('[data-highway-radio]').textContent='Radio: apagada';root.querySelector('[data-highway-radio]').setAttribute('aria-pressed','false');}
 function expand(){screen.classList.add('is-expanded');document.body.classList.add('highway-playing');menu.open=false;world?.resize();}
 function shrink(){screen.classList.remove('is-expanded');document.body.classList.remove('highway-playing');menu.open=false;world?.resize();}
-const keys=new Set(),pointers=new Map(),abort=new AbortController(),options={signal:abort.signal},gate=createPaintGate(highwayGraphicsProfile().targetFps);
+const keys=new Set(),pointers=new Map(),abort=new AbortController(),options={signal:abort.signal};let gate=createPaintGate(highwayGraphicsProfile().targetFps);
+stage.addEventListener('highway-frame-budget',e=>{gate=createPaintGate(e.detail.fps);},options);
 const mapping={ArrowUp:'accelerate',KeyW:'accelerate',ArrowDown:'brake',KeyS:'brake',Space:'brake',ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
 function clear(){keys.clear();pointers.clear();root.querySelectorAll('[data-highway-drive]').forEach(b=>b.classList.remove('is-held'));}
 function input(){const held=new Set([...keys].map(k=>mapping[k]).concat([...pointers.values()]));return Object.fromEntries(['accelerate','brake','left','right'].map(k=>[k,held.has(k)]));}
@@ -42,7 +43,7 @@ root.querySelector('[data-highway-camera]').addEventListener('click',changeView,
 root.querySelector('[data-highway-view]').addEventListener('click',()=>{view='bonnet';root.querySelector('[data-highway-camera]').textContent='Cámara: capó';menu.open=false;draw();},options);
 root.querySelector('[data-highway-exit]').addEventListener('click',()=>{pauseDriving();shrink();if(document.fullscreenElement)void document.exitFullscreen();},options);
 root.querySelector('[data-highway-time]').addEventListener('change',e=>{world?.setTimeOfDay(e.target.value);menu.open=false;draw();},options);
-root.querySelector('[data-highway-quality]').addEventListener('change',e=>{world?.setQuality(e.target.value);menu.open=false;draw();},options);
+root.querySelector('[data-highway-quality]').addEventListener('change',e=>{world?.setQuality(e.target.value);stage.dispatchEvent(new CustomEvent('highway-frame-budget',{detail:{fps:e.target.value==='high'?60:e.target.value==='auto'?highwayGraphicsProfile().targetFps:30}}));menu.open=false;draw();},options);
 root.querySelector('[data-highway-sound]').addEventListener('click',async e=>{try{const on=await audio.toggle();e.target.textContent='Sonido: '+(on?'encendido':'apagado');e.target.setAttribute('aria-pressed',String(on));}catch{message.textContent='El navegador no permite activar el sonido';message.hidden=false;}},options);
 root.querySelector('[data-highway-radio]').addEventListener('click',async e=>{try{if(radio.paused){await radio.play();e.target.textContent='Radio: encendida';e.target.setAttribute('aria-pressed','true');}else{radio.pause();e.target.textContent='Radio: apagada';e.target.setAttribute('aria-pressed','false');}}catch{message.textContent='La radio no está disponible';message.hidden=false;}},options);
 root.querySelector('[data-highway-fullscreen]').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await root.querySelector('[data-highway-screen]').requestFullscreen();world?.resize();}catch{message.textContent='Pantalla completa no disponible en este navegador';message.hidden=false;}},options);

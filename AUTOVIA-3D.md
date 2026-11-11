@@ -1,5 +1,7 @@
 # Autovía integrada · 11 de noviembre de 2026
 
+Documento histórico de la primera versión de la propuesta #23. Para la evolución visual y móvil posterior, consultar `AUTOVIA-EVOLUCION.md`.
+
 En `simulador.html`, el selector «Experiencia de conducción» permite alternar el circuito existente y «Autovía 3D · tráfico y conducción libre». La autovía reutiliza Three.js 0.180.0, la carrocería Octavia y el presupuesto gráfico del simulador. No es una página independiente. El circuito sigue siendo la opción inicial.
 
 ## Comportamiento implementado

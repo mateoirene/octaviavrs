@@ -4,6 +4,7 @@ import {roadFrame,ROAD_HALF,TRAFFIC_LIMIT} from './highway-physics.mjs';
 import {loadVehicleTemplates,createVehicleFleet} from './highway-vehicles.mjs';
 import {currentGraphicsProfile,bufferPixelRatio,createResolutionBudget} from './racing-render-budget.mjs?v=20261109-mobile';
 import {highwayGraphicsProfile,frameStatistics} from './highway-performance.mjs';
+import {HIGHWAY_MODELS} from './highway-models.mjs';
 
 export async function createHighwayWorld(host){
  const profile=highwayGraphicsProfile(),budget=createResolutionBudget(profile),renderer=new T.WebGLRenderer({antialias:!profile.mobile,powerPreference:'high-performance'});
@@ -48,7 +49,7 @@ export async function createHighwayWorld(host){
  const shadowGeo=new T.PlaneGeometry(1,1);shadowGeo.rotateX(-Math.PI/2);const shadows=batch(shadowGeo,new T.MeshBasicMaterial({map:shadowTexture,transparent:true,opacity:.65,depthWrite:false}),TRAFFIC_LIMIT+1,scene);materials.add(shadows.material);
  const headlights=new T.SpotLight('#fff2d4',0,110,.32,.65,1.4);scene.add(headlights,headlights.target);
  function point(s,x=0,lift=0,o=anchor){const f=roadFrame(s);return [f.x-o.x+x*f.right[0],f.y+lift+(f.bank||0)*x,-(s-o.s)+x*f.right[1]];}
- function terrainHeight(s,x){const f=roadFrame(s);return f.y-.18+Math.max(0,Math.abs(x)-13)*(.09+.055*Math.sin(s/89+x/50))+Math.max(0,Math.abs(x)-18)/12*Math.sin(s/34+x/18);}
+ function terrainHeight(s,x){const f=roadFrame(s);return f.y+(f.bank||0)*Math.max(-20,Math.min(20,x))-.8+Math.max(0,Math.abs(x)-24)*(.09+.055*Math.sin(s/89+x/50))+Math.max(0,Math.abs(x)-24)/12*Math.sin(s/34+x/18);}
  function rebuild(distance){
   anchor=roadFrame(Math.floor(distance/8)*8);const start=anchor.s-48;
   for(const {g,left,right,across,terrain}of strips){const a=g.attributes.position.array;for(let i=0;i<=160;i++){const s=start+i*4;for(let j=0;j<across;j++){const x=left+(right-left)*j/(across-1),p=point(s,x,left===-7.3?-.04:0);if(terrain)p[1]=terrainHeight(s,x);a.set(p,(i*across+j)*3);}}g.attributes.position.needsUpdate=true;g.computeVertexNormals();}
@@ -67,17 +68,17 @@ export async function createHighwayWorld(host){
   if(disposed||lost)return;const origin=roadFrame(state.distance),dt=Math.min(.1,(now-lastTime)/1000||1/60);lastTime=now;
   if(!anchor||Math.abs(state.distance-anchor.s)>=8)rebuild(state.distance);roadScene.position.set(anchor.x-origin.x,0,state.distance-anchor.s);
   const p=point(state.distance,state.x,0,origin),suspension=Math.sin(state.distance*2.1)*Math.min(.016,state.speed*.0004),rollAngle=-(state.lateralAccel||0)*.006,pitch=(state.acceleration||0)*.003;
-  const vehicles=[{player:true,id:0,type:0,x:p[0],y:p[1],z:p[2],angle:-origin.heading-(state.yaw||0),pitch:-Math.atan(origin.grade||0)+pitch,roll:rollAngle,bounce:suspension,distance:state.distance,steering:state.steering}];
+  const vehicles=[{player:true,id:0,type:0,x:p[0],y:p[1],z:p[2],speed:state.speed,angle:-origin.heading-(state.yaw||0),pitch:-Math.atan(origin.grade||0)+pitch,roll:rollAngle,bounce:suspension,distance:state.distance,steering:state.steering}];
   for(const car of state.traffic){const gap=car.distance-state.distance;if(gap>300||gap< -35)continue;const f=roadFrame(car.distance),a=point(car.distance,car.x,0,origin);vehicles.push({id:car.id,type:car.id%3===0&&gap<80?0:1,x:a[0],y:a[1],z:a[2],angle:-f.heading-(car.lateralSpeed||0)/Math.max(8,car.speed),pitch:-Math.atan(f.grade||0),scale:car.id%3===0?.98:1,distance:car.distance,steering:(car.lateralSpeed||0)*.3});}
   fleet.update(vehicles,view);fleet.setLights(state.braking,timeOfDay==='night');
   shadows.count=vehicles.length;vehicles.forEach((v,i)=>put(shadows,i,[v.x,v.y+.022,v.z],[2.7,1,5.5],v.angle));shadows.instanceMatrix.needsUpdate=true;
-  const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:8.4,lift:7.3,ahead:3.2,aim:0,fov:56},driver:{back:-.2,lift:1.18,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
+  const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:8.4,lift:7.3,ahead:3.2,aim:0,fov:56},driver:{...HIGHWAY_MODELS[0].driverEye,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
   const pose=poses[view]||poses.chase;
   desired.set(p[0]-origin.dx*pose.back,p[1]+pose.lift+suspension*.25,p[2]+pose.back);const lp=point(state.distance+pose.ahead,state.x,pose.aim,origin);look.set(...lp);
   if(first||Math.abs(state.distance-lastDistance)>100){camera.position.copy(desired);target.copy(look);first=false;}else{camera.position.x-=origin.x-roadFrame(lastDistance).x;camera.position.z+=state.distance-lastDistance;target.x-=origin.x-roadFrame(lastDistance).x;target.z+=state.distance-lastDistance;const alpha=1-Math.exp(-dt*(view==='driver'?14:7));camera.position.lerp(desired,alpha);target.lerp(look,alpha);}
   if(lastView!==view){cameraTransition=0;lastView=view;}cameraTransition=Math.min(1,cameraTransition+dt*3);lastDistance=state.distance;
   camera.lookAt(target);camera.fov+=(pose.fov+state.speed/(230/3.6)*5-camera.fov)*(1-Math.exp(-dt*5));camera.updateProjectionMatrix();
-  headlights.intensity=timeOfDay==='night'?65:0;headlights.position.set(p[0],p[1]+.65,p[2]-1.6);const aim=point(state.distance+70,state.x,0,origin);headlights.target.position.set(...aim);
+  headlights.intensity=timeOfDay==='night'?8000:0;headlights.position.set(p[0],p[1]+.65,p[2]-1.6);const aim=point(state.distance+70,state.x,0,origin);headlights.target.position.set(...aim);
   renderer.render(scene,camera);const sample=budget.sample(now,state.phase==='running');if(sample?.changed)resize();
   if(state.phase==='running'){if(lastMeasured){frameTimes.push(now-lastMeasured);if(frameTimes.length>600)frameTimes.shift();}lastMeasured=now;if(!fpsAt)fpsAt=now;frameCount++;if(now-fpsAt>=1000){host.dataset.fps=String(Math.round(frameCount*1000/(now-fpsAt)));fpsAt=now;frameCount=0;}}else{lastMeasured=0;fpsAt=0;frameCount=0;}
   Object.assign(host.dataset,{renderer:'webgl2',drawCalls:String(renderer.info.render.calls),triangles:String(renderer.info.render.triangles),quality:budget.quality.toFixed(2),vehicleSource:'licensed-gltf',visibleTraffic:String(vehicles.length-1),camera:view,modelName:'Car Concept provisional',memoryGeometries:String(renderer.info.memory.geometries),memoryTextures:String(renderer.info.memory.textures),timeOfDay});

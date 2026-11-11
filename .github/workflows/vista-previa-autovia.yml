@@ -1,0 +1,36 @@
+name: Vista previa aislada de Autovía
+on:
+  push:
+    branches: [codex/highway-3d-20261111]
+permissions:
+  contents: read
+concurrency:
+  group: vista-previa-autovia-pr23
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/prepare-local-images.mjs
+      - run: node scripts/prepare-race-assets.mjs
+      - run: node scripts/prepare-track3d.mjs
+      - run: node scripts/prepare-highway-assets.mjs
+      - run: node --test tests/*.test.mjs
+      - run: node scripts/highway-browser-check.mjs
+        env:
+          HIGHWAY_SHOTS: '1'
+      - name: Publicar solo la vista previa sin D1
+        run: node scripts/deploy-highway-preview.mjs
+        env:
+          CLOUDFLARE_ACCOUNT_ID: '71fb53fce0685a83a5b15712414cfc25'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: autovia-preview-y-capturas
+          path: artifacts/autovia*

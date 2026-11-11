@@ -1,6 +1,7 @@
 import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {mergeGeometries} from './vendor/BufferGeometryUtils.js';
+import {HIGHWAY_MODELS} from './highway-models.mjs';
 
 const palette=['#163d65','#d5d8d6','#7c2830','#373c42','#bdab8a','#1d655f'];
 function cleanGeometry(mesh,matrix){
@@ -17,15 +18,15 @@ function joinGroups(items){
 function fitImage(texture,limit){const im=texture?.image;if(!im||Math.max(im.width,im.height)<=limit)return;const c=document.createElement('canvas'),k=limit/Math.max(im.width,im.height);c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);texture.image=c;texture.needsUpdate=true;}
 
 export async function loadVehicleTemplates(profile){
- const loader=new GLTFLoader(),files=await Promise.all(['car-concept.glb','sedan.glb'].map(n=>loader.loadAsync('assets/highway/'+n)));
+ const loader=new GLTFLoader(),files=await Promise.all(HIGHWAY_MODELS.map(n=>loader.loadAsync(n.asset)));
  const resources={geometries:new Set(),materials:new Set(),textures:new Set()},templates=[];
  for(let type=0;type<files.length;type++){
-  const source=files[type].scene,holder=new T.Group();holder.add(source);
+  const config=HIGHWAY_MODELS[type],source=files[type].scene,holder=new T.Group();holder.add(source);
   // Car Concept's documented forward axis is +Z; the sedan is checked from its lamp positions below.
-  holder.rotation.y=Math.PI;
+  holder.rotation.y=config.rotationY;
   holder.updateMatrixWorld(true);let bounds=new T.Box3().setFromObject(holder),size=bounds.getSize(new T.Vector3());
   if(type===1&&size.x>size.z){holder.rotation.y=Math.PI/2;holder.updateMatrixWorld(true);bounds.setFromObject(holder);size=bounds.getSize(size);}
-  const scale=(type===0?4.65:4.7)/size.z;holder.scale.setScalar(scale);holder.updateMatrixWorld(true);bounds.setFromObject(holder);const center=bounds.getCenter(new T.Vector3());holder.position.set(-center.x,-bounds.min.y,-center.z);holder.updateMatrixWorld(true);
+  const scale=config.length/size.z;holder.scale.setScalar(scale);holder.updateMatrixWorld(true);bounds.setFromObject(holder);const center=bounds.getCenter(new T.Vector3());holder.position.set(-center.x,-bounds.min.y,-center.z);holder.updateMatrixWorld(true);
   const materialCache=new Map();
   function adapt(original){
    if(materialCache.has(original.uuid))return materialCache.get(original.uuid);
@@ -36,10 +37,11 @@ export async function loadVehicleTemplates(profile){
    if(glass){mat.color.set('#96c2d4');mat.metalness=.12;mat.roughness=.13;mat.transparent=true;mat.opacity=type===0?.19:.72;mat.depthWrite=false;}
    if(/Brakelight|^tail$/i.test(mat.name)){mat.emissive.set('#ff2011');mat.emissiveIntensity=.6;mat.userData.brake=true;}
    if(/Headlight|^lamp$/i.test(mat.name)){mat.emissive.set('#fff0d0');mat.emissiveIntensity=.65;}
+   if(mat.name==='Dashboard'){mat.emissiveIntensity=0;mat.emissiveMap=null;mat.map=null;mat.color.set('#10151a');}
    for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(mat[key]){fitImage(mat[key],profile.mobile?1024:2048);resources.textures.add(mat[key]);}
    resources.materials.add(mat);materialCache.set(original.uuid,mat);return mat;
   }
-  const wheelRoots=type===0?['WheelFrontL','WheelFrontR','WheelRearL','WheelRearR'].map(n=>source.getObjectByName(n)):[];
+  const wheelRoots=type===0?config.wheelRoots.map(n=>source.getObjectByName(n)):[];
   const wheelCenters=type===0?wheelRoots.map(n=>n.getWorldPosition(new T.Vector3())):[];
   if(type===1){
    const tyres=[];source.traverse(n=>{if(n.isMesh&&/tire/i.test(n.name))tyres.push(new T.Box3().setFromObject(n).getCenter(new T.Vector3()));});
@@ -50,6 +52,8 @@ export async function loadVehicleTemplates(profile){
   source.traverse(mesh=>{
    if(!mesh.isMesh)return;
    resources.geometries.add(mesh.geometry);
+   // Thin wiper stacks create severe moiré at the mobile driver-eye angle; omit these small decorative meshes.
+   if(type===0&&/BodyWindshieldWipers/.test(mesh.name))return;
    let wheel=-1;
    if(type===0){let parent=mesh;while(parent&&parent!==holder){const i=wheelRoots.indexOf(parent);if(i>=0){wheel=i;break;}parent=parent.parent;}}
    else if(/(?:Front|Rear)_(?:tire|rim|hub|spoke|brake)/i.test(mesh.name)){const c=new T.Box3().setFromObject(mesh).getCenter(new T.Vector3());wheel=wheelCenters.reduce((a,b,i)=>c.distanceToSquared(b)<c.distanceToSquared(wheelCenters[a])?i:a,0);}
@@ -69,6 +73,7 @@ export async function loadVehicleTemplates(profile){
 
 export function createVehicleFleet(scene,templates,max=19){
  const dummy=new T.Object3D(),base=new T.Matrix4(),wheelMatrix=new T.Matrix4(),rotation=new T.Quaternion(),roll=new T.Quaternion(),axisX=new T.Vector3(1,0,0),axisY=new T.Vector3(0,1,0),color=new T.Color();
+ const dashCanvas=document.createElement('canvas');dashCanvas.width=512;dashCanvas.height=128;const dashContext=dashCanvas.getContext('2d'),dashTexture=new T.CanvasTexture(dashCanvas);dashTexture.colorSpace=T.SRGBColorSpace;const dashGeometry=new T.PlaneGeometry(.44,.11),dashMaterial=new T.MeshBasicMaterial({map:dashTexture}),dashboard=new T.Mesh(dashGeometry,dashMaterial);dashboard.matrixAutoUpdate=false;scene.add(dashboard);let displayed=-1;
  const batches=templates.map(template=>{
   function batch(part,count){const m=new T.InstancedMesh(part.geometry,part.material,count);m.instanceMatrix.setUsage(T.DynamicDrawUsage);m.frustumCulled=false;scene.add(m);return m;}
   return {template,body:template.body.map(p=>batch(p,max)),interior:template.interior.map(p=>batch(p,1)),wheels:template.wheels.map(parts=>parts.map(p=>batch(p,max)))};
@@ -82,9 +87,10 @@ export function createVehicleFleet(scene,templates,max=19){
      const c=b.template.wheelCenters[j];dummy.position.copy(c);dummy.scale.setScalar(1);rotation.setFromAxisAngle(axisY,c.z<0?(car.steering||0)*.36:0);roll.setFromAxisAngle(axisX,-car.distance/.36);dummy.quaternion.copy(rotation).multiply(roll);dummy.updateMatrix();wheelMatrix.multiplyMatrices(base,dummy.matrix);for(const m of b.wheels[j])m.setMatrixAt(i,wheelMatrix);
     }
    }
-   const player=cars.find(c=>c.player);for(const m of b.interior){m.visible=!!player&&(view==='driver'||view==='chase');if(player){dummy.position.set(player.x,player.y+(player.bounce||0),player.z);dummy.rotation.set(player.pitch||0,player.angle,player.roll||0);dummy.scale.setScalar(1);dummy.updateMatrix();m.setMatrixAt(0,dummy.matrix);}}
+   const player=cars.find(c=>c.player);for(const m of b.interior){m.visible=!!player;if(player){dummy.position.set(player.x,player.y+(player.bounce||0),player.z);dummy.rotation.set(player.pitch||0,player.angle,player.roll||0);dummy.scale.setScalar(1);dummy.updateMatrix();m.setMatrixAt(0,dummy.matrix);}}
+   if(player){dashboard.visible=view==='driver';const kmh=Math.round((player.speed||0)*3.6);if(kmh!==displayed){dashContext.fillStyle='#0b1015';dashContext.fillRect(0,0,512,128);dashContext.strokeStyle='#88c8d2';dashContext.lineWidth=3;dashContext.strokeRect(3,3,506,122);dashContext.fillStyle='#d6f2f1';dashContext.font='600 83px monospace';dashContext.textAlign='center';dashContext.fillText(String(kmh),256,87);dashContext.font='16px sans-serif';dashContext.fillText('km/h  ·  AUTOVÍA VRS',256,116);dashTexture.needsUpdate=true;displayed=kmh;}base.copy(dummy.matrix);dummy.position.set(0,.987,-.97);dummy.rotation.set(-.12,0,0);dummy.scale.setScalar(1);dummy.updateMatrix();dashboard.matrix.multiplyMatrices(base,dummy.matrix);dashboard.matrixWorldNeedsUpdate=true;}
    for(const m of [...b.body,...b.wheels.flat(),...b.interior]){m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;}
   }
  }
- return {update,meshes:batches.flatMap(b=>[...b.body,...b.interior,...b.wheels.flat()]),setLights(brake,night){for(const t of templates)for(const p of [...t.body,...t.interior]){if(p.material.userData.brake)p.material.emissiveIntensity=brake?4:night?1.2:.45;}},dispose(){for(const b of batches)for(const m of [...b.body,...b.wheels.flat(),...b.interior]){scene.remove(m);m.dispose();}}};
+ return {update,meshes:batches.flatMap(b=>[...b.body,...b.interior,...b.wheels.flat()]),setLights(brake,night){for(const t of templates)for(const p of [...t.body,...t.interior]){if(p.material.userData.brake)p.material.emissiveIntensity=brake?4:night?1.2:.45;}},dispose(){scene.remove(dashboard);dashGeometry.dispose();dashMaterial.dispose();dashTexture.dispose();for(const b of batches)for(const m of [...b.body,...b.wheels.flat(),...b.interior]){scene.remove(m);m.dispose();}}};
 }
