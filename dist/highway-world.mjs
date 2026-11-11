@@ -3,16 +3,18 @@ import {HDRLoader} from './vendor/HDRLoader.js';
 import {roadFrame,ROAD_HALF,TRAFFIC_LIMIT} from './highway-physics.mjs';
 import {loadVehicleTemplates,createVehicleFleet} from './highway-vehicles.mjs';
 import {currentGraphicsProfile,bufferPixelRatio,createResolutionBudget} from './racing-render-budget.mjs?v=20261109-mobile';
+import {highwayGraphicsProfile,frameStatistics} from './highway-performance.mjs';
 
 export async function createHighwayWorld(host){
- const profile=currentGraphicsProfile(),budget=createResolutionBudget(profile),renderer=new T.WebGLRenderer({antialias:!profile.mobile,powerPreference:'high-performance'});
+ const profile=highwayGraphicsProfile(),budget=createResolutionBudget(profile),renderer=new T.WebGLRenderer({antialias:!profile.mobile,powerPreference:'high-performance'});
  renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
  host.prepend(renderer.domElement);renderer.domElement.setAttribute('aria-label','Carretera, vehículos e interior tridimensionales');
  const scene=new T.Scene(),roadScene=new T.Group();scene.add(roadScene);scene.fog=new T.Fog('#a4b5b8',180,650);
  const hemi=new T.HemisphereLight('#dcecff','#68634c',1.6),sun=new T.DirectionalLight('#ffefdb',3);sun.position.set(-130,180,-150);scene.add(hemi,sun);
  const camera=new T.PerspectiveCamera(58,1,.08,1000),dummy=new T.Object3D(),target=new T.Vector3(),desired=new T.Vector3(),look=new T.Vector3();
  const geometries=new Set(),materials=new Set(),textures=new Set(),instances=[];
- let templates,resources,sky,environment,disposed=false,lost=false,first=true,width=1,height=1,timeOfDay='day',lastTime=0,lastDistance=0,anchor=null,frameCount=0,fpsAt=0,lastView='',cameraTransition=1;
+ let templates,resources,sky,environment,disposed=false,lost=false,first=true,width=1,height=1,timeOfDay='day',quality='auto',lastTime=0,lastDistance=0,anchor=null,frameCount=0,fpsAt=0,lastView='',cameraTransition=1,lastMeasured=0;
+ const frameTimes=[];
  try{
   const data=await loadVehicleTemplates(profile);templates=data.templates;resources=data.resources;
   sky=await new HDRLoader().loadAsync('assets/track3d/sky.hdr');sky.mapping=T.EquirectangularReflectionMapping;const pmrem=new T.PMREMGenerator(renderer);environment=pmrem.fromEquirectangular(sky);pmrem.dispose();scene.environment=environment.texture;scene.background=sky;scene.backgroundBlurriness=.025;
@@ -37,7 +39,7 @@ export async function createHighwayWorld(host){
  const rails=batch(railGeo,mat('#b9c4c3',{metalness:.75,roughness:.4}),320);
  const marks=batch(box,mat('#ede8d7',{roughness:.86}),320);
  const bridgeDeck=batch(box,mat('#9c9a8f',{roughness:.93}),2),bridgePillars=batch(box,mat('#92978f'),8),bridgeRails=batch(box,mat('#87928f',{metalness:.4}),8);
- const archGeo=new T.CylinderGeometry(8.5,8.5,4.1,24,1,true,0,Math.PI);archGeo.rotateX(Math.PI/2);archGeo.rotateZ(Math.PI/2);geometries.add(archGeo);
+ const archGeo=new T.CylinderGeometry(8.5,8.5,4.0,24,1,true,0,Math.PI);archGeo.rotateX(Math.PI/2);archGeo.rotateZ(Math.PI/2);geometries.add(archGeo);
  const tunnel=batch(archGeo,mat('#a3a196',{side:T.DoubleSide,roughness:.95}),36);
  const strips=[];
  function strip(left,right,material,terrain=false){const count=161,across=terrain?33:2,positions=new Float32Array(count*across*3),uv=new Float32Array(count*across*2),ix=[];for(let i=0;i<count;i++)for(let j=0;j<across;j++){const k=i*across+j,x=left+(right-left)*j/(across-1);uv.set([terrain?x/40:x/4,i],k*2);if(i<count-1&&j<across-1)ix.push(k,k+1,k+across,k+1,k+across+1,k+across);}const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(positions,3).setUsage(T.DynamicDrawUsage));g.setAttribute('uv',new T.BufferAttribute(uv,2));g.setIndex(ix);const m=new T.Mesh(g,material);m.frustumCulled=false;roadScene.add(m);geometries.add(g);strips.push({g,left,right,across,terrain});}
@@ -60,16 +62,16 @@ export async function createHighwayWorld(host){
   const tunnelStart=Math.floor(distance/1600)*1600+900;for(let i=0;i<36;i++){const s=tunnelStart+i*4,f=roadFrame(s);put(tunnel,i,point(s,0,.1),[1,1,1],-f.heading);}
   for(const m of instances)m.instanceMatrix.needsUpdate=true;
  }
- function resize(){const r=host.getBoundingClientRect();width=Math.max(1,r.width);height=Math.max(1,r.height);renderer.setPixelRatio(bufferPixelRatio(profile,width,height,budget.quality,devicePixelRatio));renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}
+ function resize(){const r=host.getBoundingClientRect();width=Math.max(1,r.width);height=Math.max(1,r.height);const ratio=quality==='auto'?budget.quality:quality==='high'?1.5:quality==='medium'?1:.7;renderer.setPixelRatio(bufferPixelRatio(profile,width,height,ratio,devicePixelRatio));renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();}
  function render(state,view='chase',now=performance.now()){
   if(disposed||lost)return;const origin=roadFrame(state.distance),dt=Math.min(.1,(now-lastTime)/1000||1/60);lastTime=now;
   if(!anchor||Math.abs(state.distance-anchor.s)>=8)rebuild(state.distance);roadScene.position.set(anchor.x-origin.x,0,state.distance-anchor.s);
   const p=point(state.distance,state.x,0,origin),suspension=Math.sin(state.distance*2.1)*Math.min(.016,state.speed*.0004),rollAngle=-(state.lateralAccel||0)*.006,pitch=(state.acceleration||0)*.003;
   const vehicles=[{player:true,id:0,type:0,x:p[0],y:p[1],z:p[2],angle:-origin.heading-(state.yaw||0),pitch:-Math.atan(origin.grade||0)+pitch,roll:rollAngle,bounce:suspension,distance:state.distance,steering:state.steering}];
-  for(const car of state.traffic){const gap=car.distance-state.distance;if(gap>300||gap< -35)continue;const f=roadFrame(car.distance),a=point(car.distance,car.x,0,origin);vehicles.push({id:car.id,type:car.id%3===0?0:1,x:a[0],y:a[1],z:a[2],angle:-f.heading-(car.lateralSpeed||0)/Math.max(8,car.speed),pitch:-Math.atan(f.grade||0),scale:car.id%3===0?.98:1,distance:car.distance,steering:(car.lateralSpeed||0)*.3});}
+  for(const car of state.traffic){const gap=car.distance-state.distance;if(gap>300||gap< -35)continue;const f=roadFrame(car.distance),a=point(car.distance,car.x,0,origin);vehicles.push({id:car.id,type:car.id%3===0&&gap<80?0:1,x:a[0],y:a[1],z:a[2],angle:-f.heading-(car.lateralSpeed||0)/Math.max(8,car.speed),pitch:-Math.atan(f.grade||0),scale:car.id%3===0?.98:1,distance:car.distance,steering:(car.lateralSpeed||0)*.3});}
   fleet.update(vehicles,view);fleet.setLights(state.braking,timeOfDay==='night');
   shadows.count=vehicles.length;vehicles.forEach((v,i)=>put(shadows,i,[v.x,v.y+.022,v.z],[2.7,1,5.5],v.angle));shadows.instanceMatrix.needsUpdate=true;
-  const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:6.2,lift:7.3,ahead:13,aim:0,fov:53},driver:{back:.24,lift:.91,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
+  const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:8.4,lift:7.3,ahead:3.2,aim:0,fov:56},driver:{back:-.2,lift:1.18,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
   const pose=poses[view]||poses.chase;
   desired.set(p[0]-origin.dx*pose.back,p[1]+pose.lift+suspension*.25,p[2]+pose.back);const lp=point(state.distance+pose.ahead,state.x,pose.aim,origin);look.set(...lp);
   if(first||Math.abs(state.distance-lastDistance)>100){camera.position.copy(desired);target.copy(look);first=false;}else{camera.position.x-=origin.x-roadFrame(lastDistance).x;camera.position.z+=state.distance-lastDistance;target.x-=origin.x-roadFrame(lastDistance).x;target.z+=state.distance-lastDistance;const alpha=1-Math.exp(-dt*(view==='driver'?14:7));camera.position.lerp(desired,alpha);target.lerp(look,alpha);}
@@ -77,7 +79,7 @@ export async function createHighwayWorld(host){
   camera.lookAt(target);camera.fov+=(pose.fov+state.speed/(230/3.6)*5-camera.fov)*(1-Math.exp(-dt*5));camera.updateProjectionMatrix();
   headlights.intensity=timeOfDay==='night'?65:0;headlights.position.set(p[0],p[1]+.65,p[2]-1.6);const aim=point(state.distance+70,state.x,0,origin);headlights.target.position.set(...aim);
   renderer.render(scene,camera);const sample=budget.sample(now,state.phase==='running');if(sample?.changed)resize();
-  if(!fpsAt)fpsAt=now;frameCount++;if(now-fpsAt>=1000){host.dataset.fps=String(Math.round(frameCount*1000/(now-fpsAt)));fpsAt=now;frameCount=0;}
+  if(state.phase==='running'){if(lastMeasured){frameTimes.push(now-lastMeasured);if(frameTimes.length>600)frameTimes.shift();}lastMeasured=now;if(!fpsAt)fpsAt=now;frameCount++;if(now-fpsAt>=1000){host.dataset.fps=String(Math.round(frameCount*1000/(now-fpsAt)));fpsAt=now;frameCount=0;}}else{lastMeasured=0;fpsAt=0;frameCount=0;}
   Object.assign(host.dataset,{renderer:'webgl2',drawCalls:String(renderer.info.render.calls),triangles:String(renderer.info.render.triangles),quality:budget.quality.toFixed(2),vehicleSource:'licensed-gltf',visibleTraffic:String(vehicles.length-1),camera:view,modelName:'Car Concept provisional',memoryGeometries:String(renderer.info.memory.geometries),memoryTextures:String(renderer.info.memory.textures),timeOfDay});
  }
  function setTimeOfDay(value){timeOfDay=['day','sunset','night'].includes(value)?value:'day';const night=timeOfDay==='night',sunset=timeOfDay==='sunset';sun.color.set(sunset?'#ffb36c':'#fff0db');sun.intensity=night?.05:sunset?1.8:3;hemi.intensity=night?.16:sunset?.95:1.6;scene.background=night?new T.Color('#071020'):sky;scene.backgroundIntensity=sunset?.65:1;scene.environmentIntensity=night?.18:sunset?.7:1;scene.fog.color.set(night?'#0c1723':sunset?'#ae998a':'#a4b5b8');renderer.toneMappingExposure=night?.9:1.05;}
@@ -85,5 +87,5 @@ export async function createHighwayWorld(host){
  function onRestore(){lost=false;first=true;budget.reset();host.dataset.context='ready';host.dispatchEvent(new Event('highway-context-restored'));}
  renderer.domElement.addEventListener('webglcontextlost',onLost);renderer.domElement.addEventListener('webglcontextrestored',onRestore);
  const observer=new ResizeObserver(resize);observer.observe(host);resize();
- return {render,resize,setTimeOfDay,resetCamera(){first=true;},get ready(){return !lost&&!disposed;},canvas:renderer.domElement,dispose(){if(disposed)return;disposed=true;observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',onLost);renderer.domElement.removeEventListener('webglcontextrestored',onRestore);fleet.dispose();for(const g of [...geometries,...resources.geometries])g.dispose();for(const m of [...materials,...resources.materials])m.dispose();for(const t of [...textures,...resources.textures])t.dispose();sky.dispose();environment.dispose();for(const i of instances)i.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();}};
+ return {render,resize,setTimeOfDay,setQuality(value){quality=['auto','high','medium','low'].includes(value)?value:'auto';resize();},resetCamera(){first=true;},performance(){const gl=renderer.getContext(),ext=gl.getExtension('WEBGL_debug_renderer_info'),gpu=ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER);return {...frameStatistics(frameTimes),gpu,software:/swiftshader|llvmpipe|software|microsoft basic/i.test(gpu),physicalAndroid:false,targetFps:profile.targetFps,drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,textures:renderer.info.memory.textures,geometries:renderer.info.memory.geometries};},resetPerformance(){frameTimes.length=0;lastMeasured=0;},get ready(){return !lost&&!disposed;},canvas:renderer.domElement,dispose(){if(disposed)return;disposed=true;observer.disconnect();renderer.domElement.removeEventListener('webglcontextlost',onLost);renderer.domElement.removeEventListener('webglcontextrestored',onRestore);fleet.dispose();for(const g of [...geometries,...resources.geometries])g.dispose();for(const m of [...materials,...resources.materials])m.dispose();for(const t of [...textures,...resources.textures])t.dispose();sky.dispose();environment.dispose();for(const i of instances)i.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();}};
 }

@@ -1,0 +1,3 @@
+import {currentGraphicsProfile} from './racing-render-budget.mjs?v=20261109-mobile';
+export function highwayGraphicsProfile(){const p=currentGraphicsProfile(),n=globalThis.navigator||{};return {...p,targetFps:!p.mobile||(n.hardwareConcurrency||4)>=6&&(n.deviceMemory||4)>=4?60:30,pixelRatio:p.mobile?1.1:1.6,minPixelRatio:p.mobile?.65:.8,maxPixels:p.mobile?850000:2200000};}
+export function frameStatistics(values){if(!values.length)return {fps:0,frames:0,p95ms:0};const sorted=[...values].sort((a,b)=>a-b),total=values.reduce((a,b)=>a+b,0);return {fps:1000*values.length/total,frames:values.length,p95ms:sorted[Math.min(sorted.length-1,Math.floor(sorted.length*.95))],slowFrames:values.filter(v=>v>33.4).length};}
