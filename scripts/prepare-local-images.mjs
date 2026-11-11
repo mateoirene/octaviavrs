@@ -11,7 +11,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.
 const chrome=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
 let socket;const pending=new Map();
 try{
- let port;for(let i=0;i<200;i++){try{port=Number((await readFile(resolve(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);break;}catch{if(chrome.exitCode!==null)throw Error('Chrome no arrancó');await new Promise(r=>setTimeout(r,100));}}if(!port)throw Error('Timeout de Chrome');
+ let port;for(let i=0;i<600;i++){try{port=Number((await readFile(resolve(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);if(port>0)break;}catch{if(chrome.exitCode!==null)throw Error('Chrome no arrancó');await new Promise(r=>setTimeout(r,100));}}if(!port)throw Error('Timeout de Chrome');
  const target=await(await fetch('http://127.0.0.1:'+port+'/json/new?'+base,{method:'PUT'})).json();socket=new WebSocket(target.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});let id=0;
  socket.addEventListener('message',e=>{const d=JSON.parse(e.data),p=pending.get(d.id);if(p){clearTimeout(p.timer);pending.delete(d.id);d.error?p.reject(Error(d.error.message)):p.resolve(d.result);}});
  const call=(method,params)=>new Promise((resolve,reject)=>{const next=++id,timer=setTimeout(()=>{pending.delete(next);reject(Error('Timeout '+method));},30000);pending.set(next,{resolve,reject,timer});socket.send(JSON.stringify({id:next,method,params}));});

@@ -55,3 +55,4 @@
 @media(max-width:360px){.race-play-screen.is-expanded .race-touch-controls{grid-template-columns:50px 50px 1fr 50px 50px;gap:5px}.race-play-screen.is-expanded .race-touch-controls button{font-size:11px}}
 .race-display-options>div{bottom:100%;max-height:70dvh;overflow:auto}.race-play-screen.is-expanded .race-quick-controls{top:auto;bottom:16px}.race-play-screen.is-expanded .race-display-options>div{bottom:100%}
 @media(any-pointer:coarse){.race-play-screen.is-expanded .race-quick-controls{bottom:100px}}
+.race-play-screen.is-expanded .race-exit-expanded{top:max(64px,env(safe-area-inset-top))}
