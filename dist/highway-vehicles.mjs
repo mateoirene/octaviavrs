@@ -83,8 +83,10 @@ export function createVehicleFleet(scene,templates,max=19){
    for(let i=0;i<cars.length;i++){
     const car=cars[i];dummy.position.set(car.x,car.y+(car.bounce||0),car.z);dummy.rotation.set(car.pitch||0,car.angle,car.roll||0);dummy.scale.setScalar(car.scale||1);dummy.updateMatrix();base.copy(dummy.matrix);
     for(const m of b.body){m.setMatrixAt(i,base);if(m.material.userData.paint)m.setColorAt(i,color.set(car.player?'#1d638f':palette[car.id%palette.length]));}
+    // Suspension moves the body, while wheel contact follows the actual road plane.
+    dummy.position.set(car.x,car.y,car.z);dummy.rotation.set(car.groundPitch||0,car.angle,car.groundRoll||0);dummy.scale.setScalar(car.scale||1);dummy.updateMatrix();const wheelBase=dummy.matrix.clone();
     for(let j=0;j<4;j++){
-     const c=b.template.wheelCenters[j];dummy.position.copy(c);dummy.scale.setScalar(1);rotation.setFromAxisAngle(axisY,c.z<0?(car.steering||0)*.36:0);roll.setFromAxisAngle(axisX,-car.distance/.36);dummy.quaternion.copy(rotation).multiply(roll);dummy.updateMatrix();wheelMatrix.multiplyMatrices(base,dummy.matrix);for(const m of b.wheels[j])m.setMatrixAt(i,wheelMatrix);
+     const c=b.template.wheelCenters[j];dummy.position.copy(c);dummy.scale.setScalar(1);rotation.setFromAxisAngle(axisY,c.z<0?-(car.steering||0)*.36:0);roll.setFromAxisAngle(axisX,-car.distance/.36);dummy.quaternion.copy(rotation).multiply(roll);dummy.updateMatrix();wheelMatrix.multiplyMatrices(wheelBase,dummy.matrix);for(const m of b.wheels[j])m.setMatrixAt(i,wheelMatrix);
     }
    }
    const player=cars.find(c=>c.player);for(const m of b.interior){m.visible=!!player;if(player){dummy.position.set(player.x,player.y+(player.bounce||0),player.z);dummy.rotation.set(player.pitch||0,player.angle,player.roll||0);dummy.scale.setScalar(1);dummy.updateMatrix();m.setMatrixAt(0,dummy.matrix);}}

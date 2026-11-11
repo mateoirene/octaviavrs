@@ -26,7 +26,7 @@ export async function createHighwayWorld(host){
  const mat=(color,extra={})=>{const m=new T.MeshStandardMaterial({color,roughness:.9,...extra});materials.add(m);return m;};
  const box=new T.BoxGeometry(1,1,1);geometries.add(box);
  function batch(geometry,material,count,parent=roadScene){geometries.add(geometry);const m=new T.InstancedMesh(geometry,material,count);m.instanceMatrix.setUsage(T.DynamicDrawUsage);m.frustumCulled=false;parent.add(m);instances.push(m);return m;}
- function put(m,i,p,size=[1,1,1],angle=0,pitch=0){dummy.position.set(...p);dummy.rotation.set(pitch,angle,0);dummy.scale.set(...size);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);}
+ function put(m,i,p,size=[1,1,1],angle=0,pitch=0,roll=0){dummy.position.set(...p);dummy.rotation.set(pitch,angle,roll);dummy.scale.set(...size);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);}
  function canvasTexture(w,h,paint){const c=document.createElement('canvas');c.width=w;c.height=h;paint(c.getContext('2d'),w,h);const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;textures.add(texture);return texture;}
  const leafTexture=canvasTexture(256,384,(c,w,h)=>{c.fillStyle='#715c40';c.fillRect(123,180,10,204);let seed=5;for(let i=0;i<260;i++){seed=(seed*16807)%2147483647;const a=seed/2147483647*6.283,r=Math.sqrt((i%73)/73),x=128+Math.cos(a)*r*113,y=140+Math.sin(a)*r*133;c.fillStyle=['#304d30','#48663a','#5c7741','#72854a'][i%4];c.beginPath();c.ellipse(x,y,12+i%12,10+i%8,a,0,6.283);c.fill();}});
  const leafMat=mat('#d8e4b6',{map:leafTexture,alphaTest:.45,side:T.DoubleSide,roughness:1});
@@ -53,8 +53,8 @@ export async function createHighwayWorld(host){
  function rebuild(distance){
   anchor=roadFrame(Math.floor(distance/8)*8);const start=anchor.s-48;
   for(const {g,left,right,across,terrain}of strips){const a=g.attributes.position.array;for(let i=0;i<=160;i++){const s=start+i*4;for(let j=0;j<across;j++){const x=left+(right-left)*j/(across-1),p=point(s,x,left===-7.3?-.04:0);if(terrain)p[1]=terrainHeight(s,x);a.set(p,(i*across+j)*3);}}g.attributes.position.needsUpdate=true;g.computeVertexNormals();}
-  for(let i=0;i<80;i++){const s=Math.floor(distance/8)*8-48+i*8,f=roadFrame(s);for(let j=0;j<4;j++){const x=[-5.18,-1.8,1.8,5.18][j];put(marks,i*4+j,point(s,x,.018),[.12,.016,j===0||j===3?8.04:3.5],-f.heading,-Math.atan(f.grade||0));}}
-  for(let i=0;i<160;i++){const s=start+i*4,f=roadFrame(s);for(let side=0;side<2;side++)put(rails,i*2+side,point(s,side?7.1:-7.1,.48),[1,1,1],-f.heading,-Math.atan(f.grade||0));}
+  for(let i=0;i<80;i++){const s=Math.floor(distance/8)*8-48+i*8,f=roadFrame(s);for(let j=0;j<4;j++){const x=[-5.18,-1.8,1.8,5.18][j];put(marks,i*4+j,point(s,x,.018),[.12,.016,j===0||j===3?8.04:3.5],-f.heading,Math.atan(f.grade||0));}}
+  for(let i=0;i<160;i++){const s=start+i*4,f=roadFrame(s);for(let side=0;side<2;side++)put(rails,i*2+side,point(s,side?7.1:-7.1,.48),[1,1,1],-f.heading,Math.atan(f.grade||0));}
   for(let i=0;i<160;i++){const s=Math.floor(distance/8)*8-48+Math.floor(i/2)*8;put(posts,i,point(s,i%2?7.1:-7.1,.4),[.12,.8,.12]);}
   for(let i=0;i<80;i++){const index=Math.floor(distance/8)-7+i,s=index*8,side=Math.abs(index%2)?1:-1,x=side*(14+Math.abs(Math.sin(index*7))*32),h=5+Math.abs(Math.sin(index*3))*5,p=point(s,x);p[1]=terrainHeight(s,x)+h/2;put(trees,i*2,p,[h*.85,h,1],.2+index%3);put(trees,i*2+1,p,[h*.85,h,1],Math.PI/2+.2+index%3);}
   for(let i=0;i<24;i++){const n=Math.floor(distance/32)-3+i,s=n*32,x=(n%2?1:-1)*(60+Math.abs(Math.sin(n))*42),h=5+Math.abs(Math.sin(n*5))*11,p=point(s,x);p[1]=terrainHeight(s,x)+h/2;put(buildings,i,p,[12,h,15],.2);put(roofs,i,[p[0],p[1]+h/2+1,p[2]],[9,2,11],Math.PI/4+.2);}
@@ -67,11 +67,11 @@ export async function createHighwayWorld(host){
  function render(state,view='chase',now=performance.now()){
   if(disposed||lost)return;const origin=roadFrame(state.distance),dt=Math.min(.1,(now-lastTime)/1000||1/60);lastTime=now;
   if(!anchor||Math.abs(state.distance-anchor.s)>=8)rebuild(state.distance);roadScene.position.set(anchor.x-origin.x,0,state.distance-anchor.s);
-  const p=point(state.distance,state.x,0,origin),suspension=Math.sin(state.distance*2.1)*Math.min(.016,state.speed*.0004),rollAngle=-(state.lateralAccel||0)*.006,pitch=(state.acceleration||0)*.003;
-  const vehicles=[{player:true,id:0,type:0,x:p[0],y:p[1],z:p[2],speed:state.speed,angle:-origin.heading-(state.yaw||0),pitch:-Math.atan(origin.grade||0)+pitch,roll:rollAngle,bounce:suspension,distance:state.distance,steering:state.steering}];
-  for(const car of state.traffic){const gap=car.distance-state.distance;if(gap>300||gap< -35)continue;const f=roadFrame(car.distance),a=point(car.distance,car.x,0,origin);vehicles.push({id:car.id,type:car.id%3===0&&gap<80?0:1,x:a[0],y:a[1],z:a[2],angle:-f.heading-(car.lateralSpeed||0)/Math.max(8,car.speed),pitch:-Math.atan(f.grade||0),scale:car.id%3===0?.98:1,distance:car.distance,steering:(car.lateralSpeed||0)*.3});}
+  const p=point(state.distance,state.x,0,origin),suspension=Math.sin(state.distance*2.1)*Math.min(.016,state.speed*.0004),rollAngle=Math.atan(origin.bank||0)-(state.lateralAccel||0)*.006,pitch=(state.acceleration||0)*.003;
+  const vehicles=[{player:true,id:0,type:0,x:p[0],y:p[1],z:p[2],speed:state.speed,angle:-origin.heading-(state.yaw||0),pitch:Math.atan(origin.grade||0)+pitch,groundPitch:Math.atan(origin.grade||0),groundRoll:Math.atan(origin.bank||0),roll:rollAngle,bounce:suspension,distance:state.distance,steering:state.steering}];
+  for(const car of state.traffic){const gap=car.distance-state.distance;if(gap>300||gap< -35)continue;const f=roadFrame(car.distance),a=point(car.distance,car.x,0,origin);vehicles.push({id:car.id,type:car.id%3===0&&gap<80?0:1,x:a[0],y:a[1],z:a[2],angle:-f.heading-(car.lateralSpeed||0)/Math.max(8,car.speed),pitch:Math.atan(f.grade||0),groundPitch:Math.atan(f.grade||0),groundRoll:Math.atan(f.bank||0),roll:Math.atan(f.bank||0),scale:car.id%3===0?.98:1,distance:car.distance,steering:(car.lateralSpeed||0)*.3});}
   fleet.update(vehicles,view);fleet.setLights(state.braking,timeOfDay==='night');
-  shadows.count=vehicles.length;vehicles.forEach((v,i)=>put(shadows,i,[v.x,v.y+.022,v.z],[2.7,1,5.5],v.angle));shadows.instanceMatrix.needsUpdate=true;
+  shadows.count=vehicles.length;vehicles.forEach((v,i)=>put(shadows,i,[v.x,v.y+.022,v.z],[2.7,1,5.5],v.angle,v.groundPitch||0,v.groundRoll||0));shadows.instanceMatrix.needsUpdate=true;
   const poses={chase:{back:7.8,lift:2.7,ahead:19,aim:.65,fov:58},aerial:{back:8.4,lift:7.3,ahead:3.2,aim:0,fov:56},driver:{...HIGHWAY_MODELS[0].driverEye,ahead:28,aim:1.04,fov:68},bonnet:{back:-1,lift:1.2,ahead:28,aim:.9,fov:64}};
   const pose=poses[view]||poses.chase;
   desired.set(p[0]-origin.dx*pose.back,p[1]+pose.lift+suspension*.25,p[2]+pose.back);const lp=point(state.distance+pose.ahead,state.x,pose.aim,origin);look.set(...lp);
