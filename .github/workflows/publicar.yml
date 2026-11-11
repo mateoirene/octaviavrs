@@ -45,7 +45,7 @@ jobs:
               *) solo_css=false ;;
             esac
             case "$archivo" in
-              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*) ;;
+              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*|.gitignore|AUTOVIA*.md|tests/highway*.mjs|scripts/*highway*.mjs|scripts/cloudflare-target.mjs|scripts/check-racing-live.mjs|.github/workflows/comprobar-autovia.yml|.github/workflows/vista-previa-autovia.yml|.github/workflows/publicar.yml) ;;
               *) solo_visual=false ;;
             esac
           done <<< "$archivos"
@@ -78,6 +78,12 @@ jobs:
           key: octavia-track3d-three0180-asphalt02-v1
       - name: Preparar motor local y materiales PBR
         run: node scripts/prepare-track3d.mjs
+      - name: Preparar modelos y licencias de Autovía
+        run: node scripts/prepare-highway-assets.mjs
+      - name: Comprobar Autovía en Chrome antes de publicar
+        run: node scripts/highway-browser-check.mjs
+        env:
+          HIGHWAY_SHOTS: '1'
       - name: Comprobar garaje y circuito en Chrome
         if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         run: node scripts/browser-check.mjs
@@ -93,6 +99,14 @@ jobs:
         run: node scripts/cloudflare-target.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PRESERVE_CLOUDFLARE_CONFIG: ${{ steps.cambios.outputs.solo_visual }}
+      - name: Conservar referencia recuperable de producción
+        uses: actions/upload-artifact@v4
+        with:
+          name: referencia-produccion-previa
+          path: artifacts/produccion-previa.json
+          if-no-files-found: error
+          retention-days: 90
       # Respaldo completo cifrado de la D1 de producción antes de tocar datos.
       - name: Preparar Python para el respaldo
         if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
