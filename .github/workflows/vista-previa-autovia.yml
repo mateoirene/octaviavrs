@@ -1,7 +1,7 @@
 name: Vista previa aislada de Autovía
 on:
   push:
-    branches: [codex/highway-3d-20261111, codex/simulador-multiplataforma]
+    branches: [codex/highway-3d-20261111, codex/simulador-multiplataforma, codex/octavia-realismo-20261112]
 permissions:
   contents: read
 concurrency:
@@ -20,6 +20,11 @@ jobs:
       - run: node scripts/prepare-race-assets.mjs
       - run: node scripts/prepare-track3d.mjs
       - run: node scripts/prepare-highway-assets.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recursos-preview-realismo
+          path: |
+            dist/assets/highway/sedan.glb
       - run: node --test tests/*.test.mjs
       - run: node scripts/highway-browser-check.mjs
         env:

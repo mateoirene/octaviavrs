@@ -2,7 +2,7 @@ import {cp,mkdtemp,writeFile,readFile,appendFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawn} from 'node:child_process';
-const account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN,project='octaviaap',branch=process.env.GITHUB_REF_NAME==='codex/simulador-multiplataforma'?'simulador-multiplataforma':'autovia-pr23',sha=process.env.GITHUB_SHA;
+const account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN,project='octaviaap',branch=process.env.GITHUB_REF_NAME==='codex/octavia-realismo-20261112'?'octavia-realismo':process.env.GITHUB_REF_NAME==='codex/simulador-multiplataforma'?'simulador-multiplataforma':'autovia-pr23',sha=process.env.GITHUB_SHA;
 if(!token||!/^[a-f0-9]{32}$/i.test(account||'')||!sha)throw Error('Falta la configuración existente de Cloudflare/GitHub.');
 async function api(path){const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/pages/projects/${project}${path}`,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('Consulta Pages: HTTP '+r.status);const d=await r.json();if(!d.success)throw Error('Cloudflare no confirma la consulta de Pages.');return d.result;}
 const before=await api('');

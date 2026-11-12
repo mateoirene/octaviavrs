@@ -44,7 +44,7 @@ export async function loadVehicleTemplates(profile){
    for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap'])if(mat[key]){fitImage(mat[key],profile.mobile?1024:2048);resources.textures.add(mat[key]);}
    resources.materials.add(mat);materialCache.set(original.uuid,mat);return mat;
   }
-  const wheelRoots=type===0?source.userData.wheels.map(w=>w.pivot):[];
+  const wheelRoots=[];if(type===0){if(source.userData.wheels)wheelRoots.push(...source.userData.wheels.map(w=>w.pivot));else source.traverse(n=>{if(/^Wheel_[FR][LR]$/.test(n.name))wheelRoots.push(n);});}
   const wheelCenters=type===0?wheelRoots.map(n=>n.getWorldPosition(new T.Vector3())):[];
   if(type===1){
    const tyres=[];source.traverse(n=>{if(n.isMesh&&/tire/i.test(n.name))tyres.push(new T.Box3().setFromObject(n).getCenter(new T.Vector3()));});
