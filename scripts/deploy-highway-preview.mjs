@@ -1,4 +1,4 @@
-import {cp,mkdtemp,writeFile,readFile,appendFile} from 'node:fs/promises';
+import {cp,mkdtemp,writeFile,readFile,appendFile,mkdir,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawn} from 'node:child_process';
@@ -9,6 +9,8 @@ const before=await api('');
 if(before.name!==project||before.subdomain!=='octaviaap.pages.dev'||!before.production_branch||before.production_branch===branch)throw Error('No se confirmó un destino de vista previa distinto de producción.');
 const productionId=before.canonical_deployment?.id;if(!productionId)throw Error('No se pudo identificar la versión de producción para comprobar su conservación.');
 const staging=await mkdtemp(join(process.env.RUNNER_TEMP||tmpdir(),'octavia-isolated-preview-'));await cp(resolve('dist'),staging,{recursive:true});
+await mkdir(join(staging,'capturas'),{recursive:true});
+for(const file of await readdir(resolve('artifacts')))if(/^autovia-(?:modelo-|pro-).+\.png$/.test(file)||file==='autovia-browser-results.json')await cp(resolve('artifacts',file),join(staging,'capturas',file));
 await writeFile(join(staging,'_worker.js'),await readFile('scripts/highway-preview-worker.mjs'));
 await writeFile(join(staging,'_routes.json'),JSON.stringify({version:1,include:['/*'],exclude:[]}));
 await writeFile(join(staging,'_headers'),'/*\n  X-Robots-Tag: noindex, nofollow\n  Cache-Control: no-store\n');
@@ -18,7 +20,7 @@ const deployments=await api('/deployments'),deployment=deployments.find(d=>d.env
 if(!deployment?.url||deployment.url==='https://octaviaap.pages.dev'||new URL(deployment.url).hostname==='octaviaap.pages.dev')throw Error('Cloudflare no confirmó una URL de vista previa aislada.');
 const after=await api('');if(after.canonical_deployment?.id!==productionId)throw Error('La versión de producción cambió durante la operación. Revisar antes de continuar.');
 const url=deployment.url;
-for(const path of ['/simulador.html?experience=highway','/highway-octavia.mjs','/highway-world.mjs']){const r=await fetch(url+path);if(!r.ok||r.headers.get('X-Octavia-Preview')!=='isolated-no-d1')throw Error('No se pudo verificar '+path);if(path.includes('.glb')){const b=new Uint8Array(await r.arrayBuffer());if(String.fromCharCode(...b.slice(0,4))!=='glTF')throw Error('Modelo GLB no disponible');}}
+for(const path of ['/simulador.html?experience=highway','/highway-octavia.mjs','/highway-world.mjs','/assets/highway/octavia-mk4.glb','/octavia-modelo.html','/capturas/autovia-modelo-frontal.png','/capturas/autovia-pro-curva.png']){const r=await fetch(url+path);if(!r.ok||r.headers.get('X-Octavia-Preview')!=='isolated-no-d1')throw Error('No se pudo verificar '+path);if(path.includes('.glb')){const b=new Uint8Array(await r.arrayBuffer());if(String.fromCharCode(...b.slice(0,4))!=='glTF')throw Error('Modelo GLB no disponible');}}
 if((await fetch(url+'/admin.html')).status!==404||(await fetch(url+'/api/garage/members')).status!==503||(await fetch(url+'/api/market/submissions',{method:'POST',body:'{}'})).status!==503)throw Error('Falló el aislamiento de administración/datos.');
 const report={url:url+'/simulador.html?experience=highway',deploymentId:deployment.id,environment:deployment.environment,branch,commit:sha,productionBefore:productionId,productionAfter:after.canonical_deployment.id,isolated:true};
 await writeFile(resolve(process.env.GITHUB_WORKSPACE,'artifacts','autovia-preview.json'),JSON.stringify(report,null,2));

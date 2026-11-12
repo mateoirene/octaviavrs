@@ -24,7 +24,7 @@ def tube(name,pts,r,mat):
  for p,v in zip(s.points,pts):p.co=(*coord(v),1)
  o=bpy.data.objects.new(name,c);bpy.context.collection.objects.link(o);o.data.materials.append(mat);return o
 # Rounded continuous body with real open wheel arches, characteristic flat hood and liftback deck.
-rings=[(-2.35,.78,.29,.84),(-2.22,.85,.24,.88),(-1.9,.906,.24,.92),(-1.39,.914,.24,.92),(-.85,.91,.24,.94),(.3,.914,.24,.97),(1.3,.914,.24,1.0),(1.86,.89,.27,.99),(2.2,.85,.3,.93),(2.35,.78,.32,.87)]
+rings=[(-2.35,.86,.29,.84),(-2.22,.85,.24,.88),(-1.9,.906,.24,.92),(-1.39,.914,.24,.92),(-.85,.91,.24,.94),(.3,.914,.24,.97),(1.3,.914,.24,1.0),(1.86,.89,.27,.99),(2.2,.85,.3,.93),(2.35,.78,.32,.87)]
 profile=[(-.75,0),(.75,0),(.985,.06),(1,.22),(.998,.69),(.975,.83),(.91,.96),(.78,1),(-.78,1),(-.91,.96),(-.975,.83),(-.998,.69),(-1,.22),(-.985,.06)]
 verts=[];faces=[];steps=160;n=len(profile)
 for i in range(steps+1):
