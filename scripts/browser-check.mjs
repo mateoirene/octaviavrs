@@ -56,7 +56,7 @@ try{
  await mkdir('artifacts',{recursive:true});await evaluate("document.querySelector('[data-folder-content]').scrollIntoView()");
  let screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/garaje-ficha.jpg',Buffer.from(screenshot.data,'base64'));
  // Carnet común a web y móvil: número persistente, foto y fondo aprobado.
- assert.match(await evaluate("document.querySelector('.garage-membership-number strong').textContent"),/^VRS-\d{6}$/);
+ assert.match(await evaluate("document.querySelector('.garage-membership-number strong').textContent"),/^VRS-\d{1,3}$/);
  assert.equal(await evaluate("document.querySelector('.garage-membership .garage-pilot-avatar').tagName"),'IMG');
  assert.equal(await evaluate("(async()=>{const image=new Image();image.src='assets/member-card-catalunya.webp';await image.decode();return image.naturalWidth>0;})()"),true);
  for(const width of [320,390,1280]){
