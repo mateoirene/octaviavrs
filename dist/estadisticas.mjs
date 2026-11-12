@@ -1,5 +1,5 @@
 
-import {label,number,node,trend,ranking,csvReport} from './stats-visuals.mjs?v=20261112-dashboard';
+import {label,number,node,trend,ranking,csvReport} from './stats-visuals.mjs?v=20261112-profesional';
 const $=s=>document.querySelector(s),root=$('[data-stats-panel]'),note=$('[data-stats-status]');
 let report,sequence=0;
 if(new URLSearchParams(location.search).has('embed'))document.body.classList.add('stats-embedded');

@@ -1,5 +1,5 @@
 
-import {trend,ranking,number} from './stats-visuals.mjs?v=20261112-dashboard';
+import {trend,ranking,number} from './stats-visuals.mjs?v=20261112-profesional';
 let generation=0;
 export async function refreshAnalyticsOverview(){
  const host=document.querySelector('[data-analytics-overview]');if(!host)return;
