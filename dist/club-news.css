@@ -39,3 +39,14 @@
 .club-clock-dial [data-clock-ticks] text{fill:#f4f5f7;font-weight:bold}
 @media(max-width:1050px){.site-header>.club-speed-clock{max-width:210px}.site-header>.club-speed-clock .club-clock-dial{width:100%}.site-header>.club-speed-clock .club-clock-digital{font-size:22px}}
 @media(max-width:760px){.site-header>.club-speed-clock{width:240px;max-width:90%}.site-header>.club-speed-clock .club-clock-dial{width:100%}.site-header>.club-speed-clock .club-clock-digital{font-size:25px}}
+
+/* El contenido escala con la esfera y reserva una zona propia para VRS. */
+.site-header>.club-speed-clock .club-clock-dial{container-type:inline-size}
+.site-header>.club-speed-clock .club-clock-center{left:18%;right:18%;top:42%;bottom:23%;display:grid;grid-template-columns:minmax(0,1fr);align-content:center;justify-items:center;gap:2px;text-align:center;min-width:0}
+.site-header>.club-speed-clock .club-clock-digital{font-size:20px;font-size:10cqw;line-height:1.1;letter-spacing:0;width:auto;max-width:100%;margin:0}
+.site-header>.club-speed-clock .club-clock-date{font-size:9px;font-size:4.5cqw;line-height:1.15;padding:0;margin:0;width:100%}
+.site-header>.club-speed-clock .club-clock-weather{width:100%;min-width:0;margin:0;padding:0;gap:2px;align-items:center}
+.site-header>.club-speed-clock .club-clock-weather>span{font-size:8px;font-size:4cqw;line-height:1.15;overflow-wrap:anywhere}
+.site-header>.club-speed-clock .club-clock-weather small{font-size:7px;font-size:3.5cqw;line-height:1.15;overflow-wrap:anywhere}
+.site-header>.club-speed-clock .club-clock-signature{bottom:9%;font-size:15px;font-size:7.5cqw;line-height:1;pointer-events:none}
+.site-header>.club-speed-clock .club-clock-signature b{font-size:18px;font-size:9cqw}
