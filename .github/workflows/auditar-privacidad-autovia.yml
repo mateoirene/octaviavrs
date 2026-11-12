@@ -1,0 +1,27 @@
+name: Auditar privacidad y detener publicaciones de autovía
+on:
+  push:
+    branches: [codex/privacidad-auditoria-autovia]
+    paths: ['.github/privacy/audit-autovia.mjs', '.github/workflows/auditar-privacidad-autovia.yml']
+permissions:
+  contents: read
+  actions: write
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Inventariar accesos y detener solo publicadores de desarrollo
+        run: node .github/privacy/audit-autovia.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: auditoria-privacidad-autovia
+          path: artifacts/auditoria-privacidad-autovia.json
