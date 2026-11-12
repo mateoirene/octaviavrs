@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#101713"><title>Centro de control · Octavia VRS Catalunya</title>
   <link rel="stylesheet" href="style.css?v=20261024-emblema">
   <link rel="stylesheet" href="navigation-premium.css?v=20261027">
-  <link rel="stylesheet" href="admin-center.css?v=20261111-seasonal1">
+  <link rel="stylesheet" href="admin-center.css?v=20261112-estadisticas">
 </head>
 <body class="admin-center-page">
   <main class="control-shell">
@@ -27,6 +27,7 @@
         <p class="control-nav-label">MENÚ PRINCIPAL</p>
         <div class="control-nav-group" role="group" aria-label="Inicio">
           <p class="control-nav-group-title">Inicio</p>
+          <button class="control-nav" data-tab="statistics"><span class="control-nav-icon" aria-hidden="true">▥</span><span>Estadísticas y estado</span></button>
           <button class="control-nav active" data-tab="dashboard"><span class="control-nav-icon" aria-hidden="true">⌂</span><span>Resumen</span></button>
         </div>
         <div class="control-nav-group" role="group" aria-label="Contenido del club">
@@ -64,6 +65,7 @@
           </div></section>
           <div class="dashboard-section-heading dashboard-stats-heading"><div><h2>Actividad del club</h2><p>Resumen de los últimos 30 días y lo que viene.</p></div></div>
           <div class="control-stats"><article><span>Visitas · 30 días</span><strong data-stat-views>—</strong><small data-stat-visitors>— visitantes</small></article><article><span>Fichas aprobadas</span><strong data-stat-members>—</strong><small>Miembros del garaje</small></article><article><span>Noticias</span><strong data-stat-news>—</strong><small>Publicaciones guardadas</small></article><article><span>Próximos eventos</span><strong data-stat-events>—</strong><small>En el calendario</small></article></div>
+          <section class="control-card dashboard-analytics" data-analytics-overview><div class="dashboard-section-heading"><div><h2>Tu web, en cifras</h2><p>Visitas y contenido que más interesa en los últimos 30 días.</p></div><button type="button" data-open-tab="statistics">Ver todas las estadísticas →</button></div><p data-overview-status role="status">Cargando estadísticas…</p><div class="dashboard-analytics-legend"><span>● Actual</span><span>┄ Periodo anterior</span></div><div data-overview-chart></div><div class="control-columns"><section><h3>Páginas más visitadas</h3><div data-overview-pages></div></section><section><h3>Botones más utilizados</h3><div data-overview-buttons></div></section></div></section>
           <div class="control-columns"><section class="control-card"><h2>Últimas noticias</h2><ul data-latest-news><li>Cargando…</li></ul></section><section class="control-card"><h2>Próximos eventos</h2><ul data-upcoming-events><li>Cargando…</li></ul></section></div>
           <section class="control-card"><h2>Actividad administrativa reciente</h2><div class="table-scroll"><table><thead><tr><th>Fecha</th><th>Operación</th><th>Resultado</th></tr></thead><tbody data-recent-activity><tr><td colspan="3">Cargando…</td></tr></tbody></table></div></section>
           <div class="control-quick-links dashboard-secondary-links"><a class="button" href="admin-mercadillo.html">Moderar mercadillo ↗</a><button type="button" data-open-tab="security">Ver registro de actividad →</button></div>
@@ -98,6 +100,6 @@
       </div>
     </section>
   </main>
-  <script type="module" src="admin-center.mjs?v=20261111-seasonal1"></script>
+  <script type="module" src="admin-center.mjs?v=20261112-estadisticas"></script>
 </body>
 </html>
