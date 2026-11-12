@@ -391,9 +391,22 @@ try{
  await call('Network.deleteCookies',{name:'club_session',url:base});await call('Page.navigate',{url:base+'/estadisticas.html'});await until("document.readyState==='complete'&&document.querySelector('[data-stats-login]')?.hidden===false");assert.equal(await evaluate("document.querySelector('[data-stats-panel]').hidden"),true);
  assert.equal(await evaluate("(async()=>{const r=await fetch('/api/analytics/report?from=2026-10-01&to=2026-10-26');return r.status})()"),401);
  await call('Network.setCookie',{name:'club_session',value:token,url:base,path:'/',sameSite:'Strict'});
- await call('Page.reload');await until("!document.querySelector('[data-stats-panel]')?.hidden&&document.querySelector('[data-stats-kpis]')?.children.length===6");assert.ok(await evaluate("document.querySelector('[data-stats-status]').textContent.includes('medición propia')"));
+ await call('Page.reload');await until("!document.querySelector('[data-stats-panel]')?.hidden&&document.querySelector('[data-stats-kpis]')?.children.length===8");assert.ok(await evaluate("document.querySelector('[data-stats-status]').textContent.includes('medición propia')"));
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+2"),true);assert.equal(await evaluate("document.querySelectorAll('#club-ga4,#club-clarity,#club-cf-beacon').length"),0);
- await evaluate("document.querySelector('[data-stats-filters]').elements.source.value='ga4';document.querySelector('[data-stats-filters]').requestSubmit()");await until("document.querySelector('[data-stats-status]').textContent.includes('Google Analytics no está disponible')");assert.equal(await evaluate("document.querySelector('[data-stats-kpis]').children.length"),0);await evaluate("document.querySelector('[data-stats-filters]').elements.source.value='first-party';document.querySelector('[data-stats-filters]').requestSubmit()");await until("document.querySelector('[data-stats-kpis]').children.length===6");
+ await evaluate("document.querySelector('[data-stats-filters]').elements.source.value='ga4';document.querySelector('[data-stats-filters]').requestSubmit()");await until("document.querySelector('[data-stats-status]').textContent.includes('Google Analytics no está disponible')");assert.equal(await evaluate("document.querySelector('[data-stats-kpis]').children.length"),0);await evaluate("document.querySelector('[data-stats-filters]').elements.source.value='first-party';document.querySelector('[data-stats-filters]').requestSubmit()");await until("document.querySelector('[data-stats-kpis]').children.length===8");
+
+ await evaluate("document.querySelector('[name=metric]').value='users';document.querySelector('[name=metric]').dispatchEvent(new Event('change'))");assert.equal(await evaluate("document.querySelector('[name=group]').disabled"),true);
+ await evaluate("document.querySelector('[name=metric]').value='views';document.querySelector('[name=metric]').dispatchEvent(new Event('change'))");assert.equal(await evaluate("document.querySelector('[name=group]').disabled"),false);
+ assert.equal(await evaluate("document.querySelector('[data-stats-chart] svg')?.getAttribute('role')"),'img');
+ assert.equal(await evaluate("document.querySelector('[data-stats-export]').disabled"),false);
+ for(const width of [390,1440]){
+ await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+2"),true);
+ const shot=await call('Page.captureScreenshot',{format:'jpeg',quality:82});await writeFile('artifacts/estadisticas-'+width+'.jpg',Buffer.from(shot.data,'base64'));
+ }
+ await call('Page.navigate',{url:base+'/admin.html'});await until("document.querySelector('[data-app]')?.hidden===false&&!!document.querySelector('[data-overview-chart] svg')");
+ await evaluate("document.querySelector('[data-tab=statistics]').click()");assert.ok(await evaluate("document.querySelector('[data-workspace]').src.includes('estadisticas.html?embed=1')"));
+ await evaluate("document.querySelector('[data-tab=dashboard]').click()");assert.equal(await evaluate("document.querySelector('[data-view=dashboard]').hidden"),false);
+ const adminShot=await call('Page.captureScreenshot',{format:'jpeg',quality:82});await writeFile('artifacts/panel-graficos.jpg',Buffer.from(adminShot.data,'base64'));
  console.log('ANALITICA_CONSENTIMIENTO_PANEL_OK: rechazo sin recogida, aceptación granular, retirada, página única, parámetros sin PII, proveedores simulados y panel privado móvil.');
  // Administration-only publications and automatic platform icons on existing lists.
  await call('Page.navigate',{url:base+'/noticias-admin.html'});await until("document.readyState==='complete'&&document.querySelector('[data-post-panel]')?.hidden===false&&!!document.querySelector('[data-post-form]')");
