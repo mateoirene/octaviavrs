@@ -13,7 +13,7 @@ for(const [name,url,expectedHash] of resources){
  await writeFile(new URL(name,root),bytes);console.log(name,bytes.length,createHash('sha256').update(bytes).digest('hex'));
 }
 await writeFile(new URL('credits.json',root),JSON.stringify({
- player:{title:'Octavia VRS · representación artística',author:'Club Octavia VRS · geometría del proyecto',source:'https://github.com/mateoirene/octaviavrs/blob/main/dist/racing-vehicles3d.mjs',license:'Geometría original del proyecto; no incorpora modelos de terceros',changes:'Modelo existente reutilizado con habitáculo original, pilotos traseros, portón, luces y ruedas animadas. No es un modelo oficial de Škoda.'},
+ player:{title:'Octavia VRS · representación artística',author:'Club Octavia VRS · geometría del proyecto',source:'tools/build_octavia_mk4.py',license:'Geometría original del proyecto; no incorpora modelos de terceros',changes:'GLB original creado en Blender con superficie de carrocería, ópticas, habitáculo y cuatro raíces de rueda. Estudio inspirado en Mk4, no CAD oficial; el starter mencionado no se ha recibido.'},
  traffic:{title:'Sedan car',author:'Innerscene',license:'CC0-1.0',source:'https://www.innerscene.com/tools/library/3d-parts/sedan-car-42109739',changes:'Instancias de tráfico, pintura y animación de ruedas'},
  surfaces:{title:'Asphalt 02 y Kloppenheim 06 Pure Sky',author:'Poly Haven; asfalto de Rob Tuytel',license:'CC0',source:'https://polyhaven.com/a/asphalt_02'},
 },null,2));
