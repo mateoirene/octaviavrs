@@ -55,6 +55,18 @@ try{
  assert.equal(await evaluate("document.querySelector('.garage-whatsapp').href"),'https://wa.me/34600123456');await until("document.querySelector('.garage-pilot-avatar')?.complete&&document.querySelector('.garage-pilot-avatar').naturalWidth>0");
  await mkdir('artifacts',{recursive:true});await evaluate("document.querySelector('[data-folder-content]').scrollIntoView()");
  let screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/garaje-ficha.jpg',Buffer.from(screenshot.data,'base64'));
+ // Carnet común a web y móvil: número persistente, foto y fondo aprobado.
+ assert.match(await evaluate("document.querySelector('.garage-membership-number strong').textContent"),/^VRS-\d{6}$/);
+ assert.equal(await evaluate("document.querySelector('.garage-membership .garage-pilot-avatar').tagName"),'IMG');
+ assert.equal(await evaluate("(async()=>{const image=new Image();image.src='assets/member-card-catalunya.webp';await image.decode();return image.naturalWidth>0;})()"),true);
+ for(const width of [320,390,1280]){
+  await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});
+  assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth+2"),false,'Carnet sin desbordamiento a '+width);
+  assert.equal(await evaluate("(()=>{const c=document.querySelector('.garage-membership'),r=c.getBoundingClientRect();return Array.from(c.children).every(n=>{const b=n.getBoundingClientRect();return b.left>=r.left&&b.right<=r.right+1&&b.bottom<=r.bottom+1;});})()"),true,'Datos dentro del carnet a '+width);
+  await evaluate("document.querySelector('.garage-membership').scrollIntoView({block:'center',behavior:'instant'})");
+  const shot=await call('Page.captureScreenshot',{format:'jpeg',quality:85});await writeFile('artifacts/carnet-socio-'+width+'.jpg',Buffer.from(shot.data,'base64'));
+ }
+ console.log('CARNET_SOCIO_OK: número real, perfil, fondo y tamaños 320/390/1280.');
  // Galería de eventos: crear carpeta, publicar una fotografía y consultarla.
  await call('Page.navigate',{url:base+'/galeria.html'});await until("document.querySelector('[data-gallery-management]')?.hidden===false");
  await evaluate("document.querySelector('[data-event-form]').elements.name.value='Ruta de prueba';document.querySelector('[data-event-form]').elements.category.value='Rutas';document.querySelector('[data-event-form]').requestSubmit()");
