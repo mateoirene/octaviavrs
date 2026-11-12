@@ -66,7 +66,7 @@ export function trend(host,report,metric='views',group='day'){
  svg.addEventListener('pointermove',event=>{const bounds=svg.getBoundingClientRect(),position=(event.clientX-bounds.left)/bounds.width*chartWidth;select(Math.round((position-left)/(right-left)*Math.max(0,len-1)));});
  svg.addEventListener('pointerdown',event=>{const bounds=svg.getBoundingClientRect();select(Math.round(((event.clientX-bounds.left)/bounds.width*chartWidth-left)/(right-left)*Math.max(0,len-1)));});
  select(Math.max(0,current.length-1));
- if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(()=>{if((host.clientWidth<600)!==compact){observer.disconnect();trend(host,report,metric,group);}});observer.observe(host);host.__proChartObserver=observer;}
+ if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(()=>{if(!host.querySelector('svg.pro-chart-svg')){observer.disconnect();return;}if((host.clientWidth<600)!==compact){observer.disconnect();trend(host,report,metric,group);}});observer.observe(host);host.__proChartObserver=observer;}
  const details=node('details',undefined,doc);details.className='stats-data-table';details.append(node('summary','Consultar tabla de datos',doc));const table=node('table',undefined,doc),head=node('tr',undefined,doc);for(const text of ['Fecha actual','Actual','Fecha anterior','Anterior'])head.append(node('th',text,doc));table.append(head);
  for(let i=0;i<len;i++){const row=node('tr',undefined,doc);for(const text of [current[i]?.date||'—',current[i]?number(current[i].value):'—',previous[i]?.date||'—',previous[i]?number(previous[i].value):'—'])row.append(node('td',text,doc));table.append(row);}details.append(table);host.append(details);
 }
