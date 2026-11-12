@@ -1,5 +1,5 @@
 import {setVrsText} from './branding.mjs';
-import {clubNewsSetKey,isClubNewsVisible,shuffleClubNews} from './news-order.mjs';
+import {clubNewsSetKey,isClubNewsVisible,newestClubNews} from './news-order.mjs?v=20261112-recientes';
 const root=document.querySelector('[data-news-station]');
 const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
 const skodaFallback={id:'octavia-oficial',kind:'motor',label:'Škoda Octavia vRS',title:'Descubre el Škoda Octavia RS',description:'Consulta las noticias y la información oficial del modelo en Škoda España.',href:'https://www.skoda.es/modelos/octavia/octavia_rs',image:'assets/platforms/skoda.svg',source:'Škoda España'};

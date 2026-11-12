@@ -27,3 +27,15 @@ export function shuffleClubNews(items,random=Math.random){
 export function clubNewsSetKey(items){
  return (Array.isArray(items)?items:[]).filter(isClubNewsVisible).map(item=>String(item.id??'')).sort().join('|');
 }
+
+/** La última actividad publicada abre el carrusel, aunque otra sea destacada. */
+export function newestClubNews(items){
+ const timestamp=item=>{
+  const value=item.createdAt;
+  const numeric=typeof value==='number'||(typeof value==='string'&&value.trim()!==''&&Number.isFinite(Number(value)))?Number(value):NaN;
+  if(Number.isFinite(numeric)&&numeric>0)return numeric<1e12?numeric*1000:numeric;
+  const parsed=Date.parse(typeof value==='string'?value:item.published);
+  return Number.isFinite(parsed)?parsed:0;
+ };
+ return (Array.isArray(items)?items:[]).filter(isClubNewsVisible).slice().sort((a,b)=>timestamp(b)-timestamp(a));
+}
