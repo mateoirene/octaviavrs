@@ -38,3 +38,5 @@
 .pro-chart-empty strong{font-size:13px;color:#bdd3c5}.pro-chart-empty p{max-width:290px;font-size:11px!important;color:#8fa99b!important;line-height:1.7}
 .pro-chart-control input:focus-visible{outline:2px solid #a0e8bb;outline-offset:3px}
 @media(max-width:600px){.pro-chart-summary{align-items:start;gap:12px}.pro-chart-summary>div>strong{font-size:30px}.pro-comparison{font-size:10px;max-width:160px;padding:8px}.pro-chart-legend{gap:16px;font-size:10px}.pro-chart-inspector{gap:8px 16px;padding:12px;font-size:11px}.pro-chart-inspector>strong{width:100%}.pro-chart-control{grid-template-columns:1fr;gap:4px}.pro-rank-row{grid-template-columns:19px minmax(0,1fr);gap:7px}.pro-rank-line{gap:10px;font-size:11px}.pro-rank-numbers{gap:7px}.pro-ranking-meta{font-size:9px}.pro-rank-numbers small{min-width:35px}}
+
+@media(max-width:600px){.pro-trend .pro-chart-svg text{font-size:14px}}
