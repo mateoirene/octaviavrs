@@ -51,9 +51,9 @@ test('API publica carnet real sin teléfono ni fecha privada; pendientes y recha
  raw.prepare('INSERT INTO garage_moderation(member_id,status,submitted_at) VALUES(?,?,?)').run('rejected','rejected',1);
  raw.prepare('INSERT INTO garage_profiles(member_id,phone) VALUES(?,?)').run('approved','34600123456');
  raw.prepare('INSERT INTO garage_birthdays VALUES(?,?)').run('approved','2000-01-02');
- let rows=await list();assert.equal(rows.length,1);const number=rows[0].membershipNumber;assert.match(number,/^VRS-\d{6}$/);assert.ok(!('phone' in rows[0]));assert.ok(!('birthDate' in rows[0]));
+ let rows=await list();assert.equal(rows.length,1);const number=rows[0].membershipNumber;assert.match(number,/^VRS-\d{1,3}$/);assert.ok(!('phone' in rows[0]));assert.ok(!('birthDate' in rows[0]));
  assert.equal((await list({id:'owner'},'pending'))[0].membershipNumber,null);assert.equal((await list({id:'owner'},'rejected'))[0].membershipNumber,null);
- raw.prepare("UPDATE garage_moderation SET status='approved' WHERE member_id='pending'").run();rows=await list();assert.equal(rows.length,2);assert.equal(rows.find(r=>r.id==='approved').membershipNumber,number);assert.match(rows.find(r=>r.id==='pending').membershipNumber,/^VRS-\d{6}$/);
+ raw.prepare("UPDATE garage_moderation SET status='approved' WHERE member_id='pending'").run();rows=await list();assert.equal(rows.length,2);assert.equal(rows.find(r=>r.id==='approved').membershipNumber,number);assert.match(rows.find(r=>r.id==='pending').membershipNumber,/^VRS-\d{1,3}$/);
  }finally{raw.close();}
 });
 
