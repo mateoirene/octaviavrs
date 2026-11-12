@@ -33,9 +33,22 @@ function card(member) {
   const photos = element('div', '', 'garage-member-photos');
   member.images.forEach((src,index) => { const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`); const image = element('img'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy'; button.append(image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button); });
   article.append(photos); const body = element('div', '', 'garage-member-body');
-  if(member.profileImage){const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';body.append(avatar);}
-  body.append(element('p', 'PILOTO DEL CLUB', 'eyebrow red'), element('h3',member.pilot), element('p',member.model,'garage-model'));
-  if (member.instagramUrl) { const link = element('a','@'+member.instagram+' ↗','garage-instagram'); link.dataset.analyticsResourceId=member.id;link.href = member.instagramUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; body.append(link); }
+  const membership = element('section','','garage-membership');
+  membership.setAttribute('aria-label','Carnet de socio de '+member.pilot);
+  const club=element('p','','garage-membership-club');
+  club.append(element('span','CLUB OCTAVIA'),element('span','VRS CATALUNYA'));
+  membership.append(club);
+  if(member.profileImage){
+    const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';membership.append(avatar);
+  }else{
+    const initials=member.pilot.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]).join('').toLocaleUpperCase('es');
+    const avatar=element('span',initials,'garage-pilot-avatar garage-pilot-initials');avatar.setAttribute('aria-label','Iniciales de '+member.pilot);membership.append(avatar);
+  }
+  membership.append(element('h3',member.pilot),element('p',member.model,'garage-model'));
+  if(member.instagramUrl){const link=element('a','@'+member.instagram+' ↗','garage-instagram');link.dataset.analyticsResourceId=member.id;link.href=member.instagramUrl;link.target='_blank';link.rel='noopener noreferrer';membership.append(link);}
+  const number=element('div','','garage-membership-number');
+  number.append(element('span',member.membershipNumber?'NÚMERO DE SOCIO':'FICHA EN REVISIÓN','garage-membership-label'),element('strong',member.membershipNumber||'Pendiente de aprobación'));
+  membership.append(number);body.append(membership);
   if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
   if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
   const specs = element('dl','', 'garage-specs');
@@ -94,3 +107,4 @@ $('[data-garage-login]').textContent = admin ? 'Gestionar carpetas y fichas ↓'
 try { await loadFolders();if(admin)await loadReviews(); } catch (error) { status.textContent = error.message; }
 
 setInterval(()=>{if(admin&&!document.hidden&&!$('[data-garage-review-list]').contains(document.activeElement))void loadReviews();},60000);
+
