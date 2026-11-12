@@ -237,7 +237,7 @@ async function loadCircuitWorld(){
  if(circuitSuspended||world3d||circuitWorldLoading)return;
  if(new URLSearchParams(location.search).get('render')==='2d'){stage.dataset.renderer='2d-fallback';return;}
  circuitWorldLoading=true;
- try{const module=await import('./racing-world3d.mjs?v=20261112-contacto');const world=await module.createRacingWorld(stage);if(circuitSuspended){world?.dispose();return;}if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;applyCircuitQuality();world.resize(width,height);draw();}
+ try{const module=await import('./racing-world3d.mjs?v=20261112-neumaticos-v2');const world=await module.createRacingWorld(stage);if(circuitSuspended){world?.dispose();return;}if(!world){stage.dataset.renderer='2d-fallback';return;}world3d=world;applyCircuitQuality();world.resize(width,height);draw();}
  catch(error){console.warn('No se pudo iniciar el circuito 3D',error);stage.querySelectorAll('.race-world3d').forEach(canvas=>canvas.remove());stage.dataset.renderer='2d-fallback';}
  finally{circuitWorldLoading=false;if(!circuitSuspended&&!world3d&&stage.dataset.renderer!=='2d-fallback')void loadCircuitWorld();}
 }
