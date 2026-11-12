@@ -50,10 +50,10 @@ function performanceSample(metric,value){
 }
 let lcp=0;
 try{new PerformanceObserver(list=>{const last=list.getEntries().at(-1);if(last)lcp=last.startTime;}).observe({type:'largest-contentful-paint',buffered:true});}catch{}
-function measurePerformance(){
+function measurePerformance(final=false){
  const nav=performance.getEntriesByType?.('navigation')?.[0];
  if(nav)performanceSample('load',nav.loadEventEnd);
- if(lcp)performanceSample('lcp',lcp);
+ if(final&&lcp)performanceSample('lcp',lcp);
 }
 let errorCount=0;
 window.addEventListener('error',event=>{
@@ -62,7 +62,8 @@ window.addEventListener('error',event=>{
  if(kind){errorCount++;track('resource_error',{error_kind:kind});}
 },true);
 window.addEventListener('load',()=>setTimeout(measurePerformance,3000),{once:true});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)measurePerformance();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){measurePerformance(true);void flush();}});
+window.addEventListener('pagehide',()=>{measurePerformance(true);void flush();});
 window.addEventListener('club-consent-change',()=>{visibleSections();setTimeout(measurePerformance,3000);});
 setTimeout(()=>{visibleSections();measurePerformance();},3500);
 
