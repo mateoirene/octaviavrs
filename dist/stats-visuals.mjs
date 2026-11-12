@@ -17,28 +17,74 @@ export function dailySeries(rows,from,to,field='views',group='day'){
   if(group==='month')key=key.slice(0,7);groups.set(key,(groups.get(key)||0)+value);
  }return [...groups].map(([date,value])=>({date,value}));
 }
+
+export function chartScale(value){
+ const max=Math.max(0,Number(value)||0);if(max<=4)return {max:4,step:1};
+ const raw=max/4,power=10**Math.floor(Math.log10(raw)),fraction=raw/power;
+ const step=Math.max(1,[1,2,2.5,5,10].find(n=>n>=fraction)*power);
+ const integerStep=Math.ceil(step);return {max:Math.ceil(max/integerStep)*integerStep,step:integerStep};
+}
+function shortDate(date){
+ if(!date)return '—';return new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(date.length===7?date+'-01T12:00:00Z':date+'T12:00:00Z'));
+}
+let chartId=0;
 export function trend(host,report,metric='views',group='day'){
- host.replaceChildren();const ga=report.source==='ga4',field=ga?({views:'screenPageViews',users:'totalUsers',sessions:'sessions'})[metric]:metric;
- const current=dailySeries(report.current.daily,report.from,report.to,field,group),previous=dailySeries(report.previous.daily,report.previousFrom,report.previousTo,field,group),max=Math.max(1,...current.map(r=>r.value),...previous.map(r=>r.value)),doc=host.ownerDocument,ns='http://www.w3.org/2000/svg';
- const svg=doc.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 760 230');svg.setAttribute('role','img');svg.setAttribute('aria-label','Evolución: periodo actual en verde y anterior en gris. Los valores se pueden consultar en la tabla.');
- const make=(tag,attrs,text)=>{const e=doc.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;svg.append(e);return e;};
- for(let i=0;i<=4;i++){const y=190-i*40;make('line',{x1:48,x2:740,y1:y,y2:y,stroke:'#ffffff16'});make('text',{x:40,y:y+4,'text-anchor':'end',fill:'#aebbb4','font-size':11},number(max*i/4));}
- const len=Math.max(current.length,previous.length),x=i=>len<=1?394:48+i/(len-1)*692,y=v=>190-v/max*160;
- for(const [rows,color,dash]of [[previous,'#91a5af','5 5'],[current,'#8ce5ac','']]){
-  make('polyline',{points:rows.map((r,i)=>x(i)+','+y(r.value)).join(' '),fill:'none',stroke:color,'stroke-width':3,'stroke-dasharray':dash,'stroke-linejoin':'round'});
-  rows.forEach((r,i)=>{const dot=make('circle',{cx:x(i),cy:y(r.value),r:rows.length>35?2:4,fill:color});const t=doc.createElementNS(ns,'title');t.textContent=r.date+': '+number(r.value)+(dash?' · periodo anterior':' · periodo actual');dot.append(t);});
+ host.__proChartObserver?.disconnect();host.replaceChildren();host.classList.add('pro-trend');
+ const ga=report.source==='ga4',field=ga?({views:'screenPageViews',users:'totalUsers',sessions:'sessions'})[metric]:metric;
+ const current=dailySeries(report.current.daily,report.from,report.to,field,group),previous=dailySeries(report.previous.daily,report.previousFrom,report.previousTo,field,group);
+ const scale=chartScale(Math.max(0,...current.map(r=>r.value),...previous.map(r=>r.value))),doc=host.ownerDocument,ns='http://www.w3.org/2000/svg',id='pro-area-'+(++chartId),compact=host.clientWidth<600,chartWidth=compact?480:900,chartHeight=compact?340:320;
+ const title=({views:'Páginas vistas',users:'Visitantes por día',sessions:'Sesiones por día'})[metric]||'Actividad';
+ const summary=node('div',undefined,doc);summary.className='pro-chart-summary';
+ const total=current.reduce((sum,r)=>sum+r.value,0),old=previous.reduce((sum,r)=>sum+r.value,0);
+ const big=node('div',undefined,doc);big.append(node('span',metric==='views'?title:'Mayor registro diario',doc),node('strong',number(metric==='views'?total:Math.max(0,...current.map(r=>r.value))),doc));summary.append(big);
+ const limited=!ga&&Date.parse(report.previousFrom)<Date.now()-90*86400000;
+ const compare=node('span',limited?'Comparación limitada por el histórico disponible':metric==='views'&&old?((total>=old?'+':'')+number((total-old)/old*100)+' % frente al periodo anterior'):metric==='views'?'Sin base anterior para comparar':'Registros diarios; no se suman visitantes ni sesiones',doc);compare.className='pro-comparison';summary.append(compare);host.append(summary);
+ const legend=node('div',undefined,doc);legend.className='pro-chart-legend';for(const [name,color]of [['Periodo actual','#8de5b7'],['Periodo anterior','#91a7bb']]){const item=node('span',name,doc);item.style.setProperty('--series',color);legend.append(item);}host.append(legend);
+ const svg=doc.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 '+chartWidth+' '+chartHeight);svg.setAttribute('role','img');svg.setAttribute('aria-label',title+'. Periodo actual y anterior. Usa el control bajo el gráfico para consultar fechas y valores.');svg.classList.add('pro-chart-svg');
+ const make=(tag,attrs={},text,parent=svg)=>{const e=doc.createElementNS(ns,tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;parent.append(e);return e;};
+ const defs=make('defs'),gradient=make('linearGradient',{id,x1:'0',x2:'0',y1:'0',y2:'1'},undefined,defs);
+ make('stop',{offset:'0%','stop-color':'#8de5b7','stop-opacity':'.26'},undefined,gradient);make('stop',{offset:'100%','stop-color':'#8de5b7','stop-opacity':'.01'},undefined,gradient);
+ const left=58,right=chartWidth-22,top=20,bottom=chartHeight-50,len=Math.max(current.length,previous.length),x=i=>len<=1?(left+right)/2:left+i/(len-1)*(right-left),y=v=>bottom-v/scale.max*(bottom-top);
+ for(let value=0;value<=scale.max;value+=scale.step){make('line',{x1:left,x2:right,y1:y(value),y2:y(value),stroke:'#b6c8c11c','stroke-dasharray':value?'3 6':'none'});make('text',{x:left-14,y:y(value)+4,'text-anchor':'end',fill:'#a4b6ad','font-size':12},new Intl.NumberFormat('es-ES',{notation:value>=10000?'compact':'standard',maximumFractionDigits:1}).format(value));}
+ if(current.length){const area='M '+x(0)+' '+bottom+' L '+current.map((r,i)=>x(i)+' '+y(r.value)).join(' L ')+' L '+x(current.length-1)+' '+bottom+' Z';make('path',{d:area,fill:'url(#'+id+')'});}
+ for(const [rows,color,dash]of [[previous,'#91a7bb','6 6'],[current,'#8de5b7','']])make('polyline',{points:rows.map((r,i)=>x(i)+','+y(r.value)).join(' '),fill:'none',stroke:color,'stroke-width':dash?2:3,'stroke-dasharray':dash,'stroke-linejoin':'round','stroke-linecap':'round'});
+ const ticks=[...new Set(Array.from({length:Math.min(compact?3:6,current.length)},(_,i)=>Math.round(i*(current.length-1)/Math.max(1,Math.min(compact?3:6,current.length)-1))))];
+ for(const i of ticks)make('text',{x:x(i),y:chartHeight-19,fill:'#a4b6ad','font-size':12,'text-anchor':i===0?'start':i===current.length-1?'end':'middle'},shortDate(current[i]?.date));
+ const guide=make('line',{x1:left,x2:left,y1:top,y2:bottom,stroke:'#d9ece070','stroke-dasharray':'4 4'}),dot=make('circle',{r:5,fill:'#8de5b7',stroke:'#10251a','stroke-width':3}),oldDot=make('circle',{r:4,fill:'#91a7bb',stroke:'#10251a','stroke-width':2});
+ host.append(svg);
+ const inspector=node('div',undefined,doc);inspector.className='pro-chart-inspector';inspector.setAttribute('aria-live','off');
+ const date=node('strong',undefined,doc),now=node('span',undefined,doc),before=node('span',undefined,doc);inspector.append(date,now,before);host.append(inspector);
+ const control=node('label',undefined,doc);control.className='pro-chart-control';const caption=node('span','Consultar fecha',doc),range=node('input',undefined,doc);range.type='range';range.min='0';range.max=String(Math.max(0,len-1));range.step='1';range.setAttribute('aria-label','Fecha que se consulta en el gráfico');control.append(caption,range);host.append(control);
+ function select(index){
+  index=Math.max(0,Math.min(len-1,index));range.value=String(index);
+  const a=current[index],b=previous[index];guide.setAttribute('x1',x(index));guide.setAttribute('x2',x(index));
+  for(const [element,row]of [[dot,a],[oldDot,b]]){element.setAttribute('cx',x(index));element.setAttribute('cy',y(row?.value||0));element.setAttribute('visibility',row?'visible':'hidden');}
+  date.textContent=a?.date||'Sin fecha actual';now.textContent='Actual: '+(a?number(a.value):'—');before.textContent='Anterior: '+(b?number(b.value)+' · '+b.date:'—');
+  range.setAttribute('aria-valuetext',(a?.date||'Sin fecha')+', actual '+(a?.value??'sin dato')+', anterior '+(b?.value??'sin dato'));
  }
- const steps=[...new Set([0,Math.floor((current.length-1)/2),current.length-1])].filter(i=>i>=0);
- for(const i of steps)make('text',{x:x(i),y:216,fill:'#aebbb4','font-size':11,'text-anchor':i===0?'start':i===current.length-1?'end':'middle'},current[i]?.date||'');
- host.append(svg);const details=node('details',undefined,doc);details.className='stats-data-table';details.append(node('summary','Ver valores del gráfico',doc));const table=node('table',undefined,doc);
- const head=node('tr',undefined,doc);for(const t of ['Fecha actual','Actual','Fecha anterior','Anterior'])head.append(node('th',t,doc));table.append(head);
- for(let i=0;i<len;i++){const row=node('tr',undefined,doc);for(const t of [current[i]?.date||'—',number(current[i]?.value),previous[i]?.date||'—',number(previous[i]?.value)])row.append(node('td',t,doc));table.append(row);}details.append(table);host.append(details);
+ range.addEventListener('input',()=>select(Number(range.value)));
+ svg.addEventListener('pointermove',event=>{const bounds=svg.getBoundingClientRect(),position=(event.clientX-bounds.left)/bounds.width*chartWidth;select(Math.round((position-left)/(right-left)*Math.max(0,len-1)));});
+ svg.addEventListener('pointerdown',event=>{const bounds=svg.getBoundingClientRect();select(Math.round(((event.clientX-bounds.left)/bounds.width*chartWidth-left)/(right-left)*Math.max(0,len-1)));});
+ select(Math.max(0,current.length-1));
+ if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(()=>{if((host.clientWidth<600)!==compact){observer.disconnect();trend(host,report,metric,group);}});observer.observe(host);host.__proChartObserver=observer;}
+ const details=node('details',undefined,doc);details.className='stats-data-table';details.append(node('summary','Consultar tabla de datos',doc));const table=node('table',undefined,doc),head=node('tr',undefined,doc);for(const text of ['Fecha actual','Actual','Fecha anterior','Anterior'])head.append(node('th',text,doc));table.append(head);
+ for(let i=0;i<len;i++){const row=node('tr',undefined,doc);for(const text of [current[i]?.date||'—',current[i]?number(current[i].value):'—',previous[i]?.date||'—',previous[i]?number(previous[i].value):'—'])row.append(node('td',text,doc));table.append(row);}details.append(table);host.append(details);
 }
 export function ranking(host,rows,field='count',suffix=''){
- host.replaceChildren();const doc=host.ownerDocument;
- if(!rows?.length){host.append(node('p','Todavía no hay datos en este periodo.',doc));return;}
- const total=rows.reduce((s,r)=>s+(Number(r[field])||0),0),max=Math.max(1,...rows.map(r=>Number(r[field])||0));
- for(const row of rows){const item=node('div',undefined,doc);item.className='stats-rank';const line=node('div',undefined,doc),title=node('span',label(row.label),doc),value=node('strong',number(row[field])+suffix,doc);line.append(title,value);const bar=node('i',undefined,doc);bar.style.setProperty('--rank',Math.max(0,Number(row[field])||0)/max*100+'%');item.append(line,bar);if(total>0)item.title=number((Number(row[field])||0)/total*100)+' % dentro de este listado';if(row.kind)item.append(node('small',label(row.kind),doc));if(row.active_ms)item.append(node('small',number(row.active_ms/1000)+' s activos',doc));host.append(item);}
+ host.replaceChildren();host.classList.add('pro-ranking');const doc=host.ownerDocument;
+ if(!rows?.length){const empty=node('div',undefined,doc);empty.className='pro-chart-empty';empty.append(node('strong','Aún no hay datos',doc),node('p','Este gráfico se completará cuando se registre actividad en el periodo seleccionado.',doc));host.append(empty);return;}
+ const total=rows.reduce((sum,row)=>sum+Math.max(0,Number(row[field])||0),0),max=Math.max(1,...rows.map(r=>Number(r[field])||0));
+ const meta=node('div',undefined,doc);meta.className='pro-ranking-meta';meta.append(node('span',rows.length+' categorías',doc),node('span',number(total)+' registros en este listado',doc));host.append(meta);
+ rows.forEach((row,index)=>{
+  const value=Math.max(0,Number(row[field])||0),share=total?value/total*100:0,item=node('div',undefined,doc);item.className='pro-rank-row';
+  const pos=node('span',String(index+1).padStart(2,'0'),doc);pos.className='pro-rank-position';
+  const body=node('div',undefined,doc);body.className='pro-rank-body';const line=node('div',undefined,doc);line.className='pro-rank-line';
+  const title=node('span',label(row.label),doc),numbers=node('span',undefined,doc);numbers.className='pro-rank-numbers';numbers.append(node('strong',number(value)+suffix,doc),node('small',number(share)+' %',doc));line.append(title,numbers);
+  const track=node('div',undefined,doc);track.className='pro-rank-track';const bar=node('i',undefined,doc);bar.style.setProperty('--rank',value/max*100+'%');track.append(bar);body.append(line,track);
+  if(row.kind)body.append(node('small',label(row.kind),doc));if(row.active_ms)body.append(node('small',number(row.active_ms/1000)+' s activos',doc));if(row.best_lap_ms)body.append(node('small',(row.best_lap_ms/1000).toFixed(3)+' s · mejor vuelta',doc));
+  item.append(pos,body);item.title=number(share)+' % de los registros de este listado';host.append(item);
+ });
+ const foot=node('p','Los porcentajes corresponden a los registros de este listado, no al total de visitantes.',doc);foot.className='pro-ranking-footnote';host.append(foot);
 }
 export function csvCell(value){const text=String(value??'');return '"'+(/^[=+@\-\t\r\n]/.test(text)?"'":'')+text.replace(/"/g,'""')+'"';}
 export function csvReport(report){

@@ -1,0 +1,2 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {chartScale} from '../dist/stats-visuals.mjs';
+test('las escalas cubren los valores y usan intervalos enteros, también sin datos',()=>{for(const value of [0,1,2,4,5,7,10,21,95,1234,1000000]){const scale=chartScale(value);assert.ok(scale.max>=value);assert.ok(Number.isInteger(scale.step)&&scale.step>=1);assert.equal(scale.max%scale.step,0);assert.ok(scale.max/scale.step<=6);}});

@@ -399,6 +399,14 @@ try{
  await evaluate("document.querySelector('[name=metric]').value='views';document.querySelector('[name=metric]').dispatchEvent(new Event('change'))");assert.equal(await evaluate("document.querySelector('[name=group]').disabled"),false);
  assert.equal(await evaluate("document.querySelector('[data-stats-chart] svg')?.getAttribute('role')"),'img');
  assert.equal(await evaluate("document.querySelector('[data-stats-export]').disabled"),false);
+ await evaluate("(()=>{const r=document.querySelector('[data-stats-chart] input[type=range]');r.value='0';r.dispatchEvent(new Event('input',{bubbles:true}))})()");
+ assert.equal(await evaluate("document.querySelector('[data-stats-chart] input[type=range]').value"),'0');
+ assert.ok(await evaluate("document.querySelector('[data-stats-chart] .pro-chart-inspector').textContent.includes('Actual:')"));
+ await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});await wait(250);
+ await evaluate("document.querySelector('[data-stats-chart]').scrollIntoView({block:'center',behavior:'instant'})");
+ const proClip=await evaluate("(()=>{const r=document.querySelector('[data-stats-chart]').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()");
+ const proShot=await call('Page.captureScreenshot',{format:'jpeg',quality:88,clip:proClip});await writeFile('artifacts/grafico-profesional.jpg',Buffer.from(proShot.data,'base64'));
+
  for(const width of [390,1440]){
  await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<700});assert.equal(await evaluate("document.documentElement.scrollWidth<=innerWidth+2"),true);
  const shot=await call('Page.captureScreenshot',{format:'jpeg',quality:82});await writeFile('artifacts/estadisticas-'+width+'.jpg',Buffer.from(shot.data,'base64'));
