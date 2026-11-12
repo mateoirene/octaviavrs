@@ -1,0 +1,28 @@
+name: Diagnosticar producción
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnosticar-produccion.yml']
+permissions:
+  contents: read
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Consultar estado D1
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://api.cloudflare.com/client/v4/accounts/71fb53fce0685a83a5b15712414cfc25';
+          async function api(p,body){const r=await fetch(base+p,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+process.env.CF_TOKEN,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return await r.json();}
+          const ds=await api('/d1/database?name=octavia-club-mercadillo');
+          const db=ds.result?.find(x=>x.name==='octavia-club-mercadillo');
+          if(!db)throw Error(JSON.stringify(ds.errors));
+          for(const sql of ['SELECT 1 AS ok','SELECT COUNT(*) AS n FROM garage_members','SELECT COUNT(*) AS n FROM market_admins','SELECT COUNT(*) AS n FROM market_limits','SELECT COUNT(*) AS n FROM garage_member_blocks','SELECT COUNT(*) AS n FROM garage_memberships','SELECT COUNT(*) AS n FROM club_notifications','SELECT COUNT(*) AS n FROM market_listings']){
+           const r=await api('/d1/database/'+db.uuid+'/query',{sql});console.log(JSON.stringify({sql,result:r}));
+          }
+          JS
