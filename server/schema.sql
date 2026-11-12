@@ -311,10 +311,12 @@ CREATE TABLE IF NOT EXISTS garage_memberships_v2 (
   issued_at INTEGER NOT NULL
 );
 INSERT OR IGNORE INTO garage_memberships_v2(member_id,number,issued_at)
+SELECT member_id,number,issued_at FROM garage_memberships WHERE number BETWEEN 0 AND 900;
+INSERT OR IGNORE INTO garage_memberships_v2(member_id,number,issued_at)
 WITH RECURSIVE pool(number) AS (
   SELECT 0 UNION ALL SELECT number+1 FROM pool WHERE number<900
 ), old_members AS (
-  SELECT member_id,issued_at,row_number() OVER(ORDER BY random()) AS rank FROM garage_memberships
+  SELECT member_id,issued_at,row_number() OVER(ORDER BY random()) AS rank FROM garage_memberships WHERE number NOT BETWEEN 0 AND 900
 ), random_pool AS (
   SELECT number,row_number() OVER(ORDER BY random()) AS rank FROM pool
 )
@@ -355,5 +357,4 @@ BEGIN
 END;
 UPDATE garage_members SET id=id
 WHERE NOT EXISTS(SELECT 1 FROM garage_memberships WHERE member_id=garage_members.id);
-
 
