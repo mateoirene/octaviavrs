@@ -1,0 +1,33 @@
+name: Comprobar apoyo del Octavia en circuito
+on:
+  push:
+    branches: [codex/circuit-contacto-20261112]
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/prepare-local-images.mjs
+      - run: node scripts/prepare-race-assets.mjs
+      - run: node scripts/prepare-track3d.mjs
+      - run: node scripts/prepare-highway-assets.mjs
+      - run: node --test tests/racing-original-photos.test.mjs tests/racing-contact-shadows.test.mjs tests/racing-cameras.test.mjs tests/racing-finish-replay.test.mjs tests/racing-wheels.test.mjs tests/racing.test.mjs
+      - run: node scripts/check-circuit-grounding.mjs
+      - name: Publicar circuito corregido en vista previa aislada
+        run: node scripts/deploy-highway-preview.mjs
+        env:
+          CLOUDFLARE_ACCOUNT_ID: '71fb53fce0685a83a5b15712414cfc25'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apoyo-circuito-capturas
+          path: |
+            artifacts/circuito-contacto*
+            artifacts/autovia-preview.json

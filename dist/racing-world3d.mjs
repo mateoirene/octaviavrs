@@ -1,7 +1,7 @@
 import {currentGraphicsProfile,bufferPixelRatio,createResolutionBudget} from './racing-render-budget.mjs?v=20261109-mobile';
 import {loadTeslaImages,attachTeslaImages,disposeTeslaImages} from './racing-tesla-photo3d.mjs?v=20261105-photos';
 import {vehicleMotionFrame} from './racing-tesla-views.mjs?v=20261105-photos';
-import {loadOctaviaPhotos,attachOriginalOctavia} from './racing-photo3d.mjs?v=20261028-grounded-tesla';
+import {loadOctaviaPhotos,attachOriginalOctavia} from './racing-photo3d.mjs?v=20261112-contacto';
 import {paintGroundContactTexture} from './racing-contact-shadows.mjs?v=20261028-grounded-tesla';
 import {createNitroExhaust} from './racing-exhaust3d.mjs?v=20261026-performance';
 import {boostVisual} from './racing-speed-effects.mjs?v=20261026-performance';
@@ -58,7 +58,6 @@ export async function createRacingWorld(stage){
 
  const fenceCanvas=document.createElement('canvas');fenceCanvas.width=fenceCanvas.height=64;const fc=fenceCanvas.getContext('2d');fc.clearRect(0,0,64,64);fc.strokeStyle='#a8b1b7';fc.lineWidth=1.4;for(let x=-64;x<128;x+=16){fc.beginPath();fc.moveTo(x,0);fc.lineTo(x+64,64);fc.stroke();fc.beginPath();fc.moveTo(x,0);fc.lineTo(x-64,64);fc.stroke();}const fenceTexture=new THREE.CanvasTexture(fenceCanvas);fenceTexture.wrapS=fenceTexture.wrapT=THREE.RepeatWrapping;fenceTexture.anisotropy=4;
  const fenceMaterial=new THREE.MeshStandardMaterial({map:fenceTexture,transparent:true,alphaTest:.12,side:THREE.DoubleSide,roughness:.65,metalness:.5,depthWrite:false});
- const tyreCanvas=document.createElement('canvas');tyreCanvas.width=128;tyreCanvas.height=1024;const tc=tyreCanvas.getContext('2d');tc.clearRect(0,0,128,1024);let seed=217;const random=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};for(let i=0;i<180;i++){const x=35+random()*58,y=random()*1024;tc.strokeStyle='rgba(20,18,17,'+(.02+random()*.12)+')';tc.lineWidth=.3+random()*2;tc.beginPath();tc.moveTo(x,y);tc.lineTo(x+random()*4,y+40+random()*220);tc.stroke();}const tyreTexture=new THREE.CanvasTexture(tyreCanvas);tyreTexture.wrapT=THREE.RepeatWrapping;const tyreMaterial=new THREE.MeshStandardMaterial({map:tyreTexture,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2});
  let playerRearTexture,playerSideTexture,octaviaPhotos;
  function personalTexture(texture,paint){if(!texture||paint==='blue')return texture;const copy=new THREE.CanvasTexture(paintedImage(texture.image,paint));copy.colorSpace=THREE.SRGBColorSpace;copy.offset.copy(texture.offset);copy.repeat.copy(texture.repeat);copy.userData=texture.userData;return copy;}
  let root,layout,signature='',rivalMeshes=[],rivalTexture,teslaTexture,teslaModel,teslaImages,teslaSideTexture,octaviaSideTexture,width=1,height=1,quality=profile.pixelRatio;
@@ -94,9 +93,7 @@ export async function createRacingWorld(stage){
   ribbon(-half-4,half+4,shoulder,-.055);ribbon(-half,half,asphalt,.0);
   for(const side of [-1,1]){ribbon(side*(half-.18)-.075,side*(half-.18)+.075,paintWhite,.012);for(const offset of [half+1.8,half+3.5]){ribbon(side*offset-.04,side*offset+.04,paintWhite,.007);}fence(side*(half+9));}
   {const vertices=[],colors=[],indices=[],uv=[];let vertex=0;const red=new THREE.Color('#883e39'),white=new THREE.Color('#dadbd2');for(const side of [-1,1])for(let s=0;s<layout.length;s+=9){const color=Math.floor(s/9)%2?white:red;for(const d of [s,Math.min(s+9,layout.length)]){const f=layout.frame(d);for(const offset of side<0?[-half-.85,-half]:[half,half+.85]){vertices.push(f.p[0]+f.r[0]*offset,f.p[1]+.035,f.p[2]+f.r[2]*offset);colors.push(color.r,color.g,color.b);uv.push(offset/3,d/3);}}indices.push(vertex,vertex+1,vertex+2,vertex+1,vertex+3,vertex+2);vertex+=4;}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(new Float32Array(vertices.length),3));g.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,normalMap:loaded[1],normalScale:new THREE.Vector2(.12,.12)}));}
-  // Zonas de goma y pequeñas reparaciones siguen la misma superficie 3D del asfalto.
-  for(const side of [-1,1])ribbon(side*1.05-.24,side*1.05+.24,tyreMaterial,.009);
-  const repairs=new THREE.MeshStandardMaterial({color:'#34373a',map:loaded[0],roughness:.99});for(let s=115;s<layout.length;s+=237)ribbon(-half*.65,-half*.32,repairs,.004,s,s+6.5,2);
+  // La textura PBR define el asfalto: sin bandas ni parches negros superpuestos.
   const walls=[],posts=[],rails=[];for(let s=0;s<layout.length;s+=8){for(const side of [-1,1]){walls.push({...at(s,side*(half+8),.15),size:[.5,1.9,8.15]});posts.push({...at(s,side*(half+4.7),.15),size:[.12,1.9,.12]});posts.push({...at(s,side*(half+9),2.0),size:[.085,3.4,.085]});for(const y of [.55,.95])rails.push({...at(s,side*(half+4.7),y),size:[.12,.18,8.1]});}}
   instanceBoxes(walls,concrete);instanceBoxes(posts,steel);instanceBoxes(rails,steel);
   // Boxes, marquesinas, torre de control y gradas: geometría estable fuera de la vía.

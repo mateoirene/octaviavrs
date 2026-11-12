@@ -1,0 +1,36 @@
+// Local integration test: ephemeral SQLite, Chrome CDP, no production writes.
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {spawn} from 'node:child_process';
+import {readFile,writeFile,mkdir,mkdtemp,rm} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
+import {resolve,extname,sep} from 'node:path';
+import {tmpdir} from 'node:os';
+import {DatabaseSync} from 'node:sqlite';
+import {handleMarketRequest} from '../server/market.mjs';
+const raw=new DatabaseSync(':memory:');raw.exec(await readFile('server/schema.sql','utf8'));
+const db={prepare(sql){let args=[];const s=raw.prepare(sql),query={bind(...a){args=a;return query;},async first(){return s.get(...args)||null;},async all(){return {results:s.all(...args)};},async run(){return {meta:{changes:Number(s.run(...args).changes)}};}};return query;},async batch(items){return Promise.all(items.map(i=>i.run()));}};
+const root=resolve('dist'),mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml','.mp3':'audio/mpeg','.webmanifest':'application/manifest+json'};
+const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');if(url.pathname.startsWith('/api/')){const r=await handleMarketRequest(new Request(base+req.url,{headers:req.headers}),{MARKET_DB:db});res.writeHead(r.status,Object.fromEntries(r.headers));res.end(Buffer.from(await r.arrayBuffer()));return;}const path=resolve(root,'.'+(url.pathname==='/'?'/index.html':url.pathname));if(!path.startsWith(root+sep))throw Error('path');res.setHeader('Content-Type',mime[extname(path)]||'application/octet-stream');res.end(await readFile(path));}catch{res.writeHead(404);res.end();}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+const chromePath=process.env.CHROME_BIN||['C:/Program Files/Google/Chrome/Application/chrome.exe','/usr/bin/google-chrome','/usr/bin/chromium'].find(existsSync);assert.ok(chromePath,'Chrome instalado');
+const nativeGPU=process.env.HIGHWAY_GPU==='native';
+const profile=await mkdtemp(resolve(tmpdir(),'octavia-highway-'));const chrome=spawn(chromePath,['--headless=new','--no-sandbox','--disable-dev-shm-usage',...(nativeGPU?[]:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']),'--disable-background-timer-throttling','--disable-renderer-backgrounding','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore',windowsHide:true});
+const wait=ms=>new Promise(r=>setTimeout(r,ms)),pending=new Map(),errors=[],checks=[];let socket,id=0;
+const check=(name)=>{checks.push(name);console.log('OK '+name);};
+try{
+ let port;for(let i=0;i<150;i++){try{port=Number((await readFile(resolve(profile,'DevToolsActivePort'),'utf8')).split('\n')[0]);if(port)break;}catch{}await wait(100);}assert.ok(port,'Chrome arranca');
+ const tab=await(await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'})).json();socket=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>socket.addEventListener('open',r,{once:true}));socket.addEventListener('message',e=>{const d=JSON.parse(e.data),p=pending.get(d.id);if(p){clearTimeout(p.timer);pending.delete(d.id);d.error?p.reject(Error(d.error.message)):p.resolve(d.result);}if(d.method==='Runtime.exceptionThrown')errors.push(d.params.exceptionDetails.exception?.description||d.params.exceptionDetails.text);if(d.method==='Runtime.consoleAPICalled'&&d.params.type==='error')errors.push('console.error: '+d.params.args.map(a=>a.value||a.description||'').join(' '));});
+ const call=(method,params={})=>new Promise((resolve,reject)=>{const next=++id,timer=setTimeout(()=>{pending.delete(next);reject(Error('Timeout '+method));},30000);pending.set(next,{resolve,reject,timer});socket.send(JSON.stringify({id:next,method,params}));});
+ const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value;};
+ const until=async(expression)=>{for(let i=0;i<250;i++){if(await evaluate(expression))return;await wait(80);}throw Error('No se cumple: '+expression);};
+ await call('Page.enable');await call('Page.bringToFront');await call('Runtime.enable');await call('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('club-consent-v1',JSON.stringify({version:1,at:Date.now(),analytics:false,recordings:false}))"});
+ await call('Emulation.setDeviceMetricsOverride',{width:nativeGPU?1280:390,height:nativeGPU?900:844,deviceScaleFactor:1,mobile:!nativeGPU});
+ if(!nativeGPU)await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+ await call('Page.navigate',{url:base+'/octavia-modelo.html'});await until('window.octaviaShowroom?.ready===true');
+ const anchoring=await evaluate(`(async()=>{const T=await import('./vendor/three.module.js'),{attachOriginalOctavia}=await import('./racing-photo3d.mjs'),{photoDimensions}=await import('./racing-photo-views.mjs');const group=new T.Group(),atlas=Object.fromEntries(['rear','front','rear-left','rear-right'].map(k=>[k,new T.Texture()])),photo=attachOriginalOctavia(group,atlas),results=[];for(const y of [1,2,4]){const camera=new T.PerspectiveCamera();camera.position.set(5,y,8);const key=photo.update(camera),d=photoDimensions(key),a=photo.sprite.geometry.attributes.position;const bottom=(a.getY(2)+d.centerY)*d.height+photo.sprite.position.y;results.push({key,ground:bottom,vertical:photo.sprite.rotation.x===0&&photo.sprite.rotation.z===0});}photo.dispose();return results;})()`);
+ assert.ok(anchoring.every(r=>Math.abs(r.ground-.004)<1e-6&&r.vertical));
+ await call('Page.navigate',{url:base+'/circuito-verificacion.html'});await until('window.circuitCheck?.ready===true');await mkdir('artifacts',{recursive:true});
+ for(const [width,height]of [[390,844],[844,390],[1280,800]]){await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<1000});await evaluate('circuitCheck.draw()');assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false);for(const mode of ['finish','drive']){await evaluate(`document.querySelector('#${mode}').click()`);const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile(`artifacts/circuito-contacto-${mode}-${width}.png`,Buffer.from(shot.data,'base64'));} }
+ assert.deepEqual(errors,[]);console.log('CIRCUITO_CONTACTO_OK: llegada y carrera, móvil vertical/horizontal y escritorio sin excepciones.');
+}catch(error){if(error.message!=='__MODEL_ONLY_COMPLETE__')throw error;}finally{for(const p of pending.values())clearTimeout(p.timer);socket?.close();chrome.kill();await new Promise(r=>server.close(r));raw.close();await wait(500);await rm(profile,{recursive:true,force:true,maxRetries:6,retryDelay:200});}
