@@ -1,0 +1,30 @@
+name: Medición adicional del estudio Mk4
+on:
+  push:
+    branches: [codex/octavia-realismo-20261112]
+    paths: ['.github/workflows/medir-realismo.yml']
+permissions:
+  contents: read
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/prepare-local-images.mjs
+      - run: node scripts/prepare-race-assets.mjs
+      - run: node scripts/prepare-track3d.mjs
+      - run: node scripts/prepare-highway-assets.mjs
+      - name: Medir Chrome sin forzar el backend SwiftShader
+        run: node scripts/highway-browser-check.mjs
+        env:
+          HIGHWAY_GPU: native
+          HIGHWAY_BENCH_SECONDS: '30'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: medicion-mk4-configuracion-alternativa
+          path: artifacts/autovia*.json
