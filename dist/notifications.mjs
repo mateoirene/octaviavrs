@@ -59,12 +59,14 @@ export async function initNotifications(doc = document) {
     for (const indicator of doc.querySelectorAll('[data-review-count]')) {
       indicator.hidden = pendingCount === 0; indicator.textContent = `(${pendingCount} pendientes)`;
     }
-    const count = unreadNotifications(items, read).length;
+    const unread = unreadNotifications(items, read);
+    const count = unread.length;
     badge.hidden = count === 0; badge.textContent = count > 99 ? '99+' : String(count);
     button.setAttribute('aria-label', count ? `Notificaciones: ${count} sin leer` : 'Notificaciones: todo leído');
     mark.disabled = count === 0;
     list.replaceChildren();
-    for (const item of items) {
+    if (count === 0) status.textContent = 'No tienes notificaciones sin leer.';
+    for (const item of unread) {
       const li = doc.createElement('li'); if (!read.has(item.id)) li.className = 'notification-unread';
       const link = doc.createElement('a');
       try { const url = new URL(item.href, doc.baseURI); if (url.origin !== location.origin || !['http:', 'https:'].includes(url.protocol)) continue; link.href = url.href; } catch { continue; }
@@ -95,7 +97,7 @@ export async function initNotifications(doc = document) {
       if (initialized && fresh.length) { if(soundEnabled&&chime.play())window.dispatchEvent(new Event('club-notification-sound'));toast.textContent = `${fresh.length === 1 ? 'Hay una nueva notificación' : `Hay ${fresh.length} notificaciones nuevas`}. Pulsa la campana para verlas.`; toast.hidden = false; clearTimeout(timer); timer = setTimeout(() => { toast.hidden = true; }, 6500); }
       reviewAccess.textContent = values[2].length ? `Revisar ${values[2].length} anuncios pendientes →` : results[2].status === 'fulfilled' ? 'Abrir panel de revisión →' : 'Iniciar sesión para ver los anuncios pendientes →';
       items.forEach(item=>known.add(item.id)); initialized = true;
-      render(); status.textContent = items.length ? 'Novedades del club y del mercadillo.' : 'No hay novedades por ahora.';
+      render(); status.textContent = unreadNotifications(items, read).length ? 'Novedades del club y del mercadillo.' : 'No tienes notificaciones sin leer.';
       if (results[0].status === 'rejected' || results[1].status === 'rejected') status.textContent = 'Algunas novedades no se han podido actualizar. Volveremos a intentarlo.';
     } catch { status.textContent = 'No se han podido actualizar las notificaciones. Vuelve a abrir la campana para reintentar.'; }
     finally { busy = false; }
