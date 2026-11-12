@@ -27,6 +27,10 @@ try{
  await call('Page.enable');await call('Page.bringToFront');await call('Runtime.enable');await call('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('club-consent-v1',JSON.stringify({version:1,at:Date.now(),analytics:false,recordings:false}))"});
  await call('Emulation.setDeviceMetricsOverride',{width:nativeGPU?1280:390,height:nativeGPU?900:844,deviceScaleFactor:1,mobile:!nativeGPU});
  if(!nativeGPU)await call('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+ await call('Page.navigate',{url:base+'/octavia-modelo.html'});await until('window.octaviaShowroom?.ready===true');assert.equal(await evaluate('octaviaShowroom.wheels.length'),4);assert.ok(await evaluate('octaviaShowroom.size[2]>4.5&&octaviaShowroom.size[2]<4.95'));
+ await mkdir('artifacts',{recursive:true});await call('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1,mobile:false});
+ for(const [name,view]of [['frontal','front'],['trasera','rear'],['lateral','side']]){await evaluate(`octaviaShowroom.view('${view}')`);const shot=await call('Page.captureScreenshot',{format:'png'});await writeFile('artifacts/autovia-modelo-'+name+'.png',Buffer.from(shot.data,'base64'));}
+ await call('Emulation.setDeviceMetricsOverride',{width:nativeGPU?1280:390,height:nativeGPU?900:844,deviceScaleFactor:1,mobile:!nativeGPU});check('GLB Mk4 original: dimensiones métricas, cuatro ruedas y tres capturas del modelo');
  await call('Page.navigate',{url:base+'/simulador.html?highwayTest=1'});await until("!!window.highwayTest&&document.querySelector('[data-racing-stage]').dataset.renderer==='webgl2'");
  const links=await evaluate("Array.from(document.querySelectorAll('header nav a'),a=>a.getAttribute('href'))");assert.ok(links.includes('garaje.html')&&links.includes('bricos.html')&&links.includes('simulador.html'));
  await evaluate("document.querySelector('[data-pilot-name]').value='Prueba local';document.querySelector('[data-race-start]').click()");await until("!document.querySelector('[data-race-pause]').disabled");check('circuito original 3D arranca y conserva navegación');
