@@ -26,7 +26,7 @@ export function normalizeGaragePilot(row){
 }
 export function applyRaceProfiles(race,{player=null,rivals=[]}={}){
  race.pilotProfile=player?structuredClone(player):null;
- if(player){race.pilotName=player.pilot;race.playerCar=player.model;race.photoCars=false;if(player.paint)race.playerPaint=player.paint;}
+ if(player){race.pilotName=player.pilot;race.playerCar=player.model;if(player.paint)race.playerPaint=player.paint;}
  race.rivals.forEach((car,i)=>{car.pilotProfile=rivals[i]?structuredClone(rivals[i]):null;});
  return race;
 }
