@@ -47,3 +47,7 @@ header>nav[aria-label="Navegación principal"]>a[href^="https://www.facebook.com
 
 /* El icono de inicio sustituye el cuadrado por el contorno de Catalunya. */
 header>nav[aria-label="Navegación principal"]>a[href$="#inicio"]{--nav-icon:url("assets/catalunya-contorno.svg")}
+
+
+/* En móvil, la bandeja de notificaciones debe quedar por encima del reloj. */
+@media(max-width:760px){.site-header>.masthead{position:relative;z-index:40}.site-header>.masthead .club-notifications{z-index:60}.site-header>.club-speed-clock{position:relative;z-index:1}}
