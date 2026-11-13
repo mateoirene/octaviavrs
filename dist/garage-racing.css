@@ -67,3 +67,32 @@
 .garage-membership{aspect-ratio:auto;min-height:max(360px,66.667cqi)}
 @container(max-width:330px){.garage-membership{min-height:360px}}
 
+
+
+/* Ficha carnet propuesta 3: identidad metálica, senyera discreta y número visible. */
+.garage-membership{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-height:0;aspect-ratio:auto;width:100%;padding:17px 19px 15px;border:1px solid #aab0b4;border-radius:18px;overflow:hidden;background:repeating-linear-gradient(112deg,#ffffff10 0 1px,#00000005 1px 3px),linear-gradient(135deg,#f1f2ef 0%,#c8ccce 28%,#e5e6e3 52%,#aeb4b7 76%,#e9eae8 100%);color:#171a1d;text-shadow:none;box-shadow:inset 0 1px 1px #fff, inset 0 -1px 2px #41484b55,0 12px 28px #0005}
+.garage-membership::before{content:"";position:absolute;z-index:0;inset:0;background:linear-gradient(130deg,#ffffff35,transparent 42%,#00000008);pointer-events:none}
+.garage-membership::after{content:"";position:absolute;z-index:0;right:12px;top:50%;width:min(36%,170px);aspect-ratio:1;background:url("assets/catalunya-contorno.svg") center/contain no-repeat;opacity:.085;transform:translateY(-50%);pointer-events:none}
+.garage-membership>*{position:relative;z-index:1;flex-shrink:0}
+.garage-membership-club{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:8px;max-width:none;margin:0;padding:0 0 10px;border-bottom:1px solid #737a7e80;color:#252a2e;font:800 11px/1.2 Arial,sans-serif;letter-spacing:1.5px}
+.garage-membership-club span:last-child{color:#a71e2c}
+.garage-membership-identity{display:grid;grid-template-columns:68px minmax(0,1fr) minmax(86px,auto);gap:12px;align-items:center;min-width:0}
+.garage-membership .garage-pilot-avatar{width:68px;height:68px;margin:0;border:2px solid #f5f6f4;border-radius:50%;object-fit:cover;background:linear-gradient(135deg,#555e64,#11161a);box-shadow:0 0 0 1px #555d61,0 3px 8px #0005}
+.garage-membership .garage-pilot-initials{display:grid;place-items:center;color:#fff;font:800 italic 24px/1 Arial,sans-serif}
+.garage-membership-details{min-width:0}
+.garage-membership h3{max-width:100%;margin:0 0 4px;color:#101316;font:800 clamp(19px,5cqi,28px)/1.12 Arial,sans-serif;letter-spacing:.1px;overflow-wrap:anywhere;text-shadow:none}
+.garage-membership .garage-model{max-width:100%;margin:0 0 5px;color:#373d41;font-size:clamp(13px,3.4cqi,18px);line-height:1.25;overflow-wrap:anywhere;text-shadow:none}
+.garage-membership .garage-instagram{display:inline-block;max-width:100%;margin:0;color:#861d2a;font-size:12px;overflow-wrap:anywhere;text-shadow:none}
+.garage-membership-number{min-width:0;max-width:120px;margin:0;padding:9px 10px;border:1px solid #ad2433;border-radius:12px;background:linear-gradient(145deg,#20252a,#090c0f);text-align:center;color:#fff;text-shadow:none;box-shadow:0 4px 10px #0003}
+.garage-membership-label{display:block;margin:0 0 3px;color:#f1d7da;font:700 8px/1.25 Arial,sans-serif;letter-spacing:1px}
+.garage-membership-number strong{display:block;color:#fff;font:800 clamp(17px,4.8cqi,23px)/1.15 Arial,sans-serif;letter-spacing:.4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-shadow:none}
+.garage-membership-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;padding-top:11px;border-top:1px solid #737a7e80}
+.garage-membership-meta .garage-birthday{margin:0;color:#333a3e;font-size:12px;line-height:1.4}
+.garage-membership-meta .garage-whatsapp{display:inline-flex;align-items:center;justify-content:center;min-height:38px;margin:0;padding:8px 12px;border:1px solid #811a26;border-radius:10px;background:linear-gradient(135deg,#c82435,#891a28);color:#fff;font-size:12px;font-weight:800;text-decoration:none;text-shadow:none;box-shadow:0 3px 8px #0002}
+.garage-member-photos{gap:4px}
+.garage-member-photos button{position:relative;isolation:isolate;display:block;width:100%;height:auto;min-height:clamp(190px,36vw,360px);aspect-ratio:16/10;overflow:hidden;background:#161a1e;cursor:zoom-in}
+.garage-member-photos button:first-child{min-height:clamp(220px,48vw,480px)}
+.garage-member-photos img.garage-member-photo-backdrop{position:absolute;z-index:0;inset:-14px;display:block;width:calc(100% + 28px);height:calc(100% + 28px);object-fit:cover;filter:blur(15px) brightness(.52) saturate(.8);opacity:.9;pointer-events:none}
+.garage-member-photos img.garage-member-photo-main{position:relative;z-index:1;display:block;width:100%;height:100%;object-fit:contain;object-position:center;background:transparent}
+@container(max-width:390px){.garage-membership{padding:14px;gap:11px}.garage-membership-identity{grid-template-columns:54px minmax(0,1fr) minmax(64px,76px);gap:8px}.garage-membership .garage-pilot-avatar{width:54px;height:54px}.garage-membership .garage-pilot-initials{font-size:20px}.garage-membership h3{font-size:clamp(17px,6cqi,22px)}.garage-membership-number{padding:8px 6px}.garage-membership-label{font-size:7px;letter-spacing:.6px}.garage-membership-number strong{font-size:clamp(15px,5cqi,19px)}.garage-membership-meta .garage-whatsapp{min-height:40px;padding:8px 10px;font-size:11px}}
+@media(max-width:600px){.garage-member-body{padding:14px}.garage-member-photos button{min-height:clamp(170px,58vw,320px)}.garage-member-photos button:first-child{min-height:clamp(210px,72vw,390px)}}
