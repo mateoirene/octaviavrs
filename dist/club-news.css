@@ -54,7 +54,7 @@
 
 /* Selector de esfera analógica o reloj digital; conserva los mismos datos del reloj. */
 .club-clock-mode-switch{display:flex;gap:4px;justify-content:center;width:min(100%,220px);margin:3px auto 0;padding:3px;border:1px solid #53616d;border-radius:999px;background:#070b10e8}
-.club-clock-mode-switch button{flex:1;min-width:0;min-height:38px;padding:7px 12px;border:0;border-radius:999px;background:transparent;color:#c7d2db;font:600 11px/1.2 inherit;cursor:pointer;touch-action:manipulation}
+.club-clock-mode-switch button{flex:1;min-width:0;min-height:38px;padding:7px 12px;border:0;border-radius:999px;background:transparent;color:#c7d2db;font:600 11px/1.2 system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
 .club-clock-mode-switch button[aria-pressed=true]{background:linear-gradient(135deg,#bd1424,#74111b);color:#fff;box-shadow:0 2px 9px #d21d322e}
 .club-clock-mode-switch button:focus-visible{outline:2px solid #ff5363;outline-offset:2px}
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-dial{width:100%;max-width:none;aspect-ratio:auto;min-height:156px;margin:4px auto;padding:15px 12px;border:1px solid #59636d;border-radius:16px;background:linear-gradient(145deg,#17212a,#080b0f 78%);box-shadow:inset 0 0 24px #000,0 5px 16px #0007;container-type:inline-size}
