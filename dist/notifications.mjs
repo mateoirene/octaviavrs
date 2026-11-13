@@ -104,7 +104,7 @@ export async function initNotifications(doc = document) {
   }
   window.addEventListener('club-session-change', () => { items = items.filter(item => !item.id.startsWith('pending:')&&!item.id.startsWith('garage-pending:')&&item.audience!=='admin'); render(); void refresh(); });
   doc.addEventListener('visibilitychange', () => { if (!doc.hidden) void refresh(); });
-  setInterval(() => { if (!doc.hidden) void refresh(); }, 60000);
+  setInterval(() => { if (!doc.hidden) void refresh(); }, 180000);
   await refresh();if(new URLSearchParams(location.search).get('avisos')==='1')setOpen(true);
 }
 if (typeof document !== 'undefined') void initNotifications();

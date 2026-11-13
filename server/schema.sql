@@ -358,3 +358,9 @@ END;
 UPDATE garage_members SET id=id
 WHERE NOT EXISTS(SELECT 1 FROM garage_memberships WHERE member_id=garage_members.id);
 
+
+-- Bound retention cleanup and recent-event reads with indexed ranges.
+CREATE INDEX IF NOT EXISTS web_analytics_stamp ON web_analytics_events(stamp);
+CREATE INDEX IF NOT EXISTS market_limits_expiry ON market_limits(expires_at);
+CREATE INDEX IF NOT EXISTS market_sessions_expiry ON market_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS club_notifications_recent ON club_notifications(created_at DESC,id DESC);
