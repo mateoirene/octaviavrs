@@ -35,7 +35,7 @@ function card(member) {
   const band=element('div','','garage-member-number-band');
   const badge=element('span','MIEMBRO DEL CLUB','garage-membership-label');
   const rawNumber=String(member.membershipNumber??'');
-  const digits=rawNumber.match(/\\d+/g)?.at(-1);
+  const digits=rawNumber.match(/\d+/g)?.at(-1);
   const numeric=digits===undefined?NaN:Number(digits);
   const assigned=Number.isInteger(numeric)&&numeric>=0&&numeric<=900;
   const number=element('strong',assigned?'N.º '+String(numeric).padStart(4,'0'):'Pendiente','garage-member-number-value');
@@ -56,7 +56,7 @@ function card(member) {
   if(member.profileImage){
     const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';identity.append(avatar);
   }else{
-    const initials=member.pilot.trim().split(' ').map(word=>word.match(/[\\p{L}\\p{N}]/u)?.[0]||'').filter(Boolean).slice(0,2).join('').toLocaleUpperCase('es');
+    const initials=member.pilot.trim().split(' ').map(word=>word.match(/[\p{L}\p{N}]/u)?.[0]||'').filter(Boolean).slice(0,2).join('').toLocaleUpperCase('es');
     const avatar=element('span',initials,'garage-pilot-avatar garage-pilot-initials');avatar.setAttribute('aria-label','Iniciales de '+member.pilot);identity.append(avatar);
   }
   const details=element('div','','garage-membership-details');
