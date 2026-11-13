@@ -124,3 +124,11 @@ header .header-wordmark{display:flex;align-items:center;justify-content:center;g
 @keyframes smoke-wallpaper-flow{0%{background-position:center,left center;transform:translate(-6%,7%) scale(1.03);opacity:.48}50%{background-position:center,center center;transform:translate(3%,-2%) scale(1.09);opacity:.76}100%{background-position:center,right center;transform:translate(12%,-9%) scale(1.14);opacity:.62}}
 @keyframes smoke-wallpaper-flow-reverse{0%{background-position:center,left bottom;transform:translate(8%,6%) scale(1.12);opacity:.34}50%{background-position:center,center bottom;transform:translate(-2%,-3%) scale(1.08);opacity:.58}100%{background-position:center,right bottom;transform:translate(-10%,-10%) scale(1.02);opacity:.42}}
 @media(prefers-reduced-motion:reduce){.smoke-backdrop::before,.smoke-backdrop::after{animation:none}}
+
+/* En móvil se elimina la pulsación de brillo y se deja solo una deriva lenta. */
+@media(max-width:760px){
+ .smoke-backdrop::before{animation:mobile-smoke-drift 48s ease-in-out infinite alternate!important;opacity:.52!important;filter:blur(9px);will-change:auto;backface-visibility:hidden}
+ .smoke-backdrop::after{animation:mobile-smoke-drift-reverse 61s ease-in-out infinite alternate!important;opacity:.32!important;filter:blur(12px);will-change:auto;backface-visibility:hidden}
+}
+@keyframes mobile-smoke-drift{from{transform:translate3d(-2%,1%,0) scale(1.06)}to{transform:translate3d(2%,-1%,0) scale(1.09)}}
+@keyframes mobile-smoke-drift-reverse{from{transform:translate3d(2%,1%,0) scale(1.08)}to{transform:translate3d(-2%,-1%,0) scale(1.04)}}
