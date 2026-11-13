@@ -49,7 +49,7 @@ function card(member) {
   if(member.profileImage){
     const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';identity.append(avatar);
   }else{
-    const initials=member.pilot.trim().split(/\\s+/).slice(0,2).map(word=>Array.from(word)[0]).join('').toLocaleUpperCase('es');
+    const initials=member.pilot.trim().split(' ').filter(Boolean).slice(0,2).map(word=>Array.from(word)[0]).join('').toLocaleUpperCase('es');
     const avatar=element('span',initials,'garage-pilot-avatar garage-pilot-initials');avatar.setAttribute('aria-label','Iniciales de '+member.pilot);identity.append(avatar);
   }
   const details=element('div','','garage-membership-details');
