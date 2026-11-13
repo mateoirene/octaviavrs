@@ -132,3 +132,11 @@ header .header-wordmark{display:flex;align-items:center;justify-content:center;g
 }
 @keyframes mobile-smoke-sweep{from{background-position:center,left center;transform:translate3d(-18vw,3vh,0) scale(1.04)}to{background-position:center,right center;transform:translate3d(18vw,-3vh,0) scale(1.12)}}
 @keyframes mobile-smoke-sweep-reverse{from{background-position:center,right bottom;transform:translate3d(16vw,3vh,0) scale(1.12)}to{background-position:center,left bottom;transform:translate3d(-16vw,-3vh,0) scale(1.05)}}
+/* Estabilización móvil: elimina filtros y cambios de fondo; solo deriva constante. */
+@media(max-width:760px){
+ .smoke-backdrop::before{filter:none!important;opacity:.52!important;background-position:center,left center!important;animation:mobile-smoke-stable 24s ease-in-out infinite alternate!important;will-change:auto}
+ .smoke-backdrop::after{filter:none!important;opacity:.32!important;background-position:center,left bottom!important;animation:mobile-smoke-stable-reverse 31s ease-in-out infinite alternate!important;will-change:auto}
+}
+@keyframes mobile-smoke-stable{from{transform:translate3d(-15vw,2vh,0) scale(1.05)}to{transform:translate3d(15vw,-2vh,0) scale(1.1)}}
+@keyframes mobile-smoke-stable-reverse{from{transform:translate3d(13vw,2vh,0) scale(1.1)}to{transform:translate3d(-13vw,-2vh,0) scale(1.04)}}
+
