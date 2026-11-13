@@ -44,3 +44,6 @@ header>nav[aria-label="Navegación principal"]>a[href$="#noticias"]{--nav-icon:u
 /* Reloj móvil centrado sin alterar la distribución de escritorio. */
 @media(max-width:760px){.site-header>.club-speed-clock{justify-self:center;width:210px;max-width:90%;margin:14px auto 8px}.site-header>.club-speed-clock .club-clock-dial{width:164px}.site-header>.club-speed-clock .club-clock-digital{font-size:21px}}
 header>nav[aria-label="Navegación principal"]>a[href^="https://www.facebook.com/"]{--nav-icon:url("assets/platforms/facebook.svg")}
+
+/* El icono de inicio sustituye el cuadrado por el contorno de Catalunya. */
+header>nav[aria-label="Navegación principal"]>a[href$="#inicio"]{--nav-icon:url("assets/catalunya-contorno.svg")}
