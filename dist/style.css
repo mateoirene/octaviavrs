@@ -127,8 +127,8 @@ header .header-wordmark{display:flex;align-items:center;justify-content:center;g
 
 /* En móvil se elimina la pulsación de brillo y se deja solo una deriva lenta. */
 @media(max-width:760px){
- .smoke-backdrop::before{animation:mobile-smoke-drift 48s ease-in-out infinite alternate!important;opacity:.52!important;filter:blur(9px);will-change:auto;backface-visibility:hidden}
- .smoke-backdrop::after{animation:mobile-smoke-drift-reverse 61s ease-in-out infinite alternate!important;opacity:.32!important;filter:blur(12px);will-change:auto;backface-visibility:hidden}
+ .smoke-backdrop::before{animation:mobile-smoke-drift 42s ease-in-out infinite alternate!important;opacity:.52!important;filter:blur(9px);will-change:auto;backface-visibility:hidden}
+ .smoke-backdrop::after{animation:mobile-smoke-drift-reverse 52s ease-in-out infinite alternate!important;opacity:.32!important;filter:blur(12px);will-change:auto;backface-visibility:hidden}
 }
-@keyframes mobile-smoke-drift{from{transform:translate3d(-2%,1%,0) scale(1.06)}to{transform:translate3d(2%,-1%,0) scale(1.09)}}
-@keyframes mobile-smoke-drift-reverse{from{transform:translate3d(2%,1%,0) scale(1.08)}to{transform:translate3d(-2%,-1%,0) scale(1.04)}}
+@keyframes mobile-smoke-drift{from{transform:translate3d(-7%,3%,0) scale(1.04)}to{transform:translate3d(7%,-4%,0) scale(1.12)}}
+@keyframes mobile-smoke-drift-reverse{from{transform:translate3d(6%,3%,0) scale(1.12)}to{transform:translate3d(-6%,-4%,0) scale(1.05)}}
