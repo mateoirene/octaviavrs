@@ -39,3 +39,11 @@
 #calendario .calendar-day.has-event.has-club-event[aria-pressed=true]{box-shadow:0 0 7px #efffd9,0 0 21px #68bd35e6,inset 0 2px 7px #fff4}
 #calendario .calendar-day.has-club-event .calendar-skoda-badge{filter:brightness(0) invert(1) drop-shadow(0 0 3px #123d19)}
 @media(max-width:540px){#calendario .calendar-day.has-club-event{font-size:17px;gap:0}#calendario .calendar-skoda-badge{width:15px;height:15px}}
+
+/* Los cumpleaños usan el regalo de la senyera como marcador, con acento amarillo. */
+#calendario .calendar-day.has-birthday{position:relative;isolation:isolate;width:clamp(48px,4vw,60px);height:clamp(48px,4vw,60px);border:0;border-radius:0;background:transparent;color:#fff;box-shadow:none}
+#calendario .calendar-day.has-birthday[aria-pressed=true]{background:transparent;box-shadow:none}
+#calendario .calendar-day.has-birthday .calendar-day-number{position:relative;z-index:1;color:#fff;font-weight:900;font-size:clamp(16px,1.8vw,22px);line-height:1;text-shadow:0 1px 3px #4b0610,0 0 5px #40100a}
+#calendario .calendar-day.has-birthday .calendar-birthday-badge{position:absolute;inset:1px;width:calc(100% - 2px);height:calc(100% - 2px);object-fit:contain;filter:drop-shadow(0 0 3px #ffd43b) drop-shadow(0 0 7px #f5b90099);pointer-events:none}
+#calendario .calendar-day.has-birthday[aria-current=date]{outline:2px solid #ffd43b;outline-offset:-2px;border-radius:9px}
+@media(max-width:540px){#calendario .calendar-day.has-birthday{width:39px;height:39px}#calendario .calendar-day.has-birthday .calendar-day-number{font-size:16px}}
