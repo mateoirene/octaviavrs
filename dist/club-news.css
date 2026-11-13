@@ -73,3 +73,15 @@
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-dial{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-emblem{position:static;display:block;flex:none;width:27px;height:27px;margin:0;background:linear-gradient(150deg,#fff,#aab2b9 65%,#f3f5f7);filter:drop-shadow(0 1px 3px #0009)}
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-digital{color:#ff2638;text-shadow:0 0 12px #ff163e66,0 0 24px #ff163e2e}
+
+
+/* El primer párrafo del club queda visible; la descripción ampliada y principios se despliegan bajo demanda. */
+#club .club-story-details{margin:0 0 18px}
+#club .club-story-details>summary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:8px 17px;border:1px solid #9b2631;border-radius:999px;background:linear-gradient(135deg,#1b2026,#101317);color:#fff;font-size:13px;font-weight:700;cursor:pointer;list-style:none;touch-action:manipulation}
+#club .club-story-details>summary::-webkit-details-marker{display:none}
+#club .club-story-details>summary::after{content:'⌄';color:#ff3144;font-size:17px;line-height:1}
+#club .club-story-details[open]>summary::after{content:'⌃'}
+#club .club-story-details>summary:hover{border-color:#ff4052;background:#1b2026}
+#club .club-story-details>summary:focus-visible{outline:2px solid #ff5260;outline-offset:3px}
+#club .club-story-details>.club-story{margin-top:14px}
+#club .club-story-details>.principles{margin-top:18px}
