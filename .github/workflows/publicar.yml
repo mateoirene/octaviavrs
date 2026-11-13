@@ -45,7 +45,7 @@ jobs:
               *) solo_css=false ;;
             esac
             case "$archivo" in
-              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*|.gitignore|AUTOVIA*.md|tests/highway*.mjs|scripts/*highway*.mjs|scripts/cloudflare-target.mjs|scripts/check-racing-live.mjs|.github/workflows/comprobar-autovia.yml|.github/workflows/vista-previa-autovia.yml|.github/workflows/publicar.yml) ;;
+              dist/*.css|dist/*.html|dist/*.mjs|dist/*.js|dist/assets/*|server/news.mjs|.gitignore|AUTOVIA*.md|tests/highway*.mjs|scripts/*highway*.mjs|scripts/cloudflare-target.mjs|scripts/check-racing-live.mjs|.github/workflows/comprobar-autovia.yml|.github/workflows/vista-previa-autovia.yml|.github/workflows/publicar.yml) ;;
               *) solo_visual=false ;;
             esac
           done <<< "$archivos"
