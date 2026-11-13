@@ -39,7 +39,7 @@ node scripts/circuit-aerial-browser-check.mjs
 
 El script de navegador utiliza Chromium, SQLite efímero y siete pilotos ficticios; no escribe en la base de datos real. Opcional: `CIRCUIT_BASELINE_ROOT` apunta al `dist` de la revisión anterior para capturas comparables. `CHROME_BIN` permite indicar otro ejecutable Chromium.
 
-197 pruebas automáticas superadas: fuente aprobada, datos ausentes, nombres duplicados, dorsal cero y 1/2/3 cifras, inventario de modelos, nombres completos, equivalencia de física durante 300 pasos, ganador de foto finish, geometría del techo rotada y desplazada, curvatura y distancia inferior a 2 mm, entre las regresiones existentes.
+200 pruebas automáticas superadas (incluidas tres salvaguardas de publicación): fuente aprobada, datos ausentes, nombres duplicados, dorsal cero y 1/2/3 cifras, inventario de modelos, nombres completos, equivalencia de física durante 300 pasos, ganador de foto finish, geometría del techo rotada y desplazada, curvatura y distancia inferior a 2 mm, entre las regresiones existentes.
 
 Las comprobaciones de navegador cubren selección por ID, refresco de la ficha original, bloqueo de cambios en carrera, gas/pausa/reinicio, Combi con color explícito, tres cámaras y ficha móvil sin solapar la pista. Capturas e informe se generan en `artifacts/circuit-aerial/`. La galería local compara ocho carrocerías con igual escala, color e iluminación, usando dorsales de muestra. Se puede ejecutar por separado con `CIRCUIT_GALLERY_ONLY=1 node scripts/circuit-aerial-browser-check.mjs`; no forma parte de la web publicada.
 
@@ -53,11 +53,11 @@ Las comprobaciones de navegador cubren selección por ID, refresco de la ficha o
 
 Las seis comprobaciones del recorrido móvil ampliado pasaron sin excepciones JavaScript ni escrituras en la base de datos real. El informe se genera en `artifacts/circuit-aerial/informe-movil-recuperacion.json` y la captura horizontal en `aerea-movil-horizontal.png`.
 
-Para repetir solo este recorrido: `CIRCUIT_MOBILE_ONLY=1 CIRCUIT_BASELINE_ROOT=/tmp/no-baseline node scripts/circuit-aerial-browser-check.mjs`. El recorrido general también lo incluye. Se mantienen 197 pruebas automáticas superadas; las comprobaciones táctiles y gráficas siguen siendo emuladas, no mediciones de FPS en un móvil físico.
+Para repetir solo este recorrido: `CIRCUIT_MOBILE_ONLY=1 CIRCUIT_BASELINE_ROOT=/tmp/no-baseline node scripts/circuit-aerial-browser-check.mjs`. El recorrido general también lo incluye. Se mantienen 200 pruebas automáticas superadas (incluidas tres salvaguardas de publicación); las comprobaciones táctiles y gráficas siguen siendo emuladas, no mediciones de FPS en un móvil físico.
 
 ## Límites pendientes
 
 - Falta comprobar fluidez y legibilidad en móviles físicos; la emulación valida interfaz y perfil gráfico, no FPS reales.
 - Faltan los colores originales en seis de las siete fichas examinadas. Para reproducirlos exactamente deben constar en la fuente original.
 - Las recreaciones propias mejoran la geometría disponible, pero no sustituyen un conjunto de modelos de fabricante detallados y verificados para cada versión.
-- La versión publicada sigue sin estos cambios hasta revisar y autorizar el despliegue. No se ha ejecutado el flujo de publicación ni sus migraciones o notificaciones.
+- Publicación autorizada por el propietario. Este conjunto de cambios se publica mediante la ruta de circuito: conserva la configuración de Cloudflare, evita migraciones y aprovisionamiento de datos, y no sincroniza ni envía avisos push. El flujo conserva una referencia de la producción anterior y verifica los hashes de nueve módulos y la API de fichas tras desplegar. El resultado efectivo queda registrado en GitHub Actions.
