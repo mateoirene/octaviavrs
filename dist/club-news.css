@@ -68,3 +68,7 @@
 /* Quitar los marcos de caja exteriores y dejar visibles las esferas limpias. */
 .site-header>.club-speed-clock{border:0!important;background:transparent!important;box-shadow:none!important}
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-dial{border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+
+
+/* Estilo 2: recorta el brillo con la silueta auténtica del emblema Škoda. */
+.site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-emblem{background:linear-gradient(150deg,#fff,#aab2b9 65%,#f3f5f7);mask:url("assets/platforms/skoda.svg") center/contain no-repeat;-webkit-mask:url("assets/platforms/skoda.svg") center/contain no-repeat}
