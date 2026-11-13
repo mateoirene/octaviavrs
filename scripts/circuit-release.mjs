@@ -32,7 +32,8 @@ const allowed=new Set([
  ".github/workflows/publicar.yml",
  "scripts/circuit-release.mjs",
  "scripts/check-circuit-profiles-live.mjs",
- "tests/circuit-release.test.mjs"
+ "tests/circuit-release.test.mjs",
+ "scripts/browser-check.mjs"
 ]);
-export function isCircuitOnlyRelease(files){return Array.isArray(files)&&files.length>0&&files.every(p=>allowed.has(p))&&files.some(p=>p.startsWith('dist/racing')||p==='server/racing.mjs'||p==='server/racing-pilots.mjs');}
+export function isCircuitOnlyRelease(files){return Array.isArray(files)&&files.length>0&&files.every(p=>allowed.has(p))&&files.some(p=>p.startsWith('dist/racing')||p==='server/racing.mjs'||p==='server/racing-pilots.mjs'||p==='scripts/browser-check.mjs');}
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){const [before,head]=process.argv.slice(2);if(![before,head].every(ref=>/^[a-f0-9]{40}$/i.test(ref||'')))throw Error('Referencias de publicación no válidas');const files=execFileSync('git',['diff','--name-only',before,head],{encoding:'utf8'}).trim().split('\n').filter(Boolean);console.log('solo_circuito='+isCircuitOnlyRelease(files));}
