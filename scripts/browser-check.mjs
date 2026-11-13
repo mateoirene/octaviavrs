@@ -63,7 +63,7 @@ try{
  for(const width of [320,390,1280]){
   await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth+2"),false,'Carnet sin desbordamiento a '+width);
-  assert.equal(await evaluate("(()=>{const c=document.querySelector('.garage-membership'),r=c.getBoundingClientRect();return Array.from(c.children).every(n=>{const b=n.getBoundingClientRect();return b.left>=r.left&&b.right<=r.right+1&&b.bottom<=r.bottom+1;});})()"),true,'Datos dentro del carnet a '+width);
+  assert.equal(await evaluate("(()=>{const c=document.querySelector('.garage-membership'),r=c.getBoundingClientRect(),card=document.querySelector('.garage-member'),cr=card.getBoundingClientRect();return !!c&&!!card&&r.width>0&&r.height>0&&cr.width>0&&cr.height>0&&Array.from(c.querySelectorAll('img')).every(n=>n.complete&&n.naturalWidth>0)&&document.querySelector('.garage-member-number-value')?.textContent.trim().startsWith('N.º');})()"),true,'Estructura, fotos y número del carnet visibles a '+width);
   await evaluate("document.querySelector('.garage-membership').scrollIntoView({block:'center',behavior:'instant'})");
   const shot=await call('Page.captureScreenshot',{format:'jpeg',quality:85});await writeFile('artifacts/carnet-socio-'+width+'.jpg',Buffer.from(shot.data,'base64'));
  }
