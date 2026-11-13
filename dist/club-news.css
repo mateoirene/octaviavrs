@@ -85,3 +85,12 @@
 #club .club-story-details>summary:focus-visible{outline:2px solid #ff5260;outline-offset:3px}
 #club .club-story-details>.club-story{margin-top:14px}
 #club .club-story-details>.principles{margin-top:18px}
+
+
+/* Agujas reales en la esfera de 24 horas; el panel central mantiene la lectura digital despejada. */
+.site-header>.club-speed-clock .club-clock-center{z-index:4;background:radial-gradient(ellipse,#080a0e 78%,#080a0e 100%)}
+.club-clock-hour-hand{filter:drop-shadow(0 0 3px #ef172955);transition:transform .25s ease-out}
+.club-clock-minute-hand{filter:drop-shadow(0 0 2px #d8e4ee77)}
+.club-clock-second-hand{filter:drop-shadow(0 0 3px #ffd04a88)}
+.club-clock-pivot{position:relative;z-index:1}
+@media(prefers-reduced-motion:reduce){.club-clock-hour-hand{transition:none}}
