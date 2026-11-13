@@ -30,7 +30,9 @@ export function attachTeslaImages(group,atlas){
  const body=[...group.children].filter(child=>!child.userData.groundContactShadow),sprites=[photoSprite(),photoSprite()],local=new THREE.Vector3();for(const s of sprites){s.visible=false;group.add(s);}
  let selected=null,front=0,transition=0,lastTime=null,old=null;
  function assign(sprite,view){const frame=atlas[view.level][view.index],width=teslaImageWidth(view.index);sprite.material.map=frame.texture;sprite.material.needsUpdate=true;sprite.scale.set(width,width/frame.aspect,1);const b=frame.bounds;for(const [i,name]of ['rimA','rimB'].entries()){const r=frame.rims[i];sprite.userData.uniforms[name].value.set(...(r?[(b.left+r[0]*(b.right-b.left))/b.w,1-(b.top+r[1]*(b.bottom-b.top))/b.h,r[2]*(b.right-b.left)/b.w,r[3]*(b.bottom-b.top)/b.h]:[0,0,0,0]));}}
- const controller={update(camera,time=0){
+ const bodyVisibility=new Map(body.map(child=>[child,child.visible]));
+ const controller={update(camera,time=0,enabled=true){
+  if(!enabled){for(const child of body)child.visible=bodyVisibility.get(child);for(const sprite of sprites)sprite.visible=false;group.userData.photoBillboards=0;return null;}
   group.updateWorldMatrix(true,false);camera.getWorldPosition(local);group.worldToLocal(local);const next=teslaImageView(local.x,local.y,local.z,selected),dt=lastTime===null?1:Math.max(0,Math.min(.1,time-lastTime));lastTime=time;
   if(!selected||next.key!==selected.key){old=selected;front=1-front;assign(sprites[front],next);selected=next;transition=old?0:1;}
   transition=Math.min(1,transition+dt/.14);for(const child of body)child.visible=false;

@@ -1,3 +1,4 @@
+import {racingPilots} from './racing-pilots.mjs';
 import {NITRO_SPEED} from '../dist/racing-nitro.mjs';
 import {buildTrack,SEGMENT_LENGTH,MAX_SPEED,LEVELS} from '../dist/racing-physics.mjs';
 import {CIRCUITS,CIRCUIT_BY_ID,POINTS,SKODA_PAINTS} from '../dist/racing-circuits.mjs';
@@ -6,7 +7,7 @@ const invalid=message=>{throw Object.assign(new Error(message),{status:400});};
 function validCircuit(id){return id==='club'||Object.hasOwn(CIRCUIT_BY_ID,id);}
 export function validateRaceResult(body){
  const pilot=typeof body.pilot==='string'?body.pilot.trim().replace(/\s+/g,' '):'';
- if(!/^[\p{L}\p{N} ._'’\-]{2,32}$/u.test(pilot))invalid('Escribe un nombre o alias de 2 a 32 letras o números.');
+ if(pilot.length<2||pilot.length>80||/[<>\u0000-\u001f]/.test(pilot))invalid('Escribe un nombre de piloto válido, de 2 a 80 caracteres.');
  if(!Object.hasOwn(LEVELS,body.level))invalid('El nivel no es válido.');
  const circuit=body.circuit??'club';if(!validCircuit(circuit))invalid('El circuito no es válido.');
  if(!/^[0-9a-f-]{36}$/i.test(String(body.id||'')))invalid('La carrera no es válida.');
@@ -17,7 +18,7 @@ export function validateRaceResult(body){
  if(!Number.isInteger(body.total)||Math.abs(laps.reduce((sum,t)=>sum+t,0)-body.total)>2||body.total>86400000)invalid('El tiempo total no coincide con las vueltas.');
  if(!Number.isInteger(body.position)||body.position<1||body.position>4)invalid('La posición no es válida.');
  const car=body.car??'Octavia VRS MK4',paint=body.paint??'blue',mode=body.mode??'free',racer=body.racer??('legacy:'+pilot.toLowerCase());
- if(typeof car!=='string'||!/^[\p{L}\p{N} ._'’\-]{2,48}$/u.test(car)||!Object.hasOwn(SKODA_PAINTS,paint))invalid('El nombre o color del Škoda no es válido.');
+ if(typeof car!=='string'||(car.trim().length<2||car.length>100||/[<>\u0000-\u001f]/.test(car))||!Object.hasOwn(SKODA_PAINTS,paint))invalid('El nombre o color del Škoda no es válido.');
  if(!['free','championship'].includes(mode))invalid('El modo de carrera no es válido.');
  if(body.racer!==undefined&&!/^[0-9a-f-]{36}$/i.test(String(racer)))invalid('El piloto no es válido.');
  if(mode==='championship'&&(circuit==='club'||!body.racer))invalid('Selecciona una prueba del campeonato.');
@@ -25,6 +26,7 @@ export function validateRaceResult(body){
 }
 export async function handleRacingRequest(request,db,limit){
  const url=new URL(request.url),level=url.searchParams.get('level')||'easy';
+ if(url.pathname==='/api/racing/pilots'&&request.method==='GET')return json({pilots:await racingPilots(db)});
  if(request.method==='GET'&&!Object.hasOwn(LEVELS,level))invalid('El nivel no es válido.');
  if(url.pathname==='/api/racing/results'&&request.method==='GET'){
   const circuit=url.searchParams.get('circuit')||'club';if(!validCircuit(circuit))invalid('El circuito no es válido.');
