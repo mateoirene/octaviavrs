@@ -63,3 +63,8 @@
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-center{position:static;inset:auto;display:flex;width:100%;min-width:0;align-items:center;justify-content:center;gap:8px;border-radius:0;background:none}
 .site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-digital{display:block;font:700 clamp(31px,17cqw,48px)/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.02em;color:#ff2638;text-shadow:0 0 12px #ff163e66,0 0 24px #ff163e2e}
 @media(max-width:760px){.site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-dial{min-height:150px;padding:13px 10px}}
+
+
+/* Quitar los marcos de caja exteriores y dejar visibles las esferas limpias. */
+.site-header>.club-speed-clock{border:0!important;background:transparent!important;box-shadow:none!important}
+.site-header>.club-speed-clock[data-clock-mode=digital] .club-clock-dial{border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
