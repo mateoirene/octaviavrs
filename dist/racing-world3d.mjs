@@ -1,5 +1,4 @@
 import {participantIdentity} from './racing-pilot-profiles.mjs';
-import {attachRoofNumber} from './racing-roof-numbers.mjs';
 import {currentGraphicsProfile,bufferPixelRatio,createResolutionBudget} from './racing-render-budget.mjs?v=20261109-mobile';
 import {loadTeslaImages,attachTeslaImages,disposeTeslaImages} from './racing-tesla-photo3d.mjs?v=20261113-aerial';
 import {vehicleMotionFrame} from './racing-tesla-views.mjs?v=20261105-photos';
@@ -87,7 +86,7 @@ export async function createRacingWorld(stage){
  function restoreEnvironment(){const source=hdr||mobileSky;if(!source)return;environment?.dispose();const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromEquirectangular(source);pmrem.dispose();scene.environment=environment.texture;stage.dataset.environmentRestores=String(Number(stage.dataset.environmentRestores||0)+1);}
  const nitroArt=await nitroBadge(),nitroTexture=new THREE.CanvasTexture(nitroArt);nitroTexture.colorSpace=THREE.SRGBColorSpace;
  function vehicleSignature(race){return JSON.stringify([race.difficulty,race.circuit||'club',race.playerPaint||'blue',race.photoCars!==false,...[-1,0,1,2].map(i=>{const p=participantIdentity(race,i);return [p.id,p.visualModel,p.paint,p.number];})]);}
- function finishIdentity(group,identity){group.userData.garagePilotId=identity.id;group.userData.pilotName=identity.name;group.userData.visualModel=identity.visualModel;group.userData.dorsal=identity.number;if(identity.number!==null)attachRoofNumber(group,identity.number,identity.visualModel,{textureSize:profile.limited?256:512});}
+ function finishIdentity(group,identity){group.userData.garagePilotId=identity.id;group.userData.pilotName=identity.name;group.userData.visualModel=identity.visualModel;}
  function build(race){
   for(const item of exhausts)item.effect.dispose();exhausts=[];
   nitroGroup?.children.forEach(item=>item.material?.dispose());
