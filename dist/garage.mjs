@@ -31,26 +31,39 @@ function editMember(member) {
 function card(member) {
   const article = element('article', '', 'garage-member');
   const photos = element('div', '', 'garage-member-photos');
-  member.images.forEach((src,index) => { const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`); const image = element('img'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy'; button.append(image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button); });
-  article.append(photos); const body = element('div', '', 'garage-member-body');
+  member.images.forEach((src,index) => {
+    const button = element('button'); button.type = 'button';
+    button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`);
+    const backdrop = element('img','','garage-member-photo-backdrop'); backdrop.src=src; backdrop.alt=''; backdrop.setAttribute('aria-hidden','true'); backdrop.loading='lazy';
+    const image = element('img','','garage-member-photo-main'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy';
+    button.append(backdrop,image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button);
+  });
+  article.append(photos);
+  const body = element('div', '', 'garage-member-body');
   const membership = element('section','','garage-membership');
   membership.setAttribute('aria-label','Carnet de socio de '+member.pilot);
   const club=element('p','','garage-membership-club');
   club.append(element('span','CLUB OCTAVIA'),element('span','VRS CATALUNYA'));
   membership.append(club);
+  const identity=element('div','','garage-membership-identity');
   if(member.profileImage){
-    const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';membership.append(avatar);
+    const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';identity.append(avatar);
   }else{
-    const initials=member.pilot.trim().split(/\s+/).slice(0,2).map(word=>Array.from(word)[0]).join('').toLocaleUpperCase('es');
-    const avatar=element('span',initials,'garage-pilot-avatar garage-pilot-initials');avatar.setAttribute('aria-label','Iniciales de '+member.pilot);membership.append(avatar);
+    const initials=member.pilot.trim().split(/\\s+/).slice(0,2).map(word=>Array.from(word)[0]).join('').toLocaleUpperCase('es');
+    const avatar=element('span',initials,'garage-pilot-avatar garage-pilot-initials');avatar.setAttribute('aria-label','Iniciales de '+member.pilot);identity.append(avatar);
   }
-  membership.append(element('h3',member.pilot),element('p',member.model,'garage-model'));
-  if(member.instagramUrl){const link=element('a','@'+member.instagram+' ↗','garage-instagram');link.dataset.analyticsResourceId=member.id;link.href=member.instagramUrl;link.target='_blank';link.rel='noopener noreferrer';membership.append(link);}
+  const details=element('div','','garage-membership-details');
+  details.append(element('h3',member.pilot),element('p',member.model,'garage-model'));
+  if(member.instagramUrl){const link=element('a','@'+member.instagram+' ↗','garage-instagram');link.dataset.analyticsResourceId=member.id;link.href=member.instagramUrl;link.target='_blank';link.rel='noopener noreferrer';details.append(link);}
+  identity.append(details);
   const number=element('div','','garage-membership-number');
-  number.append(element('span',member.membershipNumber?'NÚMERO DE SOCIO':'FICHA EN REVISIÓN','garage-membership-label'),element('strong',member.membershipNumber||'Pendiente de aprobación'));
-  membership.append(number);body.append(membership);
-  if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
-  if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
+  number.append(element('span',member.membershipNumber?'SOCIO N.º':'FICHA EN REVISIÓN','garage-membership-label'),element('strong',member.membershipNumber||'Pendiente de aprobación'));
+  identity.append(number);membership.append(identity);
+  const meta=element('div','','garage-membership-meta');
+  if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');meta.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
+  if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);meta.append(contact);}
+  if(meta.childElementCount)membership.append(meta);
+  body.append(membership);
   const specs = element('dl','', 'garage-specs');
   for (const [label,value] of [['Motor',member.engine],['Potencia',member.power],['Año',member.year],['Cambio',member.gearbox]]) if (value) { const row = element('div'); row.append(element('dt',label),element('dd',value)); specs.append(row); }
   body.append(specs); if (member.notes) body.append(element('p',member.notes,'garage-member-notes'));
