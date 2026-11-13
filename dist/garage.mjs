@@ -71,8 +71,7 @@ async function loadFolders() {
   for (const folder of folders) {
     const option = element('option',folder.name); option.value = folder.id; memberForm.elements.folderId.append(option);
     const tile = element('article','','garage-folder'), button = element('button'); button.type = 'button';
-    if (folder.cover) { const image = element('img'); image.src = folder.cover; image.alt = ''; image.loading = 'lazy'; button.append(image); }
-    else button.append(element('span','▰','garage-folder-symbol'));
+    const image = element('img'); image.src = 'assets/bandera-club-octavia-transparente.png'; image.alt = 'Bandera del Club Octavia VRS Catalunya'; image.loading = 'lazy'; button.append(image);
     button.append(element('strong',folder.name),element('span',`${folder.members} ${folder.members === 1 ? 'ficha' : 'fichas'} →`)); button.addEventListener('click', () => { void openFolder(folder.id); $('[data-folder-content]').scrollIntoView({ block: 'start', behavior: 'instant' }); }); tile.append(button);
     if (admin) { const actions = element('div','','garage-folder-tools'), rename = element('button','Renombrar'), remove = element('button','Eliminar carpeta'); rename.type = remove.type = 'button'; remove.disabled = folder.members > 0; remove.title = folder.members > 0 ? 'Solo se pueden eliminar carpetas vacías.' : 'Eliminar carpeta vacía';
       rename.addEventListener('click', async () => { const name = prompt('Nombre de la carpeta:',folder.name); if (name === null) return; try { await api('garage/folders/'+folder.id,'POST',{name}); await loadFolders(); } catch (error) { status.textContent = error.message; } });
