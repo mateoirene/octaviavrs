@@ -1,4 +1,4 @@
-import {createEventAttendeeManager} from './event-attendees.mjs?v=20261107-importes';
+import {createEventAttendeeManager} from './event-attendees.mjs?v=20261113-compartir-whatsapp';
 
 const status=document.querySelector('[data-page-status]');
 const loginPanel=document.querySelector('[data-login-panel]');
