@@ -50,11 +50,26 @@ export async function initNotifications(doc = document) {
   function soundLabel(){soundControl.textContent=soundEnabled?'Sonido de avisos: activado':'Sonido de avisos: apagado';soundControl.setAttribute('aria-pressed',String(soundEnabled));}soundLabel();soundControl.addEventListener('click',()=>{soundEnabled=!soundEnabled;try{storage?.setItem('club-notification-sound-v1',soundEnabled?'on':'off');}catch{}if(soundEnabled){chime.unlock();}soundLabel();});
   const garageReviewAccess=doc.createElement('a');garageReviewAccess.className='notification-review-access';garageReviewAccess.href='garaje.html#revisiones';garageReviewAccess.textContent='Revisar fichas del garaje →';garageReviewAccess.hidden=true;panel.append(top, mark, soundControl, status, reviewAccess,garageReviewAccess, list);initPushControls(panel,doc); area.append(button, panel); masthead.append(area);
   const toast = doc.createElement('div'); toast.className = 'notification-toast'; toast.setAttribute('role', 'status'); toast.hidden = true; doc.body.append(toast);
-  const birthdayStyle=doc.createElement('link');birthdayStyle.rel='stylesheet';birthdayStyle.href=new URL('./birthdays.css?v=20261026',import.meta.url).href;doc.head.append(birthdayStyle);
+  const birthdayStyle=doc.createElement('link');birthdayStyle.rel='stylesheet';birthdayStyle.href=new URL('./birthdays.css?v=20261113-celebracion',import.meta.url).href;doc.head.append(birthdayStyle);
   const birthdayBanner=doc.createElement('aside');birthdayBanner.className='club-birthday-banner';birthdayBanner.dataset.birthdayBanner='';birthdayBanner.hidden=true;birthdayBanner.setAttribute('role','status');masthead.closest('header').after(birthdayBanner);
   function persist() { try { storage?.setItem(STORAGE_KEY, JSON.stringify([...read].slice(-1000))); } catch {} }
+  let celebratedDate='';
+  function celebrateBirthday(birthdays){
+    if(!birthdays.length||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+    const date=birthdays[0].date||new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    if(celebratedDate===date)return;
+    try{if(window.sessionStorage.getItem('club-birthday-confetti-v1')===date){celebratedDate=date;return;}window.sessionStorage.setItem('club-birthday-confetti-v1',date);}catch{}
+    celebratedDate=date;
+    const canvas=doc.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)return;
+    canvas.className='birthday-confetti-canvas';canvas.setAttribute('aria-hidden','true');doc.body.append(canvas);
+    const colors=['#ef3340','#ffd166','#ffffff','#3aa779','#ef8290','#66c9e8'];let width=0,height=0,dpr=1;
+    const resize=()=>{dpr=Math.min(window.devicePixelRatio||1,1.5);width=window.innerWidth;height=window.innerHeight;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);};resize();window.addEventListener('resize',resize,{passive:true});
+    const count=Math.min(150,Math.max(70,Math.round(width/7))),pieces=Array.from({length:count},()=>({x:Math.random()*width,y:-Math.random()*height*.55,w:4+Math.random()*7,h:7+Math.random()*10,vy:2.2+Math.random()*4.4,vx:(Math.random()-.5)*2.5,angle:Math.random()*Math.PI*2,spin:(Math.random()-.5)*.16,color:colors[Math.floor(Math.random()*colors.length)],round:Math.random()<.22}));
+    const started=performance.now();let frame=0;
+    const draw=now=>{ctx.clearRect(0,0,width,height);const elapsed=now-started,fade=elapsed>2350?Math.max(0,1-(elapsed-2350)/650):1;ctx.globalAlpha=fade;for(const piece of pieces){piece.x+=piece.vx;piece.y+=piece.vy;piece.angle+=piece.spin;if(piece.y>height+20){piece.y=-20-Math.random()*80;piece.x=Math.random()*width;}ctx.save();ctx.translate(piece.x,piece.y);ctx.rotate(piece.angle);ctx.fillStyle=piece.color;if(piece.round){ctx.beginPath();ctx.arc(0,0,piece.w*.45,0,Math.PI*2);ctx.fill();}else ctx.fillRect(-piece.w/2,-piece.h/2,piece.w,piece.h);ctx.restore();}ctx.globalAlpha=1;if(elapsed<3000)frame=requestAnimationFrame(draw);else{cancelAnimationFrame(frame);window.removeEventListener('resize',resize);canvas.remove();}};frame=requestAnimationFrame(draw);
+  }
   function render() {
-    const birthdays=items.filter(item=>item.birthday);birthdayBanner.hidden=!birthdays.length;birthdayBanner.replaceChildren();if(birthdays.length){const message=doc.createElement('span');setVrsText(message,'🎂 '+birthdays.map(item=>item.title).join(' · ')+'. ¡Felicidades de parte del club!');const link=doc.createElement('a');link.href='index.html#calendario';link.textContent='Ver calendario ↗';link.addEventListener('click',()=>doc.querySelector('[data-calendar-today]')?.click());birthdayBanner.append(message,link);}
+    const birthdays=items.filter(item=>item.birthday);birthdayBanner.hidden=!birthdays.length;birthdayBanner.replaceChildren();if(birthdays.length){const icon=doc.createElement('img');icon.className='club-birthday-mark';icon.src='assets/birthday-popper.svg';icon.alt='';icon.setAttribute('aria-hidden','true');const message=doc.createElement('span');setVrsText(message,'Hoy celebramos a '+birthdays.map(item=>item.title.replace(/^Cumpleaños de /,'')).join(' · ')+'. ¡Felicidades de parte del club!');const link=doc.createElement('a');link.href='index.html#calendario';link.textContent='Ver calendario ↗';link.addEventListener('click',()=>doc.querySelector('[data-calendar-today]')?.click());birthdayBanner.append(icon,message,link);celebrateBirthday(birthdays);}
     const pendingCount = items.filter(item => item.id.startsWith('pending:')).length;
     for (const indicator of doc.querySelectorAll('[data-review-count]')) {
       indicator.hidden = pendingCount === 0; indicator.textContent = `(${pendingCount} pendientes)`;

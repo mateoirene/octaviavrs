@@ -14,14 +14,16 @@ export function isClubNewsVisible(item){
 }
 
 export function shuffleClubNews(items,random=Math.random){
- const result=(Array.isArray(items)?items:[]).filter(isClubNewsVisible).slice();
+ const visible=(Array.isArray(items)?items:[]).filter(isClubNewsVisible);
+ const birthday=visible.filter(item=>item.kind==='birthday'&&item.birthdayToday===true);
+ const result=visible.filter(item=>!(item.kind==='birthday'&&item.birthdayToday===true));
  for(let i=result.length-1;i>0;i--){
   const value=Number(random());
   const safe=Number.isFinite(value)?Math.min(Math.max(value,0),.9999999999999999):0;
   const j=Math.floor(safe*(i+1));
   [result[i],result[j]]=[result[j],result[i]];
  }
- return result;
+ return [...birthday,...result];
 }
 
 export function clubNewsSetKey(items){
