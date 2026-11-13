@@ -1,0 +1,19 @@
+name: Revisar modelos del garaje para vista aérea (solo lectura)
+on:
+  push:
+    branches: [codex/circuito-aereo-pilotos]
+    paths:
+      - '.github/workflows/auditar-pilotos-simulador.yml'
+      - '.github/audits/circuit-models.mjs'
+permissions:
+  contents: read
+jobs:
+  models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node .github/audits/circuit-models.mjs
