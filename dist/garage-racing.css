@@ -68,3 +68,8 @@
 @container(max-width:330px){.garage-membership{min-height:360px}}
 
 
+
+/* Fotos de socios: imagen completa sobre fondo ampliado y suavizado, sin bandas negras. */
+.garage-member-photos button{position:relative;isolation:isolate;overflow:hidden;background:#18212b!important;min-height:clamp(220px,52vw,420px)}
+.garage-member-photos img.garage-member-photo-backdrop{position:absolute;inset:-3%;z-index:-1;width:106%;height:106%;max-width:none;object-fit:cover;aspect-ratio:auto;filter:blur(16px) brightness(.58) saturate(.82);transform:scale(1.04)}
+.garage-member-photos img.garage-member-photo-main{position:relative;z-index:1;width:100%;height:clamp(220px,52vw,420px);object-fit:contain;object-position:center;aspect-ratio:16/10}
