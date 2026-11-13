@@ -31,7 +31,12 @@ function editMember(member) {
 function card(member) {
   const article = element('article', '', 'garage-member');
   const photos = element('div', '', 'garage-member-photos');
-  member.images.forEach((src,index) => { const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`); const image = element('img'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy'; button.append(image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button); });
+  member.images.forEach((src,index) => {
+    const button = element('button'); button.type = 'button'; button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`);
+    const backdrop = element('img','','garage-member-photo-backdrop'); backdrop.src = src; backdrop.alt = ''; backdrop.setAttribute('aria-hidden','true'); backdrop.loading = 'lazy';
+    const image = element('img','','garage-member-photo-main'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy';
+    button.append(backdrop,image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button);
+  });
   article.append(photos); const body = element('div', '', 'garage-member-body');
   const membership = element('section','','garage-membership');
   membership.setAttribute('aria-label','Carnet de socio de '+member.pilot);
