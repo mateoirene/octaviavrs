@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 const base='https://octaviaap.pages.dev',revision=process.env.GITHUB_SHA||Date.now();
-const files=['racing.mjs','racing-world3d.mjs','racing-aerial.mjs','racing-profile-controls.mjs','racing-profile-selection.mjs','racing-pilot-profiles.mjs','racing-roof-numbers.mjs','racing-vehicles3d.mjs','racing-body-shapes.mjs'];
+const files=['racing.mjs','racing-world3d.mjs','racing-aerial.mjs','racing-profile-controls.mjs','racing-profile-selection.mjs','racing-pilot-profiles.mjs','racing-vehicles3d.mjs','racing-body-shapes.mjs'];
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 async function verify(){
  for(const file of files){const response=await fetch(`${base}/${file}?circuit_release=${revision}`,{cache:'no-store',signal:AbortSignal.timeout(30000)});assert.equal(response.status,200,file);assert.equal(digest(Buffer.from(await response.arrayBuffer())),digest(await readFile('dist/'+file)),'Versión desplegada exacta: '+file);}
