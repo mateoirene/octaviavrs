@@ -43,6 +43,18 @@ El script de navegador utiliza Chromium, SQLite efímero y siete pilotos fictici
 
 Las comprobaciones de navegador cubren selección por ID, refresco de la ficha original, bloqueo de cambios en carrera, gas/pausa/reinicio, Combi con color explícito, tres cámaras y ficha móvil sin solapar la pista. Capturas e informe se generan en `artifacts/circuit-aerial/`. La galería local compara ocho carrocerías con igual escala, color e iluminación, usando dorsales de muestra. Se puede ejecutar por separado con `CIRCUIT_GALLERY_ONLY=1 node scripts/circuit-aerial-browser-check.mjs`; no forma parte de la web publicada.
 
+## Continuación: conducción táctil y recuperación gráfica
+
+- GAS y giro simultáneos mediante dos puntos táctiles reales de Chromium, con liberación comprobada y sin botones atascados.
+- Cambio de vertical a horizontal manteniendo las fichas, los dorsales y el perfil gráfico móvil.
+- Pérdida y restauración real del contexto mediante `WEBGL_lose_context`: una carrera vinculada se pausa, congela su tiempo y no presenta coches genéricos como sustitutos. La iluminación ambiental se reconstruye al restaurar el contexto. Se conserva la asignación exacta y se exige pulsar Continuar para reanudar.
+- Cambio entre campeonato, carrera libre y otro circuito manteniendo los cuatro participantes.
+- Los nombres de la vista aérea dejan margen respecto al HUD superior.
+
+Las seis comprobaciones del recorrido móvil ampliado pasaron sin excepciones JavaScript ni escrituras en la base de datos real. El informe se genera en `artifacts/circuit-aerial/informe-movil-recuperacion.json` y la captura horizontal en `aerea-movil-horizontal.png`.
+
+Para repetir solo este recorrido: `CIRCUIT_MOBILE_ONLY=1 CIRCUIT_BASELINE_ROOT=/tmp/no-baseline node scripts/circuit-aerial-browser-check.mjs`. El recorrido general también lo incluye. Se mantienen 197 pruebas automáticas superadas; las comprobaciones táctiles y gráficas siguen siendo emuladas, no mediciones de FPS en un móvil físico.
+
 ## Límites pendientes
 
 - Falta comprobar fluidez y legibilidad en móviles físicos; la emulación valida interfaz y perfil gráfico, no FPS reales.
