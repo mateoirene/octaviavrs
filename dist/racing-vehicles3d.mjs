@@ -1,10 +1,12 @@
+import {bodyShape,bodyRingAt,BODY_SECTION,metalSurfaceHeight} from './racing-body-shapes.mjs';
 import * as THREE from './vendor/three.module.js';
 import {paintGroundContactTexture} from './racing-contact-shadows.mjs?v=20261028-grounded-tesla';
 export const OCTAVIA_COLORS={blue:'#1261b5',red:'#aa1525',white:'#e6e7e5',grey:'#62686e',black:'#111418'};
 export const VEHICLE_GROUND_CLEARANCE=0;
 // One dimensioned body per car. Rear artwork is mapped to the hatch surface,
 // never to a floating full-car billboard or separate side photographs.
-export function vehicleDimensions(model='octavia'){return model==='tesla-model-3'?{length:4.694,width:1.849,height:1.443,wheelbase:2.875}:{length:4.7,width:1.829,height:1.49,wheelbase:2.686};}
+export function vehicleDimensions(model='octavia'){const {length,width,height,wheelbase}=bodyShape(model)||bodyShape('octavia');return {length,width,height,wheelbase};}
+export function createProfileVehicle(options={}){if(!bodyShape(options.model))throw Error('Modelo 3D no disponible para esa ficha.');return createVehicle({...options,registered:true});}
 export function createOctavia(options={}){return createVehicle({...options,model:'octavia'});}
 export function createTesla(options={}){const vehicle=createVehicle({...options,model:'tesla-model-3',paint:'white'});return options.glb?attachTeslaGlb(vehicle,options.glb):vehicle;}
 const importedWheelName=/(?:^|[_ .-])(wheel|tyre|tire|rim|llanta|rueda)(?:$|[_ .-])/i;
@@ -30,9 +32,9 @@ export function attachTeslaGlb(vehicle,source){
  vehicle.add(holder);const previousDispose=vehicle.userData.disposeMaterials;vehicle.userData.disposeMaterials=()=>{previousDispose?.();const geometries=new Set(),materials=new Set();model.traverse(item=>{if(item.geometry)geometries.add(item.geometry);const list=Array.isArray(item.material)?item.material:[item.material];for(const material of list.filter(Boolean))materials.add(material);});for(const geometry of geometries)geometry.dispose();for(const material of materials)material.dispose();};
  vehicle.userData.glbAsset=true;vehicle.userData.glbBody=holder;vehicle.userData.glbHiddenWheels=hiddenWheels;vehicle.userData.glbWheelSource=importedWheels.length===4?'glb':'procedural-fallback';vehicle.userData.glbTriangles=Math.round(triangles);vehicle.userData.vehicleSource='assets/Tesla_Model3.glb';vehicle.userData.coherentBody=true;return vehicle;
 }
-function createVehicle({rear,paint='blue',model='octavia'}={}){
- const tesla=model==='tesla-model-3',dim=vehicleDimensions(model),half=dim.width/2,end=dim.length/2,group=new THREE.Group();group.name=tesla?'Tesla Model 3 blanco · ALBERTO':'Octavia · carrocería coherente';
- const body=new THREE.MeshPhysicalMaterial({color:tesla?'#f2f1ec':OCTAVIA_COLORS[paint]||OCTAVIA_COLORS.blue,metalness:tesla?.1:.48,roughness:.24,clearcoat:.9,clearcoatRoughness:.12,envMapIntensity:tesla?.45:.8});
+function createVehicle({rear,paint='blue',model='octavia',registered=false}={}){
+ const shape=bodyShape(model)||bodyShape('octavia'),tesla=!!shape.tesla,dim=vehicleDimensions(model),half=dim.width/2,end=dim.length/2,group=new THREE.Group();group.name=tesla?'Tesla Model 3 blanco · ALBERTO':shape.label+' · carrocería 3D';
+ const body=new THREE.MeshPhysicalMaterial({color:tesla&&paint==='white'?'#f2f1ec':OCTAVIA_COLORS[paint]||OCTAVIA_COLORS.blue,metalness:tesla?.12:.30,roughness:.27,clearcoat:.9,clearcoatRoughness:.12,envMapIntensity:tesla?.45:.8});
  const glass=new THREE.MeshPhysicalMaterial({color:'#17212b',metalness:.28,roughness:.10,clearcoat:1,clearcoatRoughness:.06});
  const black=new THREE.MeshStandardMaterial({color:'#111419',roughness:.64}),rubber=new THREE.MeshStandardMaterial({color:'#141517',roughness:.94}),chrome=new THREE.MeshStandardMaterial({color:'#afb7c1',metalness:.95,roughness:.22}),caliper=new THREE.MeshStandardMaterial({color:tesla?'#45494c':'#b7192c',roughness:.45}),lamp=new THREE.MeshStandardMaterial({color:'#a81324',emissive:'#dc1426',emissiveIntensity:.55,roughness:.23});
  const geometries=new Set(),materials=new Set([body,glass,black,rubber,chrome,caliper,lamp]);
@@ -42,20 +44,29 @@ function createVehicle({rear,paint='blue',model='octavia'}={}){
  function mesh(geo,mat=body,parent=group){const m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;parent.add(m);geometries.add(geo);materials.add(mat);return m;}
  function box(x,y,z,w,h,d,mat=body,parent=group){const m=mesh(new THREE.BoxGeometry(w,h,d),mat,parent);m.position.set(x,y,z);return m;}
  function line(points,radius,material,parent=group){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));return mesh(new THREE.TubeGeometry(curve,Math.max(6,points.length*4),radius,5,false),material,parent);}
- const wheelZ=tesla?[-1.44,1.435]:[-1.39,1.296];
- const bodyRings=tesla?[[-end,.68,.33,.62],[-2.06,.86,.26,.76],[-1.40,half,.25,.87],[.6,half,.25,.92],[1.8,.88,.30,.95],[end,.78,.36,.92]]:[[-end,.78,.32,.68],[-2.05,.89,.24,.82],[-1.35,half,.24,.92],[.65,half,.24,.96],[1.80,.90,.27,.99],[end,.83,.32,.90]];
+ const wheelZ=shape.axles;
+ const bodyRings=shape.generation===2?[[-end,.71,.32,.67],[-1.96,.84,.25,.80],[-1.28,half,.24,.91],[.65,half,.24,.94],[1.75,.86,.28,.98],[end,.79,.33,.89]]:shape.generation===3?[[-end,.75,.31,.65],[-2.04,.87,.24,.80],[-1.35,half,.24,.90],[.65,half,.24,.95],[1.78,.88,.27,.97],[end,.81,.32,.89]]:tesla?[[-end,.68,.33,.62],[-2.06,.86,.26,.76],[-1.40,half,.25,.87],[.6,half,.25,.92],[1.8,.88,.30,.95],[end,.78,.36,.92]]:[[-end,.78,.32,.68],[-2.05,.89,.24,.82],[-1.35,half,.24,.92],[.65,half,.24,.96],[1.80,.90,.27,.99],[end,.83,.32,.90]];
  function interpolate(rings,z){let i=0;while(i<rings.length-2&&z>rings[i+1][0])i++;const a=rings[i],b=rings[i+1],t=THREE.MathUtils.smoothstep(z,a[0],b[0]);return [THREE.MathUtils.lerp(a[1],b[1],t),THREE.MathUtils.lerp(a[2],b[2],t),THREE.MathUtils.lerp(a[3],b[3],t)];}
- function loft(rings,material,arches=false){const vertices=[],uv=[],indices=[],steps=112,profile=[[-.76,0],[.76,0],[.98,.08],[1,.24],[1,.68],[.96,.9],[.84,1],[-.84,1],[-.96,.9],[-1,.68],[-1,.24],[-.98,.08]],n=profile.length;for(let i=0;i<=steps;i++){const z=THREE.MathUtils.lerp(rings[0][0],rings.at(-1)[0],i/steps),[w,b,t]=interpolate(rings,z);for(const [j,[x,y]]of profile.entries()){let bottom=b;if(arches&&Math.abs(x)>.9)for(const axle of wheelZ){const dz=z-axle;if(Math.abs(dz)<.375)bottom=Math.max(bottom,.335+Math.sqrt(.375**2-dz**2));}vertices.push(x*w,bottom+(t-bottom)*y,z);uv.push(j/(n-1),i/steps);}}for(let i=0;i<steps;i++)for(let j=0;j<n;j++){const a=i*n+j,b=i*n+(j+1)%n;indices.push(a,b,a+n,b,b+n,a+n);}for(let j=1;j<n-1;j++){indices.push(0,j+1,j);const last=steps*n;indices.push(last,last+j,last+j+1);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();return mesh(g,material);}
+ function loft(rings,material,arches=false){const vertices=[],uv=[],indices=[],steps=112,profile=BODY_SECTION,n=profile.length;for(let i=0;i<=steps;i++){const z=THREE.MathUtils.lerp(rings[0][0],rings.at(-1)[0],i/steps),[w,b,t]=interpolate(rings,z);for(const [j,[x,y]]of profile.entries()){let bottom=b;if(arches&&Math.abs(x)>.9)for(const axle of wheelZ){const dz=z-axle;if(Math.abs(dz)<.375)bottom=Math.max(bottom,.335+Math.sqrt(.375**2-dz**2));}let height=bottom+(t-bottom)*y;if(rings===shape.cap&&y>.5)height=Math.max(height,metalSurfaceHeight(shape.cabin,z,x*w)+.012);vertices.push(x*w,height,z);uv.push(j/(n-1),i/steps);}}for(let i=0;i<steps;i++)for(let j=0;j<n;j++){const a=i*n+j,b=i*n+(j+1)%n;indices.push(a,b,a+n,b,b+n,a+n);}for(let j=1;j<n-1;j++){indices.push(0,j+1,j);const last=steps*n;indices.push(last,last+j,last+j+1);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();return mesh(g,material);}
  loft(bodyRings,body,true);
- if(tesla){loft([[-1.32,.73,.85,.88],[-.48,.70,.88,1.38],[.12,.69,.9,1.443],[.78,.69,.92,1.34],[1.62,.76,.94,1.0]],glass);}
- else{loft([[-1.25,.75,.89,.92],[-.63,.71,.91,1.44],[.55,.71,.95,1.49],[1.42,.70,.97,1.22],[2.10,.76,.98,1.04]],glass);loft([[-.64,.72,1.427,1.462],[.45,.729,1.46,1.495],[.78,.71,1.415,1.45]],body);}
+ loft(shape.cabin,glass);if(shape.cap)loft(shape.cap,body);
  for(const side of [-1,1]){
   const x=side*.736;
+  if(registered){
+   const rings=shape.cabin,first=rings[0][0],last=rings.at(-1)[0],roofStart=shape.cap?.[0][0]??rings[1][0],roofEnd=shape.cap?.at(-1)[0]??rings.at(-2)[0];
+   const point=(z,upper=true)=>{const [w,b,t]=bodyRingAt(rings,z);return [side*w*(upper?.91:.99),b+(t-b)*(upper?.96:.22)+.008,z];};
+   const curve=(a,b)=>Array.from({length:13},(_,i)=>point(a+(b-a)*i/12));
+   line(curve(first,roofStart),.023,body);line(curve(roofEnd,last),.027,body);
+   line(Array.from({length:25},(_,i)=>point(first+(last-first)*i/24,false)),.014,black);
+   line(curve(roofStart,roofEnd),.016,black);
+   for(const z of [roofStart+(roofEnd-roofStart)*.52,...(shape.combi?[roofStart+(roofEnd-roofStart)*.83]:[])])line([point(z,false),point(z,true)],.027,black);
+  }else{
   line(tesla?[[side*.75,.90,-1.25],[side*.72,1.17,-.88],[side*.67,1.39,-.48]]:[[side*.78,.92,-1.18],[x,1.25,-.82],[side*.7,1.45,-.58]],.025,body);
-  line(tesla?[[side*.74,.95,1.62],[side*.70,1.18,1.12],[side*.66,1.34,.78]]:[[side*.79,.93,1.96],[side*.73,1.22,1.34],[side*.68,1.43,.73]],.029,body);
+  line(tesla?[[side*.74,.95,1.62],[side*.70,1.18,1.12],[side*.66,1.34,.78]]:shape.combi?[[side*.76,1.04,2.08],[side*.72,1.30,1.89],[side*.69,1.46,1.70]]:[[side*.79,.93,1.96],[side*.73,1.22,1.34],[side*.68,1.43,.73]],.029,body);
   line([[side*.79,.94,-1.15],[side*.79,.98,.1],tesla?[side*.78,.95,1.62]:[side*.78,1.0,1.85]],.014,black);
   if(!tesla){box(x,1.21,.12,.03,.48,.065,black);box(x,1.12,.95,.03,.29,.065,black);}
   else{line([[side*.7,1.38,-.4],[side*.71,1.445,.1],[side*.70,1.34,.8]],.015,body);box(x,1.17,.1,.027,.54,.065,black);}
+  }
   const mirror=mesh(new THREE.SphereGeometry(1,16,10),tesla?body:black);mirror.scale.set(.08,.055,.13);mirror.position.set(side*.945,1.02,-.73);box(side*.88,.99,-.72,.16,.025,.035,black);
   for(const z of [-.52,.76])box(side*(half+.003),.82,z,.012,.028,.19,tesla?black:chrome);
   // Panel seams follow the body sides, with the wheels left as real geometry.
@@ -69,10 +80,33 @@ function createVehicle({rear,paint='blue',model='octavia'}={}){
  box(0,.31,end-.03,1.53,.15,.12,black);if(!tesla){for(const side of [-1,1])for(const shift of [-.105,.105]){const tip=mesh(new THREE.TorusGeometry(.092,.014,8,28),chrome);tip.position.set(side*.64+shift,.30,end+.008);const hole=mesh(new THREE.CircleGeometry(.081,24),black);hole.position.set(side*.64+shift,.30,end+.003);}for(let i=-2;i<=2;i++)box(i*.21,.28,end-.015,.018,.12,.14,black);}
 
  for(const side of [-1,1]){const housing=box(side*.62,.735,-end+.045,.43,.092,.07,black);housing.rotation.y=side*.16;const led=new THREE.MeshStandardMaterial({color:'#e3f1fa',emissive:'#bdd9ed',emissiveIntensity:.65,metalness:.15,roughness:.14});const lens=box(side*.62,.735,-end+.006,.37,.028,.015,led);lens.rotation.y=side*.16;for(const shift of [-.09,.09]){const projector=mesh(new THREE.SphereGeometry(.028,12,8),chrome);projector.scale.z=.4;projector.position.set(side*.62+shift,.755,-end-.005);}if(!rear)box(side*.6,.74,end-.02,tesla?.43:.23,.075,.035,lamp);}
- if(!tesla){box(0,1.445,1.75,1.49,.045,.19,black);box(0,1.424,1.86,.68,.018,.025,lamp);if(!rear)line([[-.44,1.08,2.105],[0,1.075,2.105],[.41,1.08,2.105]],.009,black);box(0,.6,-end-.004,1.32,.26,.025,black);for(let i=-6;i<=6;i++)box(i*.085,.6,-end-.025,.016,.22,.015,chrome);}
+ if(!tesla){box(0,shape.spoiler[1],shape.spoiler[0],1.42,.035,.14,black);box(0,shape.spoiler[1]-.018,shape.spoiler[0]+.065,.60,.014,.018,lamp);if(!rear)line([[-.44,1.08,2.105],[0,1.075,2.105],[.41,1.08,2.105]],.009,black);box(0,.6,-end-.004,1.32,.26,.025,black);for(let i=-6;i<=6;i++)box(i*.085,.6,-end-.025,.016,.22,.015,chrome);}
  // Cropped hatch surface: no tyres, mirrors or floor shadow can be duplicated by the texture.
  if(rear){const levels=tesla?[[.39,.80,end+.025],[.65,.90,end+.025],[.94,.86,end+.025]]:[[.31,.82,end+.025],[.62,.908,end+.025],[.94,.86,end+.025],[1.05,.785,2.105],[1.425,.705,1.735]],pos=[],uv=[],index=[],photoHeight=tesla?1.48:1.58;for(const [i,[y,w,z]]of levels.entries()){for(const side of [-1,1]){pos.push(side*w,y,z);uv.push(.5+side*w/(tesla?1.96:1.98),y/photoHeight);}if(i){const a=(i-1)*2;index.push(a,a+1,a+2,a+1,a+3,a+2);}}const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(index);geo.computeVertexNormals();const mat=new THREE.MeshStandardMaterial({map:rear,roughness:.34,metalness:.12,envMapIntensity:.65,polygonOffset:true,polygonOffsetFactor:-2,alphaTest:.1});const hatch=mesh(geo,mat);hatch.name='Textura integrada en el portón';hatch.castShadow=false;}
- if(tesla){const c=document.createElement('canvas');c.width=512;c.height=128;const cx=c.getContext('2d');cx.fillStyle='#101215';cx.fillRect(0,0,512,128);cx.font='bold 78px Arial';cx.textAlign='center';cx.fillStyle='#f4f7f8';cx.fillText('ALBERTO',256,93);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const mat=new THREE.MeshStandardMaterial({map:t,emissiveMap:t,emissive:'#ffffff',emissiveIntensity:.65,roughness:.5});const plate=mesh(new THREE.PlaneGeometry(.59,.148),mat);plate.position.set(0,.728,end+.023);plate.name='Matrícula ALBERTO';group.userData.ownedTextures.push(t);}
+ if(tesla&&!registered){const c=document.createElement('canvas');c.width=512;c.height=128;const cx=c.getContext('2d');cx.fillStyle='#101215';cx.fillRect(0,0,512,128);cx.font='bold 78px Arial';cx.textAlign='center';cx.fillStyle='#f4f7f8';cx.fillText('ALBERTO',256,93);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const mat=new THREE.MeshStandardMaterial({map:t,emissiveMap:t,emissive:'#ffffff',emissiveIntensity:.65,roughness:.5});const plate=mesh(new THREE.PlaneGeometry(.59,.148),mat);plate.position.set(0,.728,end+.023);plate.name='Matrícula ALBERTO';group.userData.ownedTextures.push(t);}
+ // Tessellated metal bonnet with raised creases follows the actual shell surface.
+ {const vertices=[],uv=[],indices=[],nx=20,nz=24,start=-end+.17,finish=shape.cabin[0][0]-.025;
+  for(let j=0;j<=nz;j++){const z=start+(finish-start)*j/nz,[w,,top]=bodyRingAt(bodyRings,z);for(let i=0;i<=nx;i++){const u=i/nx*2-1,x=u*w*.80,crease=Math.exp(-(((Math.abs(u)-.68)/.12)**2))*.017,arc=(1-u*u)*.009;vertices.push(x,metalSurfaceHeight(bodyRings,z,x)+.001+arc+crease,z);uv.push(i/nx,j/nz);}}
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i;indices.push(a,a+nx+1,a+1,a+1,a+nx+1,a+nx+2);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();const hood=mesh(g,body);hood.name='Capó esculpido con nervaduras';
+  for(const side of [-1,1]){const points=[];for(let i=0;i<=10;i++){const z=start+(finish-start)*i/10,[w,,top]=bodyRingAt(bodyRings,z);points.push([side*w*.78,metalSurfaceHeight(bodyRings,z,side*w*.78)+.004,z]);}line(points,.0025,black);}
+ }
+ // Headlamp surfaces wrap across the bonnet corners; they remain geometry in top view.
+ {const light=new THREE.MeshStandardMaterial({color:'#dbe8ee',emissive:'#b8d9ec',emissiveIntensity:.32,roughness:.18,metalness:.25});
+  const patch=(side,low,high,front,back)=>{const z0=-end+front,z1=-end+back,points=[[low,z0],[high,z0+.018],[high,z1],[low,z1-.055]],verts=[];for(const [u,z]of points){const [w]=bodyRingAt(bodyRings,z),x=side*u*w;const normalized=x/(w*.8),crease=Math.exp(-(((Math.abs(normalized)-.68)/.12)**2))*.017,arc=(1-normalized*normalized)*.009;verts.push(x,metalSurfaceHeight(bodyRings,z,x)+.004+arc+crease,z);}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.setAttribute('uv',new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,1],2));g.setIndex(side>0?[0,2,1,0,3,2]:[0,1,2,0,2,3]);g.computeVertexNormals();const lens=mesh(g,light);lens.castShadow=false;};
+  for(const side of [-1,1]){if(shape.splitLights){patch(side,.34,.51,.045,.27);patch(side,.56,.82,.055,.31);}else patch(side,tesla?.44:.36,.82,.04,shape.generation===2?.37:shape.facelift?.31:.25);}
+ }
+ if(!tesla){
+  for(const side of [-1,1]){
+   const front=-end-.017;
+   if(shape.generation===2){line([[side*.37,.75,front],[side*.53,.79,front-.01],[side*.78,.75,front+.025]],.012,chrome);}
+   else if(shape.splitLights){box(side*.39,.74,front,.18,.055,.025,chrome);box(side*.50,.74,front-.005,.025,.12,.035,body);}
+   else{line([[side*.38,.745,front],[side*.57,.70,front-.01],[side*.82,.73,front+.04]],.009,chrome);if(shape.facelift)line([[side*.46,.75,front],[side*.50,.64,front]],.012,chrome);}
+   const tail=end+.014;line(shape.generation===2?[[side*.69,.85,tail],[side*.77,.77,tail],[side*.69,.64,tail]]:[[side*.38,.79,tail],[side*.68,.79,tail],[side*.79,.72,tail],[side*.63,.66,tail]],.012,lamp);
+   if(shape.combi){line([[side*.65,1.51,-.46],[side*.69,1.535,.55],[side*.66,1.51,1.66]],.016,black);box(side*.73,1.25,1.24,.03,.42,.05,black);}
+  }
+ }
+ group.userData.roofBounds=shape.roof;group.userData.visualModel=model;group.userData.bodyShape=shape.label;
  batch(group);
  // La sombra siempre sigue el plano del coche, incluso cuando la cámara aérea
  // desactiva las sombras dinámicas para mantener el rendimiento en móviles.

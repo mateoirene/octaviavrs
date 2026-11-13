@@ -3,8 +3,8 @@ import {drawSideWheels} from './racing-wheels.mjs?v=20261024-ruedas2';
 import {drawSideContactShadow} from './racing-contact-shadows.mjs?v=20261028-grounded-tesla';
 export function raceWinner(race,pilot){
  if(race.phase!=='finished')throw new Error('La carrera todavía no ha terminado.');
- const candidates=[{player:true,index:-1,pilot:String(pilot),model:'octavia',time:race.elapsed}];
- race.rivals.forEach((car,index)=>{const time=Number.isFinite(car.finishTime)?car.finishTime:car.distance>=race.trackLength*3?race.elapsed-Math.max(0,car.distance-race.trackLength*3)/Math.max(1,car.speed):Infinity;candidates.push({player:false,index,pilot:car.model==='tesla-model-3'?'ALBERTO':'Octavia '+(index+1),model:car.model||'octavia',time});});
+ const candidates=[{player:true,index:-1,pilot:race.pilotProfile?.pilot||String(pilot),model:'octavia',time:race.elapsed}];
+ race.rivals.forEach((car,index)=>{const time=Number.isFinite(car.finishTime)?car.finishTime:car.distance>=race.trackLength*3?race.elapsed-Math.max(0,car.distance-race.trackLength*3)/Math.max(1,car.speed):Infinity;candidates.push({player:false,index,pilot:car.pilotProfile?.pilot||(car.model==='tesla-model-3'?'ALBERTO':'Octavia '+(index+1)),model:car.model||'octavia',time});});
  return candidates.reduce((a,b)=>b.time<a.time?b:a);
 }
 export function finishReplayFrame(elapsed){

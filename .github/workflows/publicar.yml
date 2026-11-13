@@ -34,6 +34,7 @@ jobs:
         run: |
           echo "solo_css=false" >> "$GITHUB_OUTPUT"
           echo "solo_visual=false" >> "$GITHUB_OUTPUT"
+          echo "solo_circuito=false" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" != "push" ] || [ -z "${{ github.event.before }}" ]; then exit 0; fi
           archivos="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
           if [ -z "$archivos" ]; then exit 0; fi
@@ -51,6 +52,7 @@ jobs:
           done <<< "$archivos"
           if [ "$solo_css" = true ]; then echo "solo_css=true" >> "$GITHUB_OUTPUT"; fi
           if [ "$solo_visual" = true ]; then echo "solo_visual=true" >> "$GITHUB_OUTPUT"; fi
+          node scripts/circuit-release.mjs "${{ github.event.before }}" "${{ github.sha }}" >> "$GITHUB_OUTPUT"
       - name: Preparar Node
         uses: actions/setup-node@v4
         with:
@@ -78,6 +80,9 @@ jobs:
           key: octavia-track3d-three0180-asphalt02-v1
       - name: Preparar motor local y materiales PBR
         run: node scripts/prepare-track3d.mjs
+      - name: Comprobar dorsales sobre la geometría real de los techos
+        if: steps.cambios.outputs.solo_circuito == 'true'
+        run: node --test scripts/racing-roof-geometry.test.mjs
       - name: Preparar modelos y licencias de Autovía
         run: node scripts/prepare-highway-assets.mjs
       - name: Comprobar Autovía en Chrome antes de publicar
@@ -99,7 +104,7 @@ jobs:
         run: node scripts/cloudflare-target.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          PRESERVE_CLOUDFLARE_CONFIG: ${{ steps.cambios.outputs.solo_visual }}
+          PRESERVE_CLOUDFLARE_CONFIG: ${{ steps.cambios.outputs.solo_visual == 'true' || steps.cambios.outputs.solo_circuito == 'true' }}
       - name: Conservar referencia recuperable de producción
         uses: actions/upload-artifact@v4
         with:
@@ -109,12 +114,12 @@ jobs:
           retention-days: 90
       # Respaldo completo cifrado de la D1 de producción antes de tocar datos.
       - name: Preparar Python para el respaldo
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
       - name: Crear respaldo completo y cifrado de producción
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         run: node .github/backup/crear-copia.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -135,7 +140,7 @@ jobs:
             -----END PUBLIC KEY-----
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
       - name: Conservar el respaldo previo al cambio
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: copia-seguridad-octavia-web-previa-${{ github.run_id }}
@@ -144,7 +149,7 @@ jobs:
           retention-days: 90
           compression-level: 0
       - name: Aplicar migración del centro de control
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -152,7 +157,7 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-10-cms.sql
       - name: Aplicar migración de visibilidad de fichas
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -160,7 +165,7 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-10-garage-member-visibility.sql
       - name: Asignar carnets a los miembros actuales y futuros
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -168,12 +173,12 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-12-garage-membership.sql
       - name: Preparar almacenamiento del mercadillo
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         run: node scripts/market-storage.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Sincronizar avisos push del club
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         run: node scripts/push-news.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -191,3 +196,7 @@ jobs:
         run: node scripts/check-racing-live.mjs
 
 
+
+      - name: Verificar nueva versión de coches y fichas publicada
+        if: steps.destino.outputs.ready == 'true'
+        run: node scripts/check-circuit-profiles-live.mjs
