@@ -52,11 +52,21 @@ function createVehicle({rear,paint='blue',model='octavia',registered=false}={}){
  loft(shape.cabin,glass);if(shape.cap)loft(shape.cap,body);
  for(const side of [-1,1]){
   const x=side*.736;
+  if(registered){
+   const rings=shape.cabin,first=rings[0][0],last=rings.at(-1)[0],roofStart=shape.cap?.[0][0]??rings[1][0],roofEnd=shape.cap?.at(-1)[0]??rings.at(-2)[0];
+   const point=(z,upper=true)=>{const [w,b,t]=bodyRingAt(rings,z);return [side*w*(upper?.91:.99),b+(t-b)*(upper?.96:.22)+.008,z];};
+   const curve=(a,b)=>Array.from({length:13},(_,i)=>point(a+(b-a)*i/12));
+   line(curve(first,roofStart),.023,body);line(curve(roofEnd,last),.027,body);
+   line(Array.from({length:25},(_,i)=>point(first+(last-first)*i/24,false)),.014,black);
+   line(curve(roofStart,roofEnd),.016,black);
+   for(const z of [roofStart+(roofEnd-roofStart)*.52,...(shape.combi?[roofStart+(roofEnd-roofStart)*.83]:[])])line([point(z,false),point(z,true)],.027,black);
+  }else{
   line(tesla?[[side*.75,.90,-1.25],[side*.72,1.17,-.88],[side*.67,1.39,-.48]]:[[side*.78,.92,-1.18],[x,1.25,-.82],[side*.7,1.45,-.58]],.025,body);
   line(tesla?[[side*.74,.95,1.62],[side*.70,1.18,1.12],[side*.66,1.34,.78]]:shape.combi?[[side*.76,1.04,2.08],[side*.72,1.30,1.89],[side*.69,1.46,1.70]]:[[side*.79,.93,1.96],[side*.73,1.22,1.34],[side*.68,1.43,.73]],.029,body);
   line([[side*.79,.94,-1.15],[side*.79,.98,.1],tesla?[side*.78,.95,1.62]:[side*.78,1.0,1.85]],.014,black);
   if(!tesla){box(x,1.21,.12,.03,.48,.065,black);box(x,1.12,.95,.03,.29,.065,black);}
   else{line([[side*.7,1.38,-.4],[side*.71,1.445,.1],[side*.70,1.34,.8]],.015,body);box(x,1.17,.1,.027,.54,.065,black);}
+  }
   const mirror=mesh(new THREE.SphereGeometry(1,16,10),tesla?body:black);mirror.scale.set(.08,.055,.13);mirror.position.set(side*.945,1.02,-.73);box(side*.88,.99,-.72,.16,.025,.035,black);
   for(const z of [-.52,.76])box(side*(half+.003),.82,z,.012,.028,.19,tesla?black:chrome);
   // Panel seams follow the body sides, with the wheels left as real geometry.
