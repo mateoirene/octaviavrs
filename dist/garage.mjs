@@ -35,7 +35,7 @@ function card(member) {
     const button = element('button'); button.type = 'button';
     button.setAttribute('aria-label', `Ver foto ${index+1} del ${member.model} de ${member.pilot}`);
     const backdrop = element('img','','garage-member-photo-backdrop'); backdrop.src=src; backdrop.alt=''; backdrop.setAttribute('aria-hidden','true'); backdrop.loading='lazy';
-    const image = element('img','','garage-member-photo-main'); image.src = src; image.alt = `${member.model} de ${member.pilot}`; image.loading = 'lazy';
+    const image = element('img','','garage-member-photo-main'); image.src=src; image.alt=`${member.model} de ${member.pilot}`; image.loading='lazy';
     button.append(backdrop,image); button.addEventListener('click', () => showPhoto(src,image.alt,member.id)); photos.append(button);
   });
   article.append(photos);
@@ -44,7 +44,11 @@ function card(member) {
   membership.setAttribute('aria-label','Carnet de socio de '+member.pilot);
   const club=element('p','','garage-membership-club');
   club.append(element('span','CLUB OCTAVIA'),element('span','VRS CATALUNYA'));
-  membership.append(club);
+  const assigned=member.membershipNumber!==null&&member.membershipNumber!==undefined&&member.membershipNumber!=='';
+  const number=element('div','','garage-membership-number');
+  number.append(element('span',assigned?'MIEMBRO DEL CLUB':'FICHA EN REVISIÓN','garage-membership-label'));
+  number.append(element('strong',assigned?'N.º '+String(member.membershipNumber).padStart(4,'0'):'Pendiente',''));
+  club.append(number); membership.append(club);
   const identity=element('div','','garage-membership-identity');
   if(member.profileImage){
     const avatar=element('img','','garage-pilot-avatar');avatar.src=member.profileImage;avatar.alt='Foto de perfil de '+member.pilot;avatar.loading='lazy';identity.append(avatar);
@@ -55,17 +59,18 @@ function card(member) {
   const details=element('div','','garage-membership-details');
   details.append(element('h3',member.pilot),element('p',member.model,'garage-model'));
   if(member.instagramUrl){const link=element('a','@'+member.instagram+' ↗','garage-instagram');link.dataset.analyticsResourceId=member.id;link.href=member.instagramUrl;link.target='_blank';link.rel='noopener noreferrer';details.append(link);}
-  identity.append(details);
-  const number=element('div','','garage-membership-number');
-  number.append(element('span',member.membershipNumber?'SOCIO N.º':'FICHA EN REVISIÓN','garage-membership-label'),element('strong',member.membershipNumber||'Pendiente de aprobación'));
-  identity.append(number);membership.append(identity);
-  const meta=element('div','','garage-membership-meta');
-  if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');meta.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
-  if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);meta.append(contact);}
-  if(meta.childElementCount)membership.append(meta);
+  if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');details.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
+  identity.append(details);membership.append(identity);
+  if(member.whatsappUrl){
+    const contact=element('a','↗  CONTACTAR POR WHATSAPP · +'+member.phone,'garage-whatsapp');
+    contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);membership.append(contact);
+  }
   body.append(membership);
+  body.append(element('h4','ESPECIFICACIONES DEL VEHÍCULO','garage-specs-heading'));
   const specs = element('dl','', 'garage-specs');
-  for (const [label,value] of [['Motor',member.engine],['Potencia',member.power],['Año',member.year],['Cambio',member.gearbox]]) if (value) { const row = element('div'); row.append(element('dt',label),element('dd',value)); specs.append(row); }
+  for (const [label,value] of [['Motor',member.engine],['Potencia',member.power],['Año',member.year],['Cambio',member.gearbox]]) if (value) {
+    const row=element('div'); const dt=element('dt'); dt.dataset.spec=label.toLocaleLowerCase('es'); dt.append(element('span',label)); row.append(dt,element('dd',value)); specs.append(row);
+  }
   body.append(specs); if (member.notes) body.append(element('p',member.notes,'garage-member-notes'));
   if (admin) { const actions = element('div','','garage-page-actions'), edit = element('button','Editar ficha'), remove = element('button','Eliminar ficha'); edit.type = remove.type = 'button';
     edit.addEventListener('click', () => editMember(member)); remove.addEventListener('click', async () => { if (!confirm(`¿Eliminar la ficha de ${member.pilot} y sus fotos?`)) return; remove.disabled = true; try { await api('garage/members/'+member.id,'DELETE'); await loadFolders(); status.textContent = 'Ficha eliminada.'; } catch (error) { status.textContent = error.message; remove.disabled = false; } }); actions.append(edit,remove); body.append(actions); }
