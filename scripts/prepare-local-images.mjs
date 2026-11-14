@@ -5,9 +5,8 @@ import {readFile,writeFile,mkdtemp,rm} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {tmpdir} from 'node:os';
 const stems=['galeria-volante-club','galeria-asientos-club','galeria-emblema-lluvia','galeria-vrs-lluvia','cesped-circuito'];
-const webpAssets=[{stem:'bandera-club-octavia-transparente',max:1280},{stem:'vrs-emblema-cromado',max:1024},{stem:'garaje-de-miembros-transparente',max:640},{stem:'escape-difusor-galeria',max:1200}];
 const profile=await mkdtemp(resolve(tmpdir(),'octavia-image-build-'));
-const server=createServer(async(req,res)=>{try{const path=new URL(req.url,'http://localhost').pathname;if(path==='/'){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Preparar imágenes</title>');return;}const stem=path.slice(1).replace(/\.png$/,'');if(!stems.includes(stem)&&!webpAssets.some(item=>item.stem===stem))throw Error('path');res.setHeader('Content-Type','image/png');res.end(await readFile(resolve('dist/assets',stem+'.png')));}catch{res.writeHead(404);res.end();}});
+const server=createServer(async(req,res)=>{try{const path=new URL(req.url,'http://localhost').pathname;if(path==='/'){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Preparar imágenes</title>');return;}const stem=path.slice(1).replace(/\.png$/,'');if(!stems.includes(stem))throw Error('path');res.setHeader('Content-Type','image/png');res.end(await readFile(resolve('dist/assets',stem+'.png')));}catch{res.writeHead(404);res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
 const chrome=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
 let socket;const pending=new Map();
@@ -21,9 +20,4 @@ try{
   const expression=`(async()=>{const image=new Image();image.src=${JSON.stringify(base+'/'+stem+'.png')};await image.decode();const c=document.createElement('canvas');c.width=image.naturalWidth;c.height=image.naturalHeight;c.getContext('2d').drawImage(image,0,0);return c.toDataURL('image/jpeg',.86).split(',')[1];})()`;
   const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||'No se pudo codificar '+stem);const bytes=Buffer.from(r.result.value,'base64');if(bytes.length<10000||bytes[0]!==255||bytes[1]!==216)throw Error('JPEG inválido '+stem);await writeFile(resolve('dist/assets',stem+'.jpg'),bytes);console.log('IMAGEN_LOCAL_PREPARADA '+stem+' '+bytes.length+' bytes');
  }
- for(const {stem,max} of webpAssets){
-  const expression=`(async()=>{const image=new Image();image.src=${JSON.stringify(base+'/'+stem+'.png')};await image.decode();const ratio=Math.min(1,${max}/image.naturalWidth),c=document.createElement('canvas');c.width=Math.round(image.naturalWidth*ratio);c.height=Math.round(image.naturalHeight*ratio);c.getContext('2d').drawImage(image,0,0,c.width,c.height);return c.toDataURL('image/webp',.9).split(',')[1];})()`;
-  const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception?.description||'No se pudo optimizar '+stem);const bytes=Buffer.from(r.result.value,'base64');if(bytes.length<1000||bytes.toString('ascii',0,4)!=='RIFF'||bytes.toString('ascii',8,12)!=='WEBP')throw Error('WebP inválido '+stem);await writeFile(resolve('dist/assets',stem+'.webp'),bytes);console.log('IMAGEN_MOVIL_OPTIMIZADA '+stem+' '+bytes.length+' bytes');
- }
-
 }finally{for(const p of pending.values())clearTimeout(p.timer);socket?.close();chrome.kill();server.close();await new Promise(r=>setTimeout(r,200));await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200});}
