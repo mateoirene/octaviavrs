@@ -120,8 +120,8 @@ async function enter(user) {
   if (new URLSearchParams(location.search).get('volver') === 'garaje') { location.assign('garaje.html'+(new URLSearchParams(location.search).get('revision')?'?revision='+encodeURIComponent(new URLSearchParams(location.search).get('revision'))+'#revisiones':'#gestion')); return; }
   if (new URLSearchParams(location.search).get('volver') === 'asistentes') { const eventId=new URLSearchParams(location.search).get('evento')||'';if(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,100}$/.test(eventId)){location.assign('asistentes-evento.html?evento='+encodeURIComponent(eventId));return;} }
   const initialStatus=new URLSearchParams(location.search).get('estado');if(['pending','approved','rejected','sold'].includes(initialStatus))$('[data-filter]').value=initialStatus;
-  $('[data-user]').textContent = 'Propietario único · ' + user.email;
-  if(!prepareWhatsAppInvite())await refreshWhatsAppSettings();
+  $('[data-user]').textContent = (user.role==='administrator'?user.alias+' · Administrador':'Raúl · Propietario')+' · '+user.email;
+  const whatsappForm=$('[data-whatsapp-settings-form]');if(whatsappForm)whatsappForm.closest('details').hidden=user.role==='administrator';if(user.role!=='administrator'&&!prepareWhatsAppInvite())await refreshWhatsAppSettings();
   await refresh(); await refreshMail(true);
 }
 if (key) { $('[data-login-title]').textContent = 'Activar acceso privado'; $('[data-setup-copy]').hidden = false; login.elements.password.autocomplete = 'new-password'; }

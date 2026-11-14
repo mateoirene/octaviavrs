@@ -1,3 +1,4 @@
+import {delegateSession,delegateLogin,createDelegateSession,delegatedRouteAllowed,handleDelegates} from './delegated-admins.mjs';
 import {handleSuggestions} from './suggestions.mjs';
 import {handleBricosRequest} from './bricos.mjs';
 import {handleAnalyticsRequest} from './analytics.mjs';
@@ -23,8 +24,8 @@ const cookie = token => `club_session=${token}; Path=/; HttpOnly; Secure; SameSi
 async function password(value,salt){const key=await crypto.subtle.importKey('raw',enc.encode(value),'PBKDF2',false,['deriveBits']);return Array.from(new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},key,256)),x=>x.toString(16).padStart(2,'0')).join('');}
 const now = () => Math.floor(Date.now()/1000);
 const sessionToken = request => request.headers.get('cookie')?.match(/(?:^|;\s*)club_session=([^;]+)/)?.[1]||'';
-async function session(db,request){const token=sessionToken(request);if(!token)return null;return db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND a.id=?').bind(await hash(token),now(),OWNER_ADMIN_ID).first();}
-async function sessionIdentity(db,request){const token=sessionToken(request);if(!token)return null;return db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(await hash(token),now()).first();}
+async function session(db,request){const token=sessionToken(request);if(!token)return null;const owner=await db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND a.id=?').bind(await hash(token),now(),OWNER_ADMIN_ID).first();return owner?{...owner,role:'owner',alias:'Raúl'}:delegateSession(db,token);}
+async function sessionIdentity(db,request){const token=sessionToken(request);if(!token)return null;const known=await db.prepare('SELECT a.id,a.email FROM market_sessions s JOIN market_admins a ON a.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?').bind(await hash(token),now()).first();return known||delegateSession(db,token);}
 async function newSession(db,id){await db.prepare('DELETE FROM market_sessions WHERE expires_at<?').bind(now()).run();const token=random();await db.prepare('INSERT INTO market_sessions VALUES(?,?,?)').bind(await hash(token),id,now()+SESSION_TTL_SECONDS).run();return token;}
 async function renewSession(db,request){const token=sessionToken(request);if(!token)return '';await db.prepare('UPDATE market_sessions SET expires_at=? WHERE token_hash=? AND expires_at>?').bind(now()+SESSION_TTL_SECONDS,await hash(token),now()).run();return token;}
 async function limit(db,request,purpose,max){const bucket=Math.floor(now()/900);const key=await hash(`${purpose}:${request.headers.get('CF-Connecting-IP')||'unknown'}:${bucket}`);const row=await db.prepare('INSERT INTO market_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(key,now()+1800).first();if(row.count>max)fail('Demasiados intentos. Espera 15 minutos.',429);await db.prepare('DELETE FROM market_limits WHERE expires_at<?').bind(now()).run();}
@@ -50,23 +51,24 @@ async function handleMarketRequestInner(request,env,context){try{
  const db=env.MARKET_DB;if(!db)return json({error:'El mercadillo todavía no tiene el almacenamiento activado.'},503);
  const path=new URL(request.url).pathname;const method=request.method;
  if(method!=='GET'&&request.headers.get('origin')!==new URL(request.url).origin)fail('Origen no permitido.',403);
+ const actor=await session(db,request);if(!delegatedRouteAllowed(actor,request))fail('Tu acceso no permite gestionar este apartado.',403);
  const requestLimit=(path==='/api/gallery/photos'||/^\/api\/bricos\/[^/]+\/media$/.test(path)||path==='/api/cms/admin/media')?26*1024*1024:path==='/api/cms/admin/backup'?8*1024*1024:path.startsWith('/api/analytics/')?32768:(path==='/api/market/submissions'||/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path))?12*1024*1024:4*1024*1024;
  if(Number(request.headers.get('content-length')||0)>requestLimit)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>requestLimit){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
- if(path==='/api/suggestions'||path.startsWith('/api/suggestions/')){if(method!=='GET')await limit(db,request,path==='/api/suggestions'?'suggestions-submit':'suggestions-manage',path==='/api/suggestions'?4:60);return await handleSuggestions(request,db,await session(db,request),context);}
- if(path.startsWith('/api/cms/'))return await handleCmsRequest(request,env,db,await session(db,request),(purpose,max)=>limit(db,request,purpose,max));
- if(path==='/api/bricos'||path.startsWith('/api/bricos/')){if(method!=='GET')await limit(db,request,path==='/api/bricos'?'bricos-create':path.endsWith('/comments')?'bricos-comment':'bricos-upload',path==='/api/bricos'?4:path.endsWith('/comments')?8:60);return await handleBricosRequest(request,db,await session(db,request),context);}
- if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,await session(db,request),(purpose,max)=>limit(db,request,purpose,max));
- if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,path==='/api/club/whatsapp-access'?'whatsapp-member-access':'club-management',path==='/api/club/whatsapp-access'?6:60);return await handleClubRequest(request,db,await session(db,request),context);}
+ if(path==='/api/suggestions'||path.startsWith('/api/suggestions/')){if(method!=='GET')await limit(db,request,path==='/api/suggestions'?'suggestions-submit':'suggestions-manage',path==='/api/suggestions'?4:60);return await handleSuggestions(request,db,actor,context);}
+ if(path.startsWith('/api/cms/'))return await handleCmsRequest(request,env,db,actor,(purpose,max)=>limit(db,request,purpose,max));
+ if(path==='/api/bricos'||path.startsWith('/api/bricos/')){if(method!=='GET')await limit(db,request,path==='/api/bricos'?'bricos-create':path.endsWith('/comments')?'bricos-comment':'bricos-upload',path==='/api/bricos'?4:path.endsWith('/comments')?8:60);return await handleBricosRequest(request,db,actor,context);}
+ if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,actor,(purpose,max)=>limit(db,request,purpose,max));
+ if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,path==='/api/club/whatsapp-access'?'whatsapp-member-access':'club-management',path==='/api/club/whatsapp-access'?6:60);return await handleClubRequest(request,db,actor,context);}
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
- if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,await session(db,request));}
- if(path.startsWith('/api/gallery/'))return await announceMutation(request,await handleGalleryRequest(request,db,await session(db,request)),db,context);
- if(path.startsWith('/api/garage/')){if(path==='/api/garage/submit'&&method==='POST')await limit(db,request,'garage-submission',4);return await announceMutation(request,await handleGarageRequest(request,db,await session(db,request)),db,context);}
+ if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,actor);}
+ if(path.startsWith('/api/gallery/'))return await announceMutation(request,await handleGalleryRequest(request,db,actor),db,context);
+ if(path.startsWith('/api/garage/')){if(path==='/api/garage/submit'&&method==='POST')await limit(db,request,'garage-submission',4);return await announceMutation(request,await handleGarageRequest(request,db,actor),db,context);}
  if(path==='/api/market/status'&&method==='GET')return json({ready:true,initialized:!!await db.prepare('SELECT id FROM market_admins LIMIT 1').first()});
  if(path==='/api/market/listings'&&method==='GET')return json(await listings(db,'approved'));
  if(path.startsWith('/api/market/photos/')&&method==='GET'){
  const photo=await db.prepare('SELECT p.data,p.content_type,l.status FROM market_photos p JOIN market_listings l ON l.id=p.listing_id WHERE p.id=?').bind(path.split('/').pop()).first();
- if(!photo||(photo.status!=='approved'&&!await session(db,request)))fail('Foto no disponible.',404);
+ if(!photo||(photo.status!=='approved'&&!actor))fail('Foto no disponible.',404);
  return new Response(new Uint8Array(photo.data),{headers:{'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
  }
  if(path==='/api/market/submissions'&&method==='POST'){
@@ -87,15 +89,18 @@ async function handleMarketRequestInner(request,env,context){try{
  try{await db.batch([db.prepare("INSERT INTO market_settings VALUES('initialized','yes')"),db.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').bind(user.id,user.email,user.digest,user.salt,now())]);}catch{fail('El acceso ya está activado.',409);}
  return json({id:user.id,email:user.email},201,{'Set-Cookie':cookie(await newSession(db,user.id))});
  }
+ if(path.startsWith('/api/admin/delegates')){if(method==='POST')await limit(db,request,path.endsWith('/activate')?'delegate-activation':'delegate-management',path.endsWith('/activate')?5:30);return await handleDelegates(request,db,actor);}
  if(path==='/api/admin/login'&&method==='POST'){
- await limit(db,request,'login',5);const body=await request.json();const user=await db.prepare('SELECT * FROM market_admins WHERE email=? AND id=?').bind(String(body.email||'').trim().toLowerCase(),OWNER_ADMIN_ID).first();if(!user||typeof body.password!=='string'||await password(body.password,user.salt)!==user.password_hash)fail('Correo o contraseña incorrectos.',401);return json({id:user.id,email:user.email},200,{'Set-Cookie':cookie(await newSession(db,user.id))});
+ await limit(db,request,'login',5);const body=await request.json(),email=String(body.email||'').trim().toLowerCase();const owner=await db.prepare('SELECT * FROM market_admins WHERE email=? AND id=?').bind(email,OWNER_ADMIN_ID).first();
+ if(owner&&typeof body.password==='string'&&body.password.length>=12&&body.password.length<=128&&await password(body.password,owner.salt)===owner.password_hash)return json({id:owner.id,email:owner.email,role:'owner',alias:'Raúl'},200,{'Set-Cookie':cookie(await newSession(db,owner.id))});
+ const delegate=await delegateLogin(db,email,body.password);if(!delegate)fail('Correo o contraseña incorrectos.',401);return json(delegate,200,{'Set-Cookie':cookie(await createDelegateSession(db,delegate.id))});
  }
  if(path.startsWith('/api/admin/')){
- const user=await session(db,request);if(!user)fail('Inicia sesión como propietario para continuar.',401);
+ const user=actor;if(!user)fail('Inicia sesión como propietario para continuar.',401);
  if(path==='/api/admin/review-mail'&&method==='GET')return json(await reviewMailStatus(db,env));
  if(path==='/api/admin/review-mail/retry'&&method==='POST'){await limit(db,request,'mail-retry',10);const pending=(await db.prepare("SELECT m.listing_id FROM market_review_mail m JOIN market_listings l ON l.id=m.listing_id WHERE l.status='pending' AND m.status IN ('queued','failed') ORDER BY m.created_at LIMIT 5").all()).results;const delivery=Promise.all(pending.map(row=>dispatchReviewMail(db,env,row.listing_id))).catch(()=>[]);if(context?.waitUntil)context.waitUntil(delivery);else await delivery;return json(await reviewMailStatus(db,env));}
- if(path==='/api/admin/session'&&method==='GET'){const token=await renewSession(db,request);return json(user,200,token?{'Set-Cookie':cookie(token)}:{});}
- if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')).run();return json({ok:true},200,{'Set-Cookie':cookie('')});}
+ if(path==='/api/admin/session'&&method==='GET'){const token=user.role==='owner'?await renewSession(db,request):'';return json(user,200,token?{'Set-Cookie':cookie(token)}:{});}
+ if(path==='/api/admin/logout'&&method==='POST'){const token=request.headers.get('cookie').match(/club_session=([^;]+)/)?.[1];await db.batch([db.prepare('DELETE FROM market_sessions WHERE token_hash=?').bind(await hash(token||'')),db.prepare('DELETE FROM club_delegated_sessions WHERE token_hash=?').bind(await hash(token||''))]);return json({ok:true},200,{'Set-Cookie':cookie('')});}
  if(path==='/api/admin/users'&&method==='POST')fail('La creación de nuevos administradores está desactivada.',403);
  if(path==='/api/admin/listings'&&method==='GET'){const status=new URL(request.url).searchParams.get('status')||'pending';if(!['pending','approved','rejected','sold'].includes(status))fail('Estado no válido.');return json(await listings(db,status,true));}
  if(/^\/api\/admin\/listings\/[^/]+\/edit$/.test(path)&&method==='POST'){await limit(db,request,'market-edit',40);const result=await editMarketListing(request,db,user,path.split('/')[4]);await recordClubEvent(db,{id:crypto.randomUUID(),title:'Anuncio del mercadillo actualizado',href:result.status==='approved'?'mercadillo.html':'admin-mercadillo.html',audience:result.status==='approved'?'public':'admin'},context).catch(()=>{});return json(result);}

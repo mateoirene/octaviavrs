@@ -148,6 +148,14 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
+      - name: Aplicar migración de administradores delegados
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-14-delegated-admins.sql
       - name: Aplicar migración del centro de control
         if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
         uses: cloudflare/wrangler-action@v4
