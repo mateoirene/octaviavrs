@@ -36,7 +36,7 @@ try{
  await call('Page.bringToFront');await call('Page.enable');await call('Page.addScriptToEvaluateOnNewDocument',{source:"if(!sessionStorage.getItem('analytics-test-run'))localStorage.setItem('club-consent-v1',JSON.stringify({version:1,at:Date.now(),analytics:false,recordings:false}));"});await call('Runtime.enable');await call('Network.enable');await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
  await call('Network.setCookie',{name:'club_session',value:token,url:base,path:'/',sameSite:'Strict'});
 
- await call('Page.navigate',{url:base+'/admin.html'});await until("document.querySelector('[data-app]')?.hidden===false");
+ await call('Page.navigate',{url:base+'/admin.html'});await until("document.querySelector('[data-app]')?.hidden===false&&typeof document.querySelector('[data-tab=access]')?.onclick==='function'");
  await evaluate("document.querySelector('[data-tab=access]').click()");await until("document.querySelector('[data-admin-access] select')?.value==='cuesta-browser'");
  assert.ok(await evaluate("document.querySelector('[data-owner-label]').textContent.includes('Raúl')"));
  await mkdir('artifacts',{recursive:true});let shot=await call('Page.captureScreenshot',{format:'jpeg',quality:80});await writeFile('artifacts/administradores-propietario.jpg',Buffer.from(shot.data,'base64'));
