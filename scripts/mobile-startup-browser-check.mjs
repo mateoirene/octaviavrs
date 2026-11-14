@@ -61,5 +61,8 @@ try{
  await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
  assert.equal(await evaluate("document.querySelector('#lazy-poster-test').hasAttribute('src')"),false,'El cartel fuera de pantalla no compite con la apertura');
  await evaluate("document.querySelector('#lazy-poster-test').scrollIntoView({block:'center',behavior:'instant'})");await until("document.querySelector('#lazy-poster-test').complete&&document.querySelector('#lazy-poster-test').naturalWidth>0");
+
+ const cmsResponse=await fetch(base+'/api/cms/admin/content',{method:'POST',headers:{origin:base,cookie:'club_session='+token,'Content-Type':'application/json'},body:JSON.stringify({page:'index',label:'Bandera personalizada de prueba',selector:'.hero-img',contentType:'image',value:'assets/bandera-club-octavia-transparente.png?cms-picture-test',state:'published',expectedVersion:0})});assert.equal(cmsResponse.status,201);
+ await call('Page.navigate',{url:base+'/index.html'});await until("document.querySelector('.hero-img')?.currentSrc.includes('cms-picture-test')&&document.querySelector('.hero-img').naturalWidth>0");assert.equal(await evaluate("document.querySelector('.hero-art picture source')===null"),true,'La edición del CMS conserva prioridad sobre la optimización');
  console.log('INICIO_MOVIL_OK: portada completa, bandera visible, vídeo diferido, pausa del usuario y carteles bajo demanda.');
 }finally{socket?.close();chrome.kill('SIGTERM');await new Promise(resolve=>server.close(resolve));raw.close();await rm(profile,{recursive:true,force:true}).catch(()=>{});}
