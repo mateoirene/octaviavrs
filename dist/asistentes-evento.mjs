@@ -16,7 +16,7 @@ async function json(path,options={}){
  return data;
 }
 async function attendeeApi(path,method='GET',body){return json('/api/club/'+path,{method,headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});}
-function showLogin(){loginLink.href='admin.html?volver=asistentes&evento='+encodeURIComponent(eventId);loginPanel.hidden=false;}
+function showLogin(){loginLink.href='admin-mercadillo.html?volver=asistentes&evento='+encodeURIComponent(eventId);loginPanel.hidden=false;}
 function dateLabel(value){return new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));}
 
 async function start(){
