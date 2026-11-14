@@ -13,7 +13,7 @@ function fixture(){
  raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update('attendee-token').digest('hex'),'c15706ae-7b72-4779-9785-8c2f5c1e50ea',Math.floor(Date.now()/1000)+3600);
  const insert=raw.prepare('INSERT INTO club_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');insert.run('event-one','2099-01-20','Calçotada de prueba','','Barcelona','13:00','17:00','','',1,1,'c15706ae-7b72-4779-9785-8c2f5c1e50ea');insert.run('event-two','2099-02-20','Ruta de prueba','','Girona','09:00','12:00','','',1,1,'c15706ae-7b72-4779-9785-8c2f5c1e50ea');
  const prepare=sql=>{const statement=raw.prepare(sql);let args=[];const query={bind(...values){args=values;return query;},async first(){return statement.get(...args)||null;},async all(){return {results:statement.all(...args)};},async run(){return {meta:{changes:Number(statement.run(...args).changes)}};}};return query;};
- const db={prepare},call=(path,{method='GET',body,auth=false,origin='https://club.example'}={})=>handleMarketRequest(new Request('https://club.example/api/club/'+path,{method,headers:{Origin:origin,...(body?{'Content-Type':'application/json'}:{}),...(auth?{Cookie:'club_session=attendee-token'}:{})},...(body?{body:JSON.stringify(body)}:{})}),{MARKET_DB:db});
+ const db={prepare},call=(path,{method='GET',body,auth=false,origin='https://club.example'}={})=>handleMarketRequest(new Request('https://club.example/api/club/'+path,{method,headers:{Origin:origin,...(body?{'Content-Type':'application/json'}:{}),...(auth?{Cookie:'club_session='+(auth==='delegate'?'delegate-token':'attendee-token')}:{})},...(body?{body:JSON.stringify(body)}:{})}),{MARKET_DB:db});
  return {raw,call};
 }
 
@@ -42,4 +42,22 @@ test('la consulta de asistentes es pública y las modificaciones requieren admin
 test('totales e importes se calculan sin decimales binarios',()=>{
  const value=validateEventAttendee({...attendee,depositEuros:'10,25',balanceEuros:'4.75'});assert.equal(value.depositCents,1025);assert.equal(value.balanceCents,475);
  assert.deepEqual(attendeeTotals([{attendees:3,calcotada:2,vegetarian:1,childMenu:0,depositCents:1025,balanceCents:475,paid:true},{attendees:1,calcotada:1,vegetarian:0,childMenu:0,depositCents:500,balanceCents:0,paid:false}]),{pilots:2,attendees:4,calcotada:3,vegetarian:1,childMenu:0,depositCents:1525,balanceCents:475,paid:1});
+});
+
+test('Cuesta crea eventos y consulta listas, pero solo el propietario modifica asistentes',async()=>{
+ const {raw,call}=fixture();try{
+ raw.exec("INSERT INTO garage_folders VALUES('delegates','Miembros',1);INSERT INTO garage_members VALUES('cuesta-test','delegates','Cuesta','','Octavia','','','','','',1,1,'test')");
+ raw.prepare("INSERT INTO club_delegated_admins(id,member_id,alias,permissions_json,enabled,created_at,updated_at) VALUES(?,?,?,'[\"events\"]',1,1,1)").run('cuesta-admin','cuesta-test','Cuesta');
+ raw.prepare('INSERT INTO club_delegated_sessions VALUES(?,?,?)').run(createHash('sha256').update('delegate-token').digest('hex'),'cuesta-admin',Math.floor(Date.now()/1000)+3600);
+ const created=await call('events/event-one/attendees',{method:'POST',body:attendee,auth:true});assert.equal(created.status,201);const row=await created.json();
+ assert.equal((await call('events/event-one/attendees',{auth:'delegate'})).status,200);
+ assert.equal((await call('events/event-one/attendees',{method:'POST',body:attendee,auth:'delegate'})).status,403);
+ assert.equal((await call('events/event-one/attendees/'+row.id,{method:'POST',body:{...attendee,pilotName:'Cambio bloqueado'},auth:'delegate'})).status,403);
+ assert.equal((await call('events/event-one/attendees/'+row.id,{method:'DELETE',auth:'delegate'})).status,403);
+ assert.equal((await call('events/event-one',{method:'DELETE',auth:'delegate'})).status,403);
+ assert.equal(raw.prepare('SELECT pilot_name FROM club_event_attendees WHERE id=?').get(row.id).pilot_name,attendee.pilotName);
+ const event=await call('events',{method:'POST',body:{title:'Evento creado por Cuesta',date:'2099-04-10'},auth:'delegate'});assert.equal(event.status,201);
+ assert.equal((await call('events/event-one/attendees/'+row.id,{method:'POST',body:{...attendee,pilotName:'Cambio de Raúl'},auth:true})).status,200);
+ assert.equal((await call('events/event-one/attendees/'+row.id,{method:'DELETE',auth:true})).status,200);
+ }finally{raw.close();}
 });

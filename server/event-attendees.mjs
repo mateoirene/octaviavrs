@@ -1,3 +1,4 @@
+import {OWNER_ADMIN_ID} from './config.mjs';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const fail=(message,status=400)=>{throw Object.assign(new Error(message),{status});};
 const cleanText=(value,label,min,max)=>{const result=typeof value==='string'?value.trim():'';if(result.length<min||result.length>max)fail('Revisa '+label+'.');return result;};
@@ -16,7 +17,7 @@ const attendeeRow=row=>({id:row.id,eventId:row.event_id,pilotName:row.pilot_name
 const route=pathname=>{const match=pathname.match(/^\/api\/club\/events\/([^/]+)\/attendees(?:\/([^/]+))?$/);if(!match)return null;try{return {eventId:decodeURIComponent(match[1]),attendeeId:match[2]?decodeURIComponent(match[2]):null};}catch{return {invalid:true};}};
 
 export async function handleEventAttendeeRequest(request,db,admin){
- const target=route(new URL(request.url).pathname);if(!target)return null;if(target.invalid)return json({error:'Ruta no válida.'},400);if(!admin&&request.method!=='GET')return json({error:'Solo los administradores pueden gestionar asistentes.'},401);
+ const target=route(new URL(request.url).pathname);if(!target)return null;if(target.invalid)return json({error:'Ruta no válida.'},400);if(request.method!=='GET'&&admin?.id!==OWNER_ADMIN_ID)return json({error:'Solo Raúl puede modificar la lista de asistentes.'},admin?403:401);
  const event=await db.prepare('SELECT id FROM club_events WHERE id=?').bind(target.eventId).first();if(!event)return json({error:'El evento no existe.'},404);
  if(request.method==='GET'&&!target.attendeeId){const rows=(await db.prepare('SELECT a.*,o.children_count,o.calcotada_without_count,o.dessert FROM club_event_attendees a LEFT JOIN club_event_attendee_options o ON o.attendee_id=a.id WHERE a.event_id=? ORDER BY a.created_at,a.pilot_name COLLATE NOCASE,a.id').bind(target.eventId).all()).results;return json(rows.map(attendeeRow));}
  if(request.method==='POST'){

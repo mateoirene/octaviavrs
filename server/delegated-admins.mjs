@@ -1,7 +1,7 @@
 import {OWNER_ADMIN_ID,OWNER_ADMIN_EMAIL} from './config.mjs';
 const enc=new TextEncoder();
 export const scopes=['members','market','bricos','news','events','gallery','collaborators','social','statistics','suggestions','content'];
-export const scopeLabels={members:'Miembros y garaje',market:'Mercadillo',bricos:'Bricos y comentarios',news:'Noticias',events:'Calendario y asistentes',gallery:'Galería y fotos',collaborators:'Colaboradores',social:'Redes sociales',statistics:'Estadísticas',suggestions:'Sugerencias',content:'Contenido de páginas'};
+export const scopeLabels={members:'Miembros y garaje',market:'Mercadillo',bricos:'Bricos y comentarios',news:'Noticias',events:'Calendario (asistentes solo consulta)',gallery:'Galería y fotos',collaborators:'Colaboradores',social:'Redes sociales',statistics:'Estadísticas',suggestions:'Sugerencias',content:'Contenido de páginas'};
 export const hashAccess=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(value))),n=>n.toString(16).padStart(2,'0')).join('');
 export async function passwordAccess(value,salt){const key=await crypto.subtle.importKey('raw',enc.encode(value),'PBKDF2',false,['deriveBits']);return Array.from(new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',salt:enc.encode(salt),iterations:100000,hash:'SHA-256'},key,256)),n=>n.toString(16).padStart(2,'0')).join('');}
 const stamp=()=>Math.floor(Date.now()/1000),token=()=>crypto.randomUUID()+crypto.randomUUID();
@@ -36,7 +36,8 @@ export function delegatedRouteAllowed(user,request){
  if(p.startsWith('/api/push/'))return false;
  if(['/api/club/news','/api/club/motor-news','/api/club/weather','/api/club/birthdays','/api/club/whatsapp-access'].includes(p))return true;
  if(p.startsWith('/api/club/whatsapp'))return false;
- if(/^\/api\/club\/(events|attendees|event-attendees)/.test(p))return has('events');
+ if(/^\/api\/club\/events\/[^/]+\/attendees(?:\/|$)/.test(p)||/^\/api\/club\/(attendees|event-attendees)(?:\/|$)/.test(p))return m==='GET';
+ if(/^\/api\/club\/events(?:\/|$)/.test(p))return has('events');
  if(/^\/api\/club\/(posts)/.test(p))return has('news');
  if(p.startsWith('/api/club/social/'))return has('social');
  if(p.startsWith('/api/club/directory/'))return has('collaborators');
