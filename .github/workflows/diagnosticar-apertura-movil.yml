@@ -1,0 +1,36 @@
+name: Medir apertura móvil
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diagnosticar-apertura-movil.yml']
+permissions:
+  contents: read
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Medir portada publicada con red móvil y CPU limitada
+        run: |
+          node --input-type=module <<'MOBILE_PROBE'
+          import {spawn} from 'node:child_process';
+          import {mkdtemp,readFile,rm} from 'node:fs/promises';
+          import {tmpdir} from 'node:os';
+          import {join} from 'node:path';
+          const dir=await mkdtemp(join(tmpdir(),'club-mobile-speed-')),chrome=spawn('google-chrome',['--headless=new','--no-sandbox','--disable-dev-shm-usage','--remote-debugging-port=0','--user-data-dir='+dir,'about:blank'],{stdio:'ignore'});let socket;
+          try{
+           let port;for(let i=0;i<150;i++){try{port=Number((await readFile(join(dir,'DevToolsActivePort'),'utf8')).split('\n')[0]);break;}catch{await new Promise(r=>setTimeout(r,100));}}if(!port)throw Error('Chrome no disponible');
+           const target=await(await fetch('http://127.0.0.1:'+port+'/json/new?about:blank',{method:'PUT'})).json();socket=new WebSocket(target.webSocketDebuggerUrl);await new Promise(r=>socket.addEventListener('open',r,{once:true}));let next=0;const pending=new Map();socket.addEventListener('message',e=>{const m=JSON.parse(e.data),p=pending.get(m.id);if(p){pending.delete(m.id);m.error?p.reject(Error(m.error.message)):p.resolve(m.result);}});
+           const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++next;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
+           await call('Page.enable');await call('Runtime.enable');await call('Network.enable');await call('Network.setCacheDisabled',{cacheDisabled:true});await call('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});await call('Emulation.setCPUThrottlingRate',{rate:4});await call('Network.emulateNetworkConditions',{offline:false,latency:100,downloadThroughput:375000,uploadThroughput:125000});
+           await call('Page.addScriptToEvaluateOnNewDocument',{source:"window.mobileProbe={lcp:0,longTasks:0};new PerformanceObserver(list=>{for(const e of list.getEntries())window.mobileProbe.lcp=e.startTime;}).observe({type:'largest-contentful-paint',buffered:true});new PerformanceObserver(list=>{for(const e of list.getEntries())window.mobileProbe.longTasks+=e.duration;}).observe({type:'longtask',buffered:true});"});
+           for(const warm of [false,true]){
+            await call('Network.setCacheDisabled',{cacheDisabled:!warm});await call('Page.navigate',{url:'https://octaviaap.pages.dev/?mobile-probe='+Date.now()});await new Promise(r=>setTimeout(r,20000));
+            const data=await call('Runtime.evaluate',{expression:"JSON.stringify({probe:window.mobileProbe,navigation:performance.getEntriesByType('navigation').map(n=>({ttfb:n.responseStart,dom:n.domContentLoadedEventEnd,load:n.loadEventEnd})),paint:performance.getEntriesByType('paint').map(p=>({name:p.name,time:p.startTime})),resources:performance.getEntriesByType('resource').map(r=>({url:new URL(r.name).pathname,bytes:r.transferSize,decoded:r.decodedBodySize,duration:r.duration})).sort((a,b)=>b.bytes-a.bytes)})",returnByValue:true});const result=JSON.parse(data.result.value);console.log(JSON.stringify({warm,...result,resources:result.resources.slice(0,18),totalBytes:result.resources.reduce((n,r)=>n+r.bytes,0),requests:result.resources.length}));
+           }
+          }finally{socket?.close();chrome.kill();await rm(dir,{recursive:true,force:true,maxRetries:4,retryDelay:200});}
+          
+          MOBILE_PROBE
