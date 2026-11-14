@@ -15,7 +15,7 @@ function fixture() {
 test('el aviso usa solo el destinatario autorizado y un enlace al anuncio que requiere acceso', () => {
   const mail = reviewMessage({ id: 'piece/1', title: 'Pieza\r\nCabecera falsa', category: 'Motor', price: 35, seller: 'Socio', location: 'Girona' }, {});
   assert.deepEqual(mail.to, ['cluboctaviavrscat@gmail.com']);
-  assert.ok(!mail.subject.includes('\n')); assert.match(mail.text, /admin\.html\?anuncio=piece%2F1/);
+  assert.ok(!mail.subject.includes('\n')); assert.match(mail.text, /admin-mercadillo\.html\?anuncio=piece%2F1/);
   assert.match(mail.text, /iniciar sesión/); assert.equal(mail.html, undefined);
 });
 test('sin servicio configurado conserva el aviso pendiente sin enviar ni fingir éxito', async () => {
