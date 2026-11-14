@@ -39,3 +39,9 @@ test('los avisos desaparecen al leerlos, al marcar todos y al volver a entrar',a
  const again=documentMock();await context.initNotifications(again);
  assert.equal(again.created.find(e=>e.className==='notification-list').children.length,0);
 });
+
+test('los avisos antiguos de fichas y bricos conservan el destino individual',()=>{
+ const items=buildNotifications([{id:'garage-pending:member-1',title:'Ficha',href:'garaje.html#revisiones'},{id:'brico-pending:brico-1',title:'Brico',href:'bricos.html#revisiones'}]);
+ assert.equal(items[0].href,'garaje.html?revision=member-1#revisiones');
+ assert.equal(items[1].href,'bricos.html?tutorial=brico-1&revision=1#revisiones');
+});

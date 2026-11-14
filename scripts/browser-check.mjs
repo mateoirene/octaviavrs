@@ -57,13 +57,13 @@ try{
  await mkdir('artifacts',{recursive:true});await evaluate("document.querySelector('[data-folder-content]').scrollIntoView()");
  let screenshot=await call('Page.captureScreenshot',{format:'jpeg',quality:70});await writeFile('artifacts/garaje-ficha.jpg',Buffer.from(screenshot.data,'base64'));
  // Carnet común a web y móvil: número persistente, foto y fondo aprobado.
- assert.match(await evaluate("document.querySelector('.garage-member-number-value').textContent"),/^N\.º \d{4}$/);
+ assert.match(await evaluate("document.querySelector('.garage-membership-number strong').textContent"),/^VRS-\d{1,3}$/);
  assert.equal(await evaluate("document.querySelector('.garage-membership .garage-pilot-avatar').tagName"),'IMG');
  assert.equal(await evaluate("(async()=>{const image=new Image();image.src='assets/member-card-catalunya.webp';await image.decode();return image.naturalWidth>0;})()"),true);
  for(const width of [320,390,1280]){
   await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});
   assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth+2"),false,'Carnet sin desbordamiento a '+width);
-  assert.equal(await evaluate("(()=>{const c=document.querySelector('.garage-membership'),r=c.getBoundingClientRect(),card=document.querySelector('.garage-member'),cr=card.getBoundingClientRect();return !!c&&!!card&&r.width>0&&r.height>0&&cr.width>0&&cr.height>0&&Array.from(c.querySelectorAll('img')).every(n=>n.complete&&n.naturalWidth>0)&&document.querySelector('.garage-member-number-value')?.textContent.trim().startsWith('N.º');})()"),true,'Estructura, fotos y número del carnet visibles a '+width);
+  assert.equal(await evaluate("(()=>{const c=document.querySelector('.garage-membership'),r=c.getBoundingClientRect(),card=document.querySelector('.garage-member'),cr=card.getBoundingClientRect();return !!c&&!!card&&r.width>0&&r.height>0&&cr.width>0&&cr.height>0&&Array.from(c.querySelectorAll('img')).every(n=>n.complete&&n.naturalWidth>0)&&/^VRS-\\d{1,3}$/.test(document.querySelector('.garage-membership-number strong')?.textContent.trim()||'');})()"),true,'Estructura, fotos y número del carnet visibles a '+width);
   await evaluate("document.querySelector('.garage-membership').scrollIntoView({block:'center',behavior:'instant'})");
   const shot=await call('Page.captureScreenshot',{format:'jpeg',quality:85});await writeFile('artifacts/carnet-socio-'+width+'.jpg',Buffer.from(shot.data,'base64'));
  }
