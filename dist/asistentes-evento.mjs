@@ -1,3 +1,4 @@
+import {createSimpleSignupManager} from './event-signups.mjs?v=20261114-socios-eventos';
 import {createEventAttendeeManager} from './event-attendees.mjs?v=20261114-solo-propietario';
 
 const status=document.querySelector('[data-page-status]');
@@ -30,7 +31,7 @@ async function start(){
   document.querySelector('[data-admin-email]').textContent=user?.email||'Consulta de asistentes';
   document.title='Asistentes · '+event.title+' · Club Octavia VRS';
   heading.hidden=false;root.hidden=false;status.hidden=true;if(!user)showLogin();
-  root.replaceChildren(createEventAttendeeManager({event,api:attendeeApi,expanded:true,readOnly:user?.role!=='owner'}));
+  if(event.registrationMode==='simple'){loginPanel.hidden=true;root.replaceChildren(createSimpleSignupManager({event,api:attendeeApi}));}else root.replaceChildren(createEventAttendeeManager({event,api:attendeeApi,expanded:true,readOnly:user?.role!=='owner'}));
  }catch(error){status.hidden=false;status.textContent=error.message;}
 }
 

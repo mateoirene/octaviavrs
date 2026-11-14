@@ -37,6 +37,8 @@ export function delegatedRouteAllowed(user,request){
  if(['/api/club/news','/api/club/motor-news','/api/club/weather','/api/club/birthdays','/api/club/whatsapp-access'].includes(p))return true;
  if(p.startsWith('/api/club/whatsapp'))return false;
  if(/^\/api\/club\/events\/[^/]+\/attendees(?:\/|$)/.test(p)||/^\/api\/club\/(attendees|event-attendees)(?:\/|$)/.test(p))return m==='GET';
+ if(p.startsWith('/api/club/member-access/'))return true;
+ if(p==='/api/club/member-access')return has('members')||has('events');
  if(/^\/api\/club\/events(?:\/|$)/.test(p))return has('events');
  if(/^\/api\/club\/(posts)/.test(p))return has('news');
  if(p.startsWith('/api/club/social/'))return has('social');

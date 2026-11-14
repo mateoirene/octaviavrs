@@ -1,3 +1,4 @@
+import {addMemberEventAccessControls} from './member-event-access.mjs?v=20261114-socios-eventos';
 import { setVrsText } from './branding.mjs';
 const $ = selector => document.querySelector(selector);
 const status = $('[data-garage-status]'), saveStatus = $('[data-garage-save-status]');
@@ -61,7 +62,7 @@ function card(member) {
   body.append(specs); if (member.notes) body.append(element('p',member.notes,'garage-member-notes'));
   if (admin) { const actions = element('div','','garage-page-actions'), edit = element('button','Editar ficha'), remove = element('button','Eliminar ficha'); edit.type = remove.type = 'button';
     edit.addEventListener('click', () => editMember(member)); remove.addEventListener('click', async () => { if (!confirm(`¿Eliminar la ficha de ${member.pilot} y sus fotos?`)) return; remove.disabled = true; try { await api('garage/members/'+member.id,'DELETE'); await loadFolders(); status.textContent = 'Ficha eliminada.'; } catch (error) { status.textContent = error.message; remove.disabled = false; } }); actions.append(edit,remove); body.append(actions); }
-  article.append(body); return article;
+  article.append(body);if(admin&&(!member.reviewStatus||member.reviewStatus==='approved')&&!member.blocked)addMemberEventAccessControls(article,member); return article;
 }
 async function openFolder(id, updateUrl = true) {
   selected = id; const folder = folders.find(item => item.id === id); if (!folder) { selected = ''; $('[data-folder-content]').hidden = true; return; }
