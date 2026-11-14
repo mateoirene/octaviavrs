@@ -9,6 +9,7 @@
   try { context = canvas.getContext('2d'); } catch { return; }
   if (!context) return;
   const motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  const mobile = window.matchMedia ? window.matchMedia('(max-width:760px)') : { matches: false };
   let ready = false;
   let failed = false;
   let inView = true;
@@ -32,7 +33,7 @@
       const imageHeight = picture.naturalHeight * scale;
       const left = (width - imageWidth) / 2;
       const top = (height - imageHeight) / 2;
-      const strips = 80;
+      const strips = mobile.matches ? 48 : 80;
       const sourceStrip = picture.naturalWidth / strips;
       const strip = imageWidth / strips;
       context.globalCompositeOperation = 'source-over';
@@ -62,7 +63,7 @@
   function tick(now) {
     frame = 0;
     if (!allowed()) return;
-    if (now - lastPaint >= 1000 / 30) {
+    if (now - lastPaint >= 1000 / (mobile.matches ? 24 : 30)) {
       paint(now / 1000);
       lastPaint = now;
     }
@@ -85,7 +86,7 @@
       return;
     }
     try {
-      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+      const ratio = Math.min(window.devicePixelRatio || 1, mobile.matches ? 1.25 : 1.5);
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
