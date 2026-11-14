@@ -65,6 +65,7 @@ export async function handleDelegates(request,db,user){
   const member=await db.prepare("SELECT m.id,m.pilot FROM garage_members m LEFT JOIN garage_moderation g ON g.member_id=m.id WHERE m.id=? AND COALESCE(g.status,'approved')='approved'").bind(String(b.memberId||'')).first();if(!member)fail('Selecciona una ficha de miembro aprobada.');
   const existing=await db.prepare('SELECT id FROM club_delegated_admins WHERE member_id=?').bind(member.id).first(),id=existing?.id||crypto.randomUUID();
   if(b.action==='invite'){
+   if(!existing){const count=await db.prepare('SELECT COUNT(*) n FROM club_delegated_admins').first();if(count.n>=10)fail('Ya hay diez accesos delegados. Gestiona los existentes antes de crear otro.',409);}
    const raw=token(),digest=await hashAccess(raw),at=stamp();
    await db.batch([db.prepare("INSERT INTO club_delegated_admins(id,member_id,alias,permissions_json,enabled,invite_hash,invite_expires,created_at,updated_at) VALUES(?,?,?,?,0,?,?,?,?) ON CONFLICT(member_id) DO UPDATE SET alias=excluded.alias,permissions_json=excluded.permissions_json,enabled=0,password_hash='',salt='',invite_hash=excluded.invite_hash,invite_expires=excluded.invite_expires,updated_at=excluded.updated_at").bind(id,member.id,member.pilot,JSON.stringify(perms),digest,at+86400,at,at),db.prepare('DELETE FROM club_delegated_sessions WHERE admin_id=?').bind(id)]);
    return reply({id,activationPath:'activar-admin.html#invitacion='+encodeURIComponent(raw),expiresIn:86400});
