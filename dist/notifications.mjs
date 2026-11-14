@@ -9,9 +9,9 @@ export function unreadNotifications(items, read) {
 }
 export function buildNotifications(news, listings = [], pending = []) {
   return [
-    ...pending.map(item => ({ id: `pending:${item.id}`, title: 'Anuncio pendiente de revisión', message: `${item.category || 'Otros'} · ${item.title}`, href: `admin.html?anuncio=${encodeURIComponent(item.id)}` })),
+    ...pending.map(item => ({ id: `pending:${item.id}`, title: 'Anuncio pendiente de revisión', message: `${item.category || 'Otros'} · ${item.title}`, href: `admin-mercadillo.html?anuncio=${encodeURIComponent(item.id)}` })),
     ...listings.map(item => ({ id: `listing:${item.id}`, title: 'Nueva pieza en el mercadillo', message: item.title, href: 'mercadillo.html' })),
-    ...news.filter(item=>!String(item.href||'').includes('simulador')&&!/^(record|champion|racing|simulator):/.test(item.id||'')),
+    ...news.map(item=>{const id=String(item.id||'');if(id.startsWith('brico-pending:'))return {...item,href:'bricos.html?tutorial='+encodeURIComponent(id.slice('brico-pending:'.length))+'&revision=1#revisiones'};if(id.startsWith('garage-pending:'))return {...item,href:'garaje.html?revision='+encodeURIComponent(id.slice('garage-pending:'.length))+'#revisiones'};return item;}).filter(item=>!String(item.href||'').includes('simulador')&&!/^(record|champion|racing|simulator):/.test(item.id||'')),
   ].filter((item, index, all) => item && typeof item.id === 'string' && typeof item.title === 'string' && all.findIndex(other => other.id === item.id) === index);
 }
 function readIds(storage) {
@@ -107,7 +107,7 @@ export async function initNotifications(doc = document) {
       const results = await Promise.allSettled([load('data/notificaciones.json'), load('/api/market/listings'), load('/api/admin/listings?status=pending'),load('/api/club/notifications'),load('/api/garage/members?review=pending')]);
       if (results[0].status === 'rejected' && results[1].status === 'rejected') throw new Error('Sin conexión');
       const values = results.map(result => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []);
-      const garagePending=values[4].map(item=>({id:'garage-pending:'+item.id,title:'Ficha del garaje pendiente de revisión',message:item.pilot+' · '+item.model,href:'garaje.html#revisiones'}));items = buildNotifications([...garagePending,...values[3],...values[0]],values[1],values[2]);garageReviewAccess.hidden=results[4].status!=='fulfilled';garageReviewAccess.textContent=values[4].length?'Revisar '+values[4].length+' fichas del garaje pendientes →':'Abrir revisión de fichas del garaje →';
+      const garagePending=values[4].map(item=>({id:'garage-pending:'+item.id,title:'Ficha del garaje pendiente de revisión',message:item.pilot+' · '+item.model,href:'garaje.html?revision='+encodeURIComponent(item.id)+'#revisiones'}));items = buildNotifications([...garagePending,...values[3],...values[0]],values[1],values[2]);garageReviewAccess.hidden=results[4].status!=='fulfilled';garageReviewAccess.textContent=values[4].length?'Revisar '+values[4].length+' fichas del garaje pendientes →':'Abrir revisión de fichas del garaje →';
       const fresh = items.filter(item => !known.has(item.id) && !read.has(item.id));
       if (initialized && fresh.length) { if(soundEnabled&&chime.play())window.dispatchEvent(new Event('club-notification-sound'));toast.textContent = `${fresh.length === 1 ? 'Hay una nueva notificación' : `Hay ${fresh.length} notificaciones nuevas`}. Pulsa la campana para verlas.`; toast.hidden = false; clearTimeout(timer); timer = setTimeout(() => { toast.hidden = true; }, 6500); }
       reviewAccess.textContent = values[2].length ? `Revisar ${values[2].length} anuncios pendientes →` : results[2].status === 'fulfilled' ? 'Abrir panel de revisión →' : 'Iniciar sesión para ver los anuncios pendientes →';

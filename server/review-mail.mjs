@@ -7,7 +7,7 @@ export function reviewMessage(listing, env) {
     from: env.MARKET_FROM_EMAIL || 'Club Octavia <onboarding@resend.dev>',
     to: [REVIEW_RECIPIENT],
     subject: `Revisar anuncio del mercadillo: ${subjectTitle}`,
-    text: `Hola Raúl,\n\nHay un anuncio nuevo pendiente de tu autorización.\n\nPieza: ${listing.title}\nTemática: ${listing.category}\nPrecio: ${listing.price} €\nVendedor: ${listing.seller}\nLocalidad: ${listing.location}\n\nEntra en el panel privado para revisar las fotos y los datos, y aprobar o rechazar su publicación:\n${REVIEW_BASE}/admin.html?anuncio=${encodeURIComponent(listing.id)}\n\nEl anuncio seguirá oculto hasta que lo apruebes. Para autorizarlo tendrás que iniciar sesión; este correo no publica nada automáticamente.\n\nClub Octavia VRS Cataluña`,
+    text: `Hola Raúl,\n\nHay un anuncio nuevo pendiente de tu autorización.\n\nPieza: ${listing.title}\nTemática: ${listing.category}\nPrecio: ${listing.price} €\nVendedor: ${listing.seller}\nLocalidad: ${listing.location}\n\nEntra en el panel privado para revisar las fotos y los datos, y aprobar o rechazar su publicación:\n${REVIEW_BASE}/admin-mercadillo.html?anuncio=${encodeURIComponent(listing.id)}\n\nEl anuncio seguirá oculto hasta que lo apruebes. Para autorizarlo tendrás que iniciar sesión; este correo no publica nada automáticamente.\n\nClub Octavia VRS Cataluña`,
   };
 }
 export async function dispatchReviewMail(db, env, id, fetcher = fetch) {

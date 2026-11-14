@@ -39,7 +39,7 @@ async function announceMutation(request,response,db,context){
  if(!response.ok||request.method==='GET')return response;
  try{const path=new URL(request.url).pathname,data=await response.clone().json();let event;
  if(path.startsWith('/api/garage/')){
-  if(path==='/api/garage/submit')event={id:'garage-pending:'+data.id,title:'Ficha del garaje pendiente de revisión',href:'garaje.html#revisiones',audience:'admin',kind:'pending-garage'};
+  if(path==='/api/garage/submit')event={id:'garage-pending:'+data.id,title:'Ficha del garaje pendiente de revisión',href:'garaje.html?revision='+encodeURIComponent(data.id)+'#revisiones',audience:'admin',kind:'pending-garage'};
   else if(path.startsWith('/api/garage/reviews/'))event={id:'garage-review:'+data.id+':'+data.status,title:data.status==='approved'?'Nueva ficha publicada en el garaje':'Ficha del garaje revisada',href:data.status==='approved'?'garaje.html':'garaje.html#revisiones',audience:data.status==='approved'?'public':'admin'};
   else event={id:crypto.randomUUID(),title:data.status==='pending'?'Ficha en revisión actualizada':'Garaje actualizado',href:data.status==='pending'?'garaje.html#revisiones':'garaje.html',audience:data.status==='pending'?'admin':'public'};
  }else if(path.startsWith('/api/gallery/'))event={id:crypto.randomUUID(),title:'Novedades en la galería del club',href:'galeria.html'};
@@ -79,7 +79,7 @@ async function handleMarketRequestInner(request,env,context){try{
  await db.batch(statements);
  const delivery=dispatchReviewMail(db,env,id).catch(()=>({sent:false}));
  if(context?.waitUntil)context.waitUntil(delivery);else await delivery;
-  await recordClubEvent(db,{id:'pending:'+id,title:'Nuevo anuncio pendiente',href:'admin-mercadillo.html',audience:'admin',kind:'pending-market'},context).catch(()=>{});
+  await recordClubEvent(db,{id:'pending:'+id,title:'Nuevo anuncio pendiente',href:'admin-mercadillo.html?anuncio='+encodeURIComponent(id),audience:'admin',kind:'pending-market'},context).catch(()=>{});
  return json({id,status:'pending'},201);
  }
  if(path==='/api/admin/setup'&&method==='POST'){
