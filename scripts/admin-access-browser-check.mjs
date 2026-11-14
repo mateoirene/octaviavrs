@@ -1,0 +1,61 @@
+// Comprobación de las páginas reales en Chrome, con SQLite efímero y sin datos de producción.
+import assert from 'node:assert/strict';
+import {OWNER_ADMIN_EMAIL} from '../server/config.mjs';
+import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
+import { createHash } from 'node:crypto';
+import { readFile, mkdir, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { resolve, extname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { handleMarketRequest } from '../server/market.mjs';
+const root=resolve('dist'),raw=new DatabaseSync(':memory:');raw.exec(await readFile('server/schema.sql','utf8'));
+raw.prepare('INSERT INTO market_admins VALUES(?,?,?,?,?)').run('c15706ae-7b72-4779-9785-8c2f5c1e50ea',OWNER_ADMIN_EMAIL,'unused','salt',1);
+raw.exec("INSERT INTO garage_folders VALUES('club','Miembros',1);INSERT INTO garage_members VALUES('cuesta-browser','club','Cuesta','','Octavia VRS','','','','','',1,1,'test')");
+const groupInvite='https://chat.whatsapp.com/BBBBBBBBBBBBBBBBBBBBBB?s=cl&p=a&iam=2';raw.prepare("INSERT INTO market_settings(key,value) VALUES('club-whatsapp-invite-url',?)").run(groupInvite);
+const token=crypto.randomUUID();raw.prepare('INSERT INTO market_sessions VALUES(?,?,?)').run(createHash('sha256').update(token).digest('hex'),'c15706ae-7b72-4779-9785-8c2f5c1e50ea',Math.floor(Date.now()/1000)+3600);
+const prepare=sql=>{const statement=raw.prepare(sql);let args=[];const values=()=>args.map(value=>value instanceof ArrayBuffer?Buffer.from(value):value);const query={bind(...values){args=values;return query;},async first(){return statement.get(...values())||null;},async all(){return {results:statement.all(...values())};},async run(){return {meta:{changes:Number(statement.run(...values()).changes)}};}};return query;};
+const db={prepare,async batch(items){raw.exec('BEGIN');try{const results=[];for(const item of items)results.push(await item.run());raw.exec('COMMIT');return results;}catch(error){raw.exec('ROLLBACK');throw error;}}};
+const mime={'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.mp3':'audio/mpeg','.mp4':'video/mp4','.webmanifest':'application/manifest+json'};
+let notificationNews=[];let analyticsTestConfig=null;const analyticsBodies=[];
+const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://127.0.0.1');if(url.pathname==='/api/analytics/config'&&analyticsTestConfig){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(analyticsTestConfig));return;}if(url.pathname==='/data/notificaciones.json'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(notificationNews));return;}if(url.pathname==='/api/club/motor-news'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({items:[{id:'motor-test',kind:'motor',label:'Octavia vRS · Škoda España',title:'Škoda Octavia VRS de prueba',description:'Fuente oficial de prueba para validar el visor.',href:'https://www.skoda.es/modelos/octavia/octavia_rs',image:'assets/cabecera-coches-atardecer.jpg',source:'Škoda España',published:'2026-10-26T10:00:00Z'}],stale:false}));return;}if(url.pathname==='/api/club/weather'){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({location:'Barcelona',temperature:19.4,code:2,observedAt:'2026-10-26T12:00'}));return;}if(url.pathname.startsWith('/api/')){const chunks=[];for await(const chunk of req)chunks.push(chunk);const body=Buffer.concat(chunks);if(url.pathname==='/api/analytics/collect')try{analyticsBodies.push(JSON.parse(body.toString()));}catch{}const response=await handleMarketRequest(new Request(base+req.url,{method:req.method,headers:req.headers,...(body.length?{body}:{} )}),{MARKET_DB:db});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;}const path=resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':extname(url.pathname)?url.pathname:url.pathname+'.html'));if(!path.startsWith(root+'/')){res.writeHead(403);res.end();return;}const content=await readFile(path);res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream'});res.end(content);}catch{res.writeHead(404);res.end('No disponible');}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
+const chromePath=['/usr/bin/google-chrome','/usr/bin/chromium','/usr/bin/chromium-browser'].find(existsSync);if(!chromePath)throw new Error('Chrome no está instalado en el entorno de comprobación.');
+const profile=await mkdtemp(resolve(tmpdir(),'octavia-ui-'));const chrome=spawn(chromePath,['--headless','--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-breakpad','--disable-crash-reporter','--no-first-run','--remote-debugging-port=9222','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe']});let chromeErrors='';chrome.stderr.on('data',chunk=>{chromeErrors=(chromeErrors+chunk.toString()).slice(-3000);});
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));let socket;
+try{
+ for(let i=0;i<200;i++){try{const response=await fetch('http://127.0.0.1:9222/json/version');if(response.ok)break;}catch{}if(i===199||chrome.exitCode!==null)throw new Error('Chrome no arrancó: '+chromeErrors);await wait(100);}
+ const target=await(await fetch('http://127.0.0.1:9222/json/new?about:blank',{method:'PUT'})).json();socket=new WebSocket(target.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
+ let id=0;const pending=new Map(),errors=[];
+ socket.addEventListener('message',message=>{const data=JSON.parse(message.data);if(data.id){const request=pending.get(data.id);if(request){clearTimeout(request.timer);pending.delete(data.id);data.error?request.reject(new Error(data.error.message)):request.resolve(data.result);}}else if(data.method==='Page.javascriptDialogOpening'){void call('Page.handleJavaScriptDialog',{accept:true});}else if(data.method==='Runtime.exceptionThrown')errors.push(data.params.exceptionDetails.exception?.description||data.params.exceptionDetails.text);});
+ const call=(method,params={})=>new Promise((resolve,reject)=>{const callOrigin=new Error('Origen de la comprobación');const next=++id;const timer=setTimeout(()=>{pending.delete(next);reject(new Error('Timeout: '+method));},['Page.captureScreenshot','Runtime.evaluate'].includes(method)?45000:15000);pending.set(next,{resolve,reject:error=>{error.message+=' '+callOrigin.stack.split('\n').slice(1,4).join(' ');reject(error);},timer});socket.send(JSON.stringify({id:next,method,params}));});
+ const evaluate=async expression=>{const origin=new Error('Origen de la comprobación');let result;try{result=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});}catch(error){error.message+=' '+origin.stack.split('\n').slice(1,5).join(' ');throw error;}if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description||'Error de JavaScript');return result.result.value;};
+ async function until(expression,attempts=200){for(let i=0;i<attempts;i++){try{if(await evaluate(expression))return;}catch(error){if(!/Execution context was destroyed|Cannot find context|Inspected target navigated or closed/.test(error.message))throw error;}await wait(100);}throw new Error('No se cumplió: '+expression);}
+ async function pressGasAfterStart(){await until("document.querySelector('[data-race-start]').disabled===true");await evaluate("document.querySelector('[data-racing-stage]').focus({preventScroll:true});window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowUp',bubbles:true}))");}
+ await call('Page.bringToFront');await call('Page.enable');await call('Page.addScriptToEvaluateOnNewDocument',{source:"if(!sessionStorage.getItem('analytics-test-run'))localStorage.setItem('club-consent-v1',JSON.stringify({version:1,at:Date.now(),analytics:false,recordings:false}));"});await call('Runtime.enable');await call('Network.enable');await call('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
+ await call('Network.setCookie',{name:'club_session',value:token,url:base,path:'/',sameSite:'Strict'});
+
+ await call('Page.navigate',{url:base+'/admin.html'});await until("document.querySelector('[data-app]')?.hidden===false");
+ await evaluate("document.querySelector('[data-tab=access]').click()");await until("document.querySelector('[data-admin-access] select')?.value==='cuesta-browser'");
+ assert.ok(await evaluate("document.querySelector('[data-owner-label]').textContent.includes('Raúl')"));
+ await mkdir('artifacts',{recursive:true});let shot=await call('Page.captureScreenshot',{format:'jpeg',quality:80});await writeFile('artifacts/administradores-propietario.jpg',Buffer.from(shot.data,'base64'));
+ await evaluate("[...document.querySelectorAll('[data-admin-access] button')].find(b=>b.textContent==='Crear o renovar invitación').click()");
+ await until("document.querySelector('[data-admin-access] input[readonly]')?.value.includes('#invitacion=')");
+ const activation=await evaluate("document.querySelector('[data-admin-access] input[readonly]').value");
+ await call('Network.deleteCookies',{name:'club_session',url:base});await call('Page.navigate',{url:activation});
+ await until("document.querySelector('[data-activate]')&&!location.hash");
+ await evaluate("document.querySelector('[name=password]').value='Cuesta-Test-2026!';document.querySelector('[name=confirmation]').value='Cuesta-Test-2026!';document.querySelector('[data-activate]').requestSubmit()");
+ await until("document.querySelector('[data-result]').textContent.includes('Acceso activado para Cuesta')");
+ await call('Page.navigate',{url:base+'/admin.html'});await until("document.querySelector('[data-login]')?.hidden===false");
+ await evaluate("document.querySelector('[data-login] [name=email]').value="+JSON.stringify(OWNER_ADMIN_EMAIL)+";document.querySelector('[data-login] [name=password]').value='Cuesta-Test-2026!';document.querySelector('[data-login]').requestSubmit()");
+ await until("document.querySelector('[data-app]')?.hidden===false&&document.querySelector('[data-owner-label]').textContent.includes('Cuesta')");
+ for(const tab of ['access','security','advanced','appearance','seo','communications'])assert.equal(await evaluate("document.querySelector('[data-tab="+tab+"]')?.hidden"),true,'Oculto para delegado: '+tab);
+ assert.equal(await evaluate("(async()=>{const r=await fetch('/api/admin/delegates');return r.status})()"),403);
+ assert.equal(await evaluate("(async()=>{const r=await fetch('/api/cms/admin/settings');return r.status})()"),403);
+ for(const width of [390,1280]){await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth+2"),false,'Panel sin desbordamiento a '+width);shot=await call('Page.captureScreenshot',{format:'jpeg',quality:80});await writeFile('artifacts/administrador-cuesta-'+width+'.jpg',Buffer.from(shot.data,'base64'));}
+ const revoked=await fetch(base+'/api/admin/delegates',{method:'POST',headers:{origin:base,cookie:'club_session='+token,'Content-Type':'application/json'},body:JSON.stringify({action:'disable',memberId:'cuesta-browser',permissions:[]})});assert.equal(revoked.status,200);
+ assert.equal(await evaluate("(async()=>{const r=await fetch('/api/admin/session');return r.status})()"),401);
+ await call('Page.reload');await until("document.querySelector('[data-login]')?.hidden===false&&document.querySelector('[data-app]')?.hidden===true");
+ console.log('ADMINISTRADORES_OK: propietario, invitación privada, contraseña propia, permisos, 390/1280 y revocación.');
+}finally{socket?.close();chrome.kill('SIGTERM');await new Promise(resolve=>server.close(resolve));raw.close();await rm(profile,{recursive:true,force:true}).catch(()=>{});}

@@ -52,6 +52,14 @@ jobs:
           done <<< "$archivos"
           if [ "$solo_css" = true ]; then echo "solo_css=true" >> "$GITHUB_OUTPUT"; fi
           if [ "$solo_visual" = true ]; then echo "solo_visual=true" >> "$GITHUB_OUTPUT"; fi
+          solo_administracion=true
+          while IFS= read -r archivo; do
+            case "$archivo" in
+              server/delegated-admins.mjs|server/market.mjs|server/schema.sql|migrations/2026-11-14-delegated-admins.sql|dist/admin-access.mjs|dist/admin-center.mjs|dist/admin.mjs|dist/admin.html|dist/admin-mercadillo.html|dist/activar-admin.html|dist/activate-admin.mjs|tests/delegated-admins.test.mjs|scripts/admin-access-browser-check.mjs|.github/workflows/publicar.yml) ;;
+              *) solo_administracion=false ;;
+            esac
+          done <<< "$archivos"
+          echo "solo_administracion=$solo_administracion" >> "$GITHUB_OUTPUT"
           node scripts/circuit-release.mjs "${{ github.event.before }}" "${{ github.sha }}" >> "$GITHUB_OUTPUT"
       - name: Preparar Node
         uses: actions/setup-node@v4
@@ -90,8 +98,11 @@ jobs:
         env:
           HIGHWAY_SHOTS: '1'
       - name: Comprobar garaje y circuito en Chrome
-        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_administracion != 'true'
         run: node scripts/browser-check.mjs
+      - name: Comprobar administradores, permisos y revocación en Chrome
+        if: steps.cambios.outputs.solo_administracion == 'true'
+        run: node scripts/admin-access-browser-check.mjs
       - name: Guardar vistas de comprobación
         if: always() && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
         uses: actions/upload-artifact@v4
