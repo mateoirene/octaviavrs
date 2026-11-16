@@ -2,7 +2,13 @@
 const routes = new Set(['/api/garage/folders','/api/garage/members','/api/market/listings','/api/club/notifications','/api/club/events','/api/club/news','/api/gallery/folders','/api/analytics/config']);
 export async function withPublicCache(request, cache, next) {
  const url=new URL(request.url);
- if(request.method!=='GET'||!cache||request.headers.has('authorization')||/(?:^|;\s*)club_session=/.test(request.headers.get('cookie')||'')||!routes.has(url.pathname))return next();
+ // Invalidate this edge's anonymous calendar only after a successful event change.
+ if(cache&&['POST','DELETE'].includes(request.method)&&/^\/api\/club\/events(?:\/[^/]+)?$/.test(url.pathname)){
+  const response=await next();
+  if(response.ok)try{await cache.delete(new Request(url.origin+'/api/club/events'));}catch{}
+  return response;
+ }
+ if(request.method!=='GET'||!cache||request.headers.has('authorization')||/(?:^|;\s*)(?:club_session|club_member_session)=/.test(request.headers.get('cookie')||'')||!routes.has(url.pathname))return next();
  // Only the folder selector is accepted: never cache manage/review/preview views.
  if([...url.searchParams.keys()].some(key=>url.pathname!=='/api/garage/members'||key!=='folder'))return next();
  const key=new Request(url.href,{method:'GET'});
@@ -14,3 +20,4 @@ export async function withPublicCache(request, cache, next) {
  }
  return response;
 }
+
