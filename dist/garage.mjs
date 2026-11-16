@@ -1,4 +1,4 @@
-import {addMemberEventAccessControls} from './member-event-access.mjs?v=20261114-socios-eventos';
+import {addMemberEventAccessControls} from './member-event-access.mjs?v=20261116-eventos-propios';
 import { setVrsText } from './branding.mjs';
 const $ = selector => document.querySelector(selector);
 const status = $('[data-garage-status]'), saveStatus = $('[data-garage-save-status]');
@@ -114,4 +114,5 @@ if(reviewId&&!admin)location.replace('admin.html?volver=garaje&revision='+encode
 try { await loadFolders();if(admin){await loadReviews();if(reviewId){let found=false;for(const state of ['pending','approved','rejected','blocked']){if($('[data-garage-review-filter]').value!==state){$('[data-garage-review-filter]').value=state;await loadReviews();}const card=[...document.querySelectorAll('[data-review-member]')].find(el=>el.dataset.reviewMember===reviewId);if(card){card.tabIndex=-1;card.style.outline='3px solid #e9c34b';card.scrollIntoView({block:'start',behavior:'instant'});card.focus({preventScroll:true});found=true;break;}}if(!found)$('[data-garage-review-status]').textContent='La ficha del aviso ya no está disponible.';}} } catch (error) { status.textContent = error.message; }
 
 setInterval(()=>{if(admin&&!document.hidden&&!$('[data-garage-review-list]').contains(document.activeElement))void loadReviews();},60000);
+
 
