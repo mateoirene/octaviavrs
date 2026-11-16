@@ -66,3 +66,43 @@ test('acceso personal revocable y fichas no aprobadas quedan bloqueadas en petic
  assert.equal((await f.request('member-access',{method:'POST',member:next.token,body:{action:'invite',memberId:'member-two'}})).status,401);
  }finally{f.raw.close();}
 });
+
+test('un socio crea y gestiona solo sus eventos; autoría inmutable y calendario previo intacto',async()=>{
+ const f=await fixture();try{
+ const one=(await f.activate('member-one')).token,two=(await f.activate('member-two')).token;
+ const payload={title:'Ruta creada por socio',date:'2099-06-12',description:'Punto de encuentro',type:'ruta'};
+ assert.equal((await f.request('events',{method:'POST',body:payload})).status,401);
+ assert.equal((await f.request('events/normal-event',{method:'POST',member:one,body:payload})).status,403);
+ assert.equal((await f.request('events/normal-event',{method:'DELETE',member:one})).status,403);
+ assert.equal((await f.request('events/calcotada-event',{method:'POST',member:one,body:payload})).status,403);
+ const created=await f.request('events',{method:'POST',member:one,body:{...payload,memberId:'member-two',createdBy:'member-two'}});assert.equal(created.status,201);const event=await created.json();
+ const access=async token=>(await(await f.request('events/access',{member:token})).json());
+ assert.deepEqual((await access(one)).editableEventIds,[event.id]);assert.deepEqual((await access(two)).editableEventIds,[]);assert.equal((await access('')).canCreate,false);
+ assert.equal((await f.request('events/'+event.id,{method:'POST',member:two,body:payload})).status,403);
+ assert.equal((await f.request('events/'+event.id,{method:'DELETE',member:two})).status,403);
+ assert.equal((await f.request('events/'+event.id,{method:'POST',member:one,body:{...payload,title:'Ruta actualizada'}})).status,200);
+ assert.equal((await f.request('events/'+event.id,{method:'POST',admin:'cuesta-test',body:{...payload,title:'Revisión de Cuesta'}})).status,200);
+ assert.equal((await f.request('events/'+event.id,{method:'POST',admin:'owner-test',body:payload})).status,200);
+ assert.equal(f.raw.prepare('SELECT member_id FROM club_event_creators WHERE event_id=?').get(event.id).member_id,'member-one');
+ // Crear el evento no concede permisos sobre las inscripciones de otros socios.
+ assert.equal((await f.request('events/'+event.id+'/signups',{method:'POST',member:one,body:{memberId:'member-two',people:2}})).status,403);
+ assert.equal((await f.request('events/'+event.id,{method:'DELETE',member:one})).status,200);
+ assert.equal(f.raw.prepare("SELECT COUNT(*) n FROM club_events WHERE id IN ('normal-event','calcotada-event')").get().n,2);
+ assert.equal(f.raw.prepare('SELECT COUNT(*) n FROM club_event_creators').get().n,0);
+ const blocked=await f.request('events',{method:'POST',member:one,source:'https://other.example',body:payload});assert.equal(blocked.status,403);
+ await f.request('member-access',{method:'POST',admin:'owner-test',body:{action:'revoke',memberId:'member-one'}});
+ assert.equal((await f.request('events',{method:'POST',member:one,body:payload})).status,401);
+ }finally{f.raw.close();}
+});
+test('fichas bloqueadas o pendientes no crean ni editan; calçotada conserva lista exclusiva',async()=>{
+ const f=await fixture();try{
+ const token=(await f.activate('member-one')).token,payload={title:'Calçotada de socios',type:'calcotada',date:'2099-06-12'};
+ const response=await f.request('events',{method:'POST',member:token,body:payload});assert.equal(response.status,201);const event=await response.json();
+ assert.equal((await f.request('events/'+event.id+'/attendees',{method:'POST',member:token,body:{pilotName:'Socio Uno',attendees:1}})).status,401);
+ f.raw.prepare("INSERT INTO club_event_attendees(id,event_id,pilot_name,attendees,calcotada_count,vegetarian_count,child_menu_count,deposit_cents,balance_cents,created_at,updated_at,updated_by) VALUES('keep-list',?,'Socio Uno',1,1,0,0,0,0,1,1,'owner')").run(event.id);
+ assert.equal((await f.request('events/'+event.id,{method:'DELETE',member:token})).status,403);
+ f.raw.exec("INSERT INTO garage_member_blocks VALUES('member-one',1,'Prueba',1,1,'owner')");
+ assert.equal((await f.request('events',{method:'POST',member:token,body:payload})).status,401);
+ assert.equal((await f.request('events/'+event.id,{method:'POST',member:token,body:payload})).status,401);
+ }finally{f.raw.close();}
+});

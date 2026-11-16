@@ -51,3 +51,9 @@ header>nav[aria-label="Navegación principal"]>a[href$="#inicio"]{--nav-icon:url
 
 /* En móvil, la bandeja de notificaciones debe quedar por encima del reloj. */
 @media(max-width:760px){.site-header>.masthead{position:relative;z-index:40}.site-header>.masthead .club-notifications{z-index:60}.site-header>.club-speed-clock{position:relative;z-index:1}}
+
+
+/* Keep the entire notification panel above both clock styles at every width. */
+.site-header>.masthead{z-index:40}
+.site-header>.masthead .club-notifications{z-index:60}
+.site-header>.club-speed-clock{position:relative;z-index:1}

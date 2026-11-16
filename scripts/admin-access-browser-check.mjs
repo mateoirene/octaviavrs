@@ -69,6 +69,30 @@ try{
  await call('Emulation.setDeviceMetricsOverride',{width:390,height:900,deviceScaleFactor:1,mobile:true});assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth+2"),false);shot=await call('Page.captureScreenshot',{format:'jpeg',quality:80});await writeFile('artifacts/inscripcion-socio-movil.jpg',Buffer.from(shot.data,'base64'));
  await evaluate("[...document.querySelectorAll('.signup-form button')].find(b=>b.textContent==='Darme de baja').click()");await until("document.querySelector('.signup-summary').textContent.includes('0 socios inscritos')");
  await call('Page.navigate',{url:base+'/asistentes-evento.html?evento='+mealEvent.id});await until("document.querySelector('[data-event-attendees]')");assert.equal(await evaluate("document.querySelector('.event-attendees-add').hidden"),true);assert.equal(await evaluate("document.querySelector('.simple-event-signups')===null"),true);
+ // El socio crea desde el calendario real y solo recibe controles para su evento.
+ await call('Page.navigate',{url:base+'/index.html#calendario'});await until("document.querySelector('[data-calendar-add]')&&document.querySelector('[data-club-calendar]')?.dataset.calendarLoaded==='true'");
+ assert.equal(await evaluate("document.querySelectorAll('[data-event-edit]').length"),0);
+ await evaluate("document.querySelector('[data-calendar-add]').click()");await until("document.querySelector('[data-event-dialog]').open");
+ await evaluate("(()=>{const f=document.querySelector('[data-event-form]');f.elements.date.value='2099-07-16';f.elements.title.value='Ruta creada desde la ficha de socio';f.elements.type.value='ruta';f.requestSubmit();})()");
+ await until("!document.querySelector('[data-event-dialog]').open&&document.querySelector('[data-event-edit]')");
+ const ownEventId=await evaluate("document.querySelector('[data-event-edit]').dataset.eventEdit");
+ assert.ok(raw.prepare('SELECT event_id FROM club_event_creators WHERE event_id=? AND member_id=?').get(ownEventId,'cuesta-browser'));
+ assert.equal(await evaluate("[...document.querySelectorAll('[data-event-edit]')].every(b=>b.dataset.eventEdit==="+JSON.stringify(ownEventId)+")"),true);
+ await evaluate("document.querySelector('[data-event-edit]').click()");await until("document.querySelector('[data-event-dialog]').open");
+ await evaluate("(()=>{const f=document.querySelector('[data-event-form]');f.elements.title.value='Ruta del socio actualizada';f.requestSubmit();})()");await until("!document.querySelector('[data-event-dialog]').open&&document.querySelector('[data-calendar-events]').textContent.includes('Ruta del socio actualizada')");
+ // La campana debe quedar encima del reloj en escritorio y móvil, en ambos estilos.
+ for(const width of [1280,390]){
+  await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});
+  for(const mode of ['analog','digital']){
+   await evaluate("window.scrollTo(0,0);document.querySelector('.club-speed-clock').dataset.clockMode="+JSON.stringify(mode));
+   await until("document.querySelector('.notification-bell')");await evaluate("(()=>{const b=document.querySelector('.notification-bell');if(b.getAttribute('aria-expanded')!=='true')b.click();})()");
+   assert.equal(await evaluate("(()=>{const panel=document.querySelector('.notification-panel'),clock=document.querySelector('.club-speed-clock'),a=panel.getBoundingClientRect(),b=clock.getBoundingClientRect();let n=0;for(let x=Math.max(a.left,b.left)+3;x<Math.min(a.right,b.right)-3;x+=15)for(let y=Math.max(a.top,b.top)+3;y<Math.min(a.bottom,b.bottom)-3;y+=15){n++;if(!panel.contains(document.elementFromPoint(x,y)))return false;}return n>0;})()"),true,'La campana cubre el reloj '+mode+' a '+width);
+   assert.equal(await evaluate("document.documentElement.scrollWidth>innerWidth+2"),false);
+   shot=await call('Page.captureScreenshot',{format:'jpeg',quality:80});await writeFile('artifacts/campana-sobre-reloj-'+mode+'-'+width+'.jpg',Buffer.from(shot.data,'base64'));
+   await evaluate("document.querySelector('[aria-label=\"Cerrar notificaciones\"]').click()");
+  }
+ }
+ console.log('EVENTOS_SOCIOS_OK: creación, edición propia y aislamiento en el calendario; campana sobre ambos relojes a 390 y 1280.');
  await call('Network.setCookie',{name:'club_session',value:delegatedCookie.value,url:base,path:'/',sameSite:'Strict'});assert.equal(await evaluate("(async()=>{const r=await fetch('/api/admin/session');return r.status})()"),200);
  await call('Page.navigate',{url:base+'/admin.html'});await until("document.querySelector('[data-app]')?.hidden===false");
  console.log('INSCRIPCIONES_OK: socio aprobado, inscripción única, acompañantes, baja propia, Cuesta y calçotada protegida.');
@@ -77,3 +101,4 @@ try{
  await call('Page.reload');await until("document.querySelector('[data-login]')?.hidden===false&&document.querySelector('[data-app]')?.hidden===true");
  console.log('ADMINISTRADORES_OK: propietario, invitación privada, contraseña propia, permisos, 390/1280 y revocación.');
 }finally{socket?.close();chrome.kill('SIGTERM');await new Promise(resolve=>server.close(resolve));raw.close();await rm(profile,{recursive:true,force:true}).catch(()=>{});}
+
