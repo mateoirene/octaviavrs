@@ -399,3 +399,11 @@ CREATE TABLE IF NOT EXISTS club_event_signups(
  created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,updated_by TEXT NOT NULL,
  PRIMARY KEY(event_id,member_id)
 );
+
+
+-- Autoría permanente de los eventos creados por socios. No reasigna eventos previos.
+CREATE TABLE IF NOT EXISTS club_event_creators(
+ event_id TEXT PRIMARY KEY REFERENCES club_events(id) ON DELETE CASCADE,
+ member_id TEXT NOT NULL REFERENCES garage_members(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS club_event_creators_member ON club_event_creators(member_id);
