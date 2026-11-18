@@ -125,7 +125,7 @@ function card(member, full = false) {
       download.disabled = true;
       feedback.textContent = '';
       try {
-        const { downloadMemberCard } = await import('./member-card-download.mjs?v=1');
+        const { downloadMemberCard } = await import('./member-card-download.mjs?v=2');
         await downloadMemberCard(member.pilot, member.membershipNumber);
       } catch {
         feedback.textContent = 'No se pudo descargar el carnet. Inténtalo de nuevo.';
