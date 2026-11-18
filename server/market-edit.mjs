@@ -8,7 +8,8 @@ export async function editMarketListing(request,db,user,id){
  if(!Array.isArray(keep)||keep.some(x=>typeof x!=='string')||new Set(keep).size!==keep.length)fail('Revisa las fotos conservadas.');
  const existing=(await db.prepare('SELECT id FROM market_photos WHERE listing_id=? ORDER BY position').bind(id).all()).results;
  if(keep.some(photo=>!existing.some(row=>row.id===photo)))fail('Una foto ya no pertenece a este anuncio. Actualiza la lista.',409);
- const files=form.getAll('photos');if(keep.length+files.length<1||keep.length+files.length>10)fail('El anuncio debe tener entre 1 y 10 fotos.');
+ // Existing advertisements keep their original photos, including legacy sets above five.
+ const maximum=Math.max(5,existing.length),files=form.getAll('photos');if(keep.length+files.length<1||keep.length+files.length>maximum)fail('El anuncio debe tener entre 1 y '+maximum+' fotos.');
  const additions=[];for(const file of files)additions.push({...await marketPhoto(file),id:crypto.randomUUID()});
  const token=crypto.randomUUID(),stamp=Math.floor(Date.now()/1000),guard='EXISTS(SELECT 1 FROM market_edit_versions WHERE listing_id=? AND token=?)';
  const statements=[db.prepare(`INSERT INTO market_edit_versions(listing_id,token,edited_by,edited_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM market_listings WHERE id=? AND status=? AND updated_at=?) AND COALESCE((SELECT token FROM market_edit_versions WHERE listing_id=?),'')=? ON CONFLICT(listing_id) DO UPDATE SET token=excluded.token,edited_by=excluded.edited_by,edited_at=excluded.edited_at WHERE market_edit_versions.token=?`).bind(id,token,user.id,stamp,id,old.status,old.updated_at,id,version,version),
@@ -20,3 +21,4 @@ export async function editMarketListing(request,db,user,id){
  if((await db.prepare('SELECT token FROM market_edit_versions WHERE listing_id=?').bind(id).first())?.token!==token)fail('El anuncio ha cambiado. Actualiza la lista antes de guardar.',409);
  return {id,status:old.status,version:token};
 }
+
