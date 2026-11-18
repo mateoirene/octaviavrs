@@ -83,6 +83,27 @@ function card(member, full = false) {
   const number=element('div','','garage-membership-number');
   number.append(element('span',member.membershipNumber?'NÚMERO DE SOCIO':'FICHA EN REVISIÓN','garage-membership-label'),element('strong',member.membershipNumber||'Pendiente de aprobación'));
   membership.append(number);body.append(membership);
+  if (full && member.membershipNumber && (!member.reviewStatus || member.reviewStatus === 'approved') && !member.blocked) {
+    const download = element('button', 'Descargar carnet 3D', 'button');
+    download.type = 'button';
+    download.setAttribute('aria-label', 'Descargar carnet 3D de ' + member.pilot);
+    const feedback = element('p');
+    feedback.setAttribute('role', 'status');
+    download.addEventListener('click', async () => {
+      download.disabled = true;
+      feedback.textContent = '';
+      try {
+        const { downloadMemberCard } = await import('./member-card-download.mjs?v=1');
+        await downloadMemberCard(member.pilot, member.membershipNumber);
+      } catch {
+        feedback.textContent = 'No se pudo descargar el carnet. Inténtalo de nuevo.';
+      } finally {
+        download.disabled = false;
+      }
+    });
+    body.append(download, feedback);
+  }
+
   if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
   if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
   const specs = element('dl','', 'garage-specs');
