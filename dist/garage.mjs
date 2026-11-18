@@ -29,7 +29,35 @@ function editMember(member) {
   for (const src of member.images) { const image = element('img'); image.src = src; image.alt = 'Foto actual del coche'; $('[data-garage-previews]').append(image); }
   memberForm.scrollIntoView({ block: 'start', behavior: 'instant' }); memberForm.elements.pilot.focus({ preventScroll: true });
 }
-function card(member) {
+function memberModifications(notes) {
+  const categories = [
+    ['Escape', /\b(?:escapes?|duramás|akrap\w*|akaprov\w*)\b/i],
+    ['Ruedas y neumáticos', /\b(?:llantas?|neumáticos?|michelin|ruedas?)\b/i],
+    ['Carrocería', /\b(?:difusor|taloneras?|lunas?|retrovisores?|alerón|maxton)\b/i],
+  ];
+  const groups = new Map([['Carrocería', []], ['Escape', []], ['Ruedas y neumáticos', []], ['Otras', []]]);
+  for (const line of notes.split(/\r?\n/)) {
+    const modification = line.trim().replace(/^[-•]\s+/, '');
+    if (!modification) continue;
+    const category = categories.find(([, pattern]) => pattern.test(modification));
+    groups.get(category?.[0] ?? 'Otras').push(modification);
+  }
+  const section = element('section', '', 'garage-modifications');
+  section.append(element('h4', 'Modificaciones'));
+  const columns = element('div', '', 'garage-modification-groups');
+  for (const [title, items] of groups) {
+    if (!items.length) continue;
+    const group = element('div');
+    const list = element('ul');
+    for (const item of items) list.append(element('li', item));
+    group.append(element('h5', title), list);
+    columns.append(group);
+  }
+  section.append(columns);
+  return section;
+}
+
+function card(member, full = false) {
   const article = element('article', '', 'garage-member');
   const photos = element('div', '', 'garage-member-photos');
   member.images.forEach((src,index) => {
@@ -59,7 +87,17 @@ function card(member) {
   if(member.whatsappUrl){const contact=element('a','WhatsApp · +'+member.phone,'garage-whatsapp');contact.href=member.whatsappUrl;contact.target='_blank';contact.rel='noopener noreferrer';contact.setAttribute('aria-label','Enviar WhatsApp a '+member.pilot);body.append(contact);}
   const specs = element('dl','', 'garage-specs');
   for (const [label,value] of [['Motor',member.engine],['Potencia',member.power],['Año',member.year],['Cambio',member.gearbox]]) if (value) { const row = element('div'); row.append(element('dt',label),element('dd',value)); specs.append(row); }
-  body.append(specs); if (member.notes) body.append(element('p',member.notes,'garage-member-notes'));
+  if (full) {
+    if (specs.childElementCount) {
+      const technical = element('section', '', 'garage-technical-summary');
+      technical.append(element('h4', 'Ficha técnica'), specs);
+      body.append(technical);
+    }
+    if (member.notes?.trim()) body.append(memberModifications(member.notes));
+  } else {
+    body.append(specs);
+    if (member.notes) body.append(element('p',member.notes,'garage-member-notes'));
+  }
   if (admin) { const actions = element('div','','garage-page-actions'), edit = element('button','Editar ficha'), remove = element('button','Eliminar ficha'); edit.type = remove.type = 'button';
     edit.addEventListener('click', () => editMember(member)); remove.addEventListener('click', async () => { if (!confirm(`¿Eliminar la ficha de ${member.pilot} y sus fotos?`)) return; remove.disabled = true; try { await api('garage/members/'+member.id,'DELETE'); await loadFolders(); status.textContent = 'Ficha eliminada.'; } catch (error) { status.textContent = error.message; remove.disabled = false; } }); actions.append(edit,remove); body.append(actions); }
   article.append(body);if(admin&&(!member.reviewStatus||member.reviewStatus==='approved')&&!member.blocked)addMemberEventAccessControls(article,member); return article;
@@ -68,7 +106,7 @@ async function openFolder(id, updateUrl = true) {
   selected = id; const folder = folders.find(item => item.id === id); if (!folder) { selected = ''; $('[data-folder-content]').hidden = true; return; }
   if (updateUrl) history.replaceState(null,'','garaje.html?carpeta='+encodeURIComponent(id));
   $('[data-folder-content]').hidden = false; $('[data-folder-title]').textContent = folder.name; status.textContent = 'Cargando fichas…';
-  try { const members = await api('garage/members?folder='+encodeURIComponent(id)); $('[data-members]').replaceChildren(...members.map(card)); status.textContent = members.length ? `${members.length} fichas en ${folder.name}.` : 'Esta carpeta aún no tiene fichas.'; memberForm.elements.folderId.value = id; }
+  try { const members = await api('garage/members?folder='+encodeURIComponent(id)); $('[data-members]').replaceChildren(...members.map(member => card(member, true))); status.textContent = members.length ? `${members.length} fichas en ${folder.name}.` : 'Esta carpeta aún no tiene fichas.'; memberForm.elements.folderId.value = id; }
   catch (error) { status.textContent = error.message; }
 }
 async function loadFolders() {

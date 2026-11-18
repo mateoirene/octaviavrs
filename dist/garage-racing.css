@@ -73,3 +73,98 @@
 .garage-member-photos button{position:relative;isolation:isolate;overflow:hidden;background:#18212b!important;min-height:clamp(220px,52vw,420px)}
 .garage-member-photos img.garage-member-photo-backdrop{position:absolute;inset:-3%;z-index:-1;width:106%;height:106%;max-width:none;object-fit:cover;aspect-ratio:auto;filter:blur(16px) brightness(.58) saturate(.82);transform:scale(1.04)}
 .garage-member-photos img.garage-member-photo-main{position:relative;z-index:1;width:100%;height:clamp(220px,52vw,420px);object-fit:contain;object-position:center;aspect-ratio:16/10}
+
+/* Complete cards in the members folder. */
+[data-members].garage-member-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+[data-members] .garage-member {
+  border-color: #a4a8af;
+  border-radius: 17px;
+  background: #17191f;
+}
+[data-members] .garage-member-body {
+  padding: clamp(12px, 2vw, 24px);
+}
+[data-members] .garage-membership {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 14px;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 16px;
+  border-top: 2px solid #ff3149;
+  background-image: linear-gradient(90deg, #101215 16%, #101215c9 49%, #10121530 100%),
+    repeating-linear-gradient(165deg, #e6ac36 0 12px, #ae202e 12px 23px);
+}
+[data-members] .garage-membership::before { display: none; }
+[data-members] .garage-membership-club {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+  margin: 0 0 3px;
+  font-size: 11px;
+}
+[data-members] .garage-membership .garage-pilot-avatar {
+  grid-column: 1;
+  grid-row: 2 / span 2;
+  width: 52px;
+  height: 52px;
+  margin: 0;
+}
+[data-members] .garage-membership h3,
+[data-members] .garage-membership .garage-model,
+[data-members] .garage-membership .garage-instagram {
+  grid-column: 2;
+  max-width: 100%;
+  margin: 0;
+}
+[data-members] .garage-membership-number {
+  grid-column: 2;
+  justify-self: start;
+  margin: 3px 0 0;
+  padding: 5px 9px;
+  border: 1px solid #e1e3e7;
+  border-radius: 6px;
+  background: linear-gradient(#e4e6e8, #a9aeb5);
+  text-shadow: none;
+}
+[data-members] .garage-membership-number :is(span, strong) {
+  margin: 0;
+  color: #191b20;
+}
+[data-members] .garage-membership-number strong { font-size: 16px; }
+.garage-technical-summary,
+.garage-modifications {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid #454951;
+  border-radius: 12px;
+  background: #1d2027;
+  overflow-wrap: anywhere;
+}
+.garage-technical-summary h4,
+.garage-modifications h4 { margin: 0 0 12px; font-size: 19px; }
+.garage-technical-summary .garage-specs { margin: 0; padding: 0; border: 0; gap: 8px; }
+.garage-technical-summary .garage-specs > div {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #13161a;
+}
+.garage-modification-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  gap: 12px;
+}
+.garage-modification-groups h5 { margin: 0 0 6px; color: #ffadb6; font-size: 14px; }
+.garage-modification-groups ul { margin: 0; padding-inline-start: 18px; }
+.garage-modification-groups li + li { margin-top: 5px; }
+@media (max-width: 760px) {
+  [data-members].garage-member-grid,
+  .garage-modification-groups { grid-template-columns: minmax(0, 1fr); }
+}
