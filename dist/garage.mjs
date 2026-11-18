@@ -29,6 +29,38 @@ function editMember(member) {
   for (const src of member.images) { const image = element('img'); image.src = src; image.alt = 'Foto actual del coche'; $('[data-garage-previews]').append(image); }
   memberForm.scrollIntoView({ block: 'start', behavior: 'instant' }); memberForm.elements.pilot.focus({ preventScroll: true });
 }
+function memberCardNotice(member, folderId) {
+  if (!admin || !folderId) return null;
+  const phone = String(member.phone ?? '').replace(/[^0-9]/g, '');
+  if (!/^[1-9][0-9]{6,14}$/.test(phone)) return null;
+  const folderUrl = new URL('garaje.html', location.href);
+  folderUrl.searchParams.set('carpeta', folderId);
+  const message = [
+    'Hola, ' + member.pilot + '.',
+    'Ya tienes disponible tu carnet digital del Club Octavia VRS Catalunya.',
+    'Para guardarlo, entra en Miembros del Club, busca tu ficha y pulsa «Descargar carnet 3D».',
+    folderUrl.href,
+    '¡Nos vemos en la próxima quedada! 🚗',
+  ].join('\n\n');
+  const whatsapp = element('a', 'Avisar por WhatsApp', 'button');
+  whatsapp.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
+  whatsapp.target = '_blank';
+  whatsapp.rel = 'noopener noreferrer';
+  whatsapp.setAttribute('aria-label', 'Avisar por WhatsApp a ' + member.pilot);
+  return whatsapp;
+}
+
+function showNewMemberNotice(anchor, member, folderId) {
+  const previous = anchor.nextElementSibling;
+  if (previous?.matches('[data-new-member-notice]')) previous.remove();
+  const link = memberCardNotice(member, folderId);
+  if (!link) return;
+  const notice = element('aside', '', 'garage-page-actions');
+  notice.dataset.newMemberNotice = '';
+  notice.append(element('p', 'Ficha publicada. Ya puedes avisar a ' + member.pilot + ' de que tiene su carnet.'), link);
+  anchor.after(notice);
+}
+
 function memberModifications(notes) {
   const categories = [
     ['Escape', /\b(?:escapes?|duramás|akrap\w*|akaprov\w*)\b/i],
@@ -103,25 +135,8 @@ function card(member, full = false) {
     });
     body.append(download, feedback);
 
-    const phone = admin ? String(member.phone ?? '').replace(/[^0-9]/g, '') : '';
-    if (phone && /^[1-9][0-9]{6,14}$/.test(phone)) {
-      const folderUrl = new URL('garaje.html', location.href);
-      folderUrl.searchParams.set('carpeta', member.folderId || selected);
-      const message = [
-        'Hola, ' + member.pilot + '.',
-        'Ya tienes disponible tu carnet digital del Club Octavia VRS Catalunya.',
-        'Para guardarlo, entra en Miembros del Club, busca tu ficha y pulsa «Descargar carnet 3D».',
-        folderUrl.href,
-        '¡Nos vemos en la próxima quedada! 🚗',
-      ].join('\n\n');
-      const whatsapp = element('a', 'Avisar por WhatsApp', 'button');
-      whatsapp.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
-      whatsapp.target = '_blank';
-      whatsapp.rel = 'noopener noreferrer';
-      whatsapp.setAttribute('aria-label', 'Avisar por WhatsApp a ' + member.pilot);
-      body.append(whatsapp);
-    }
-
+    const whatsapp = memberCardNotice(member, member.folderId || selected);
+    if (whatsapp) body.append(whatsapp);
   }
 
   if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
@@ -176,11 +191,11 @@ async function compress(file,dimension=1400,maximum=1048576) {
 }
 memberForm.elements.photos.addEventListener('change', () => { previewUrls.forEach(URL.revokeObjectURL); previewUrls = []; $('[data-garage-previews]').replaceChildren(); for (const file of [...memberForm.elements.photos.files].slice(0,3)) { const image = element('img'); image.src = URL.createObjectURL(file); image.alt = 'Vista previa'; previewUrls.push(image.src); $('[data-garage-previews]').append(image); } });
 memberForm.addEventListener('submit', async event => { event.preventDefault(); const button = memberForm.querySelector('button[type=submit]'); button.disabled = true; saveStatus.textContent = 'Preparando la ficha…';
-  try { if (memberForm.elements.photos.files.length > 3) throw new Error('Añade como máximo tres fotos.'); const data = new FormData(memberForm); data.delete('photos');data.delete('profilePhoto');const profile=memberForm.elements.profilePhoto.files[0];if(profile)data.append('profilePhoto',await compress(profile,600,262144),'perfil.jpg'); for (const file of memberForm.elements.photos.files) data.append('photos',await compress(file),'coche.jpg'); const id = memberForm.elements.id.value; const saved=await api(admin?'garage/members'+(id?'/'+id:''):'garage/submit','POST',data); selected = data.get('folderId'); resetForm(); await loadFolders(); saveStatus.textContent = saved.status==='approved'?'Ficha guardada y publicada en el garaje.':'Ficha enviada. Queda pendiente de revisión; todavía no se ha publicado.';if(admin)void loadReviews();window.dispatchEvent(new Event('club-session-change')); }
+  try { if (memberForm.elements.photos.files.length > 3) throw new Error('Añade como máximo tres fotos.'); const data = new FormData(memberForm); data.delete('photos');data.delete('profilePhoto');const profile=memberForm.elements.profilePhoto.files[0];if(profile)data.append('profilePhoto',await compress(profile,600,262144),'perfil.jpg'); for (const file of memberForm.elements.photos.files) data.append('photos',await compress(file),'coche.jpg'); const id = memberForm.elements.id.value; const saved=await api(admin?'garage/members'+(id?'/'+id:''):'garage/submit','POST',data); selected = data.get('folderId'); if (admin && !id && saved.status === 'approved') showNewMemberNotice(saveStatus, {pilot: data.get('pilot'), phone: data.get('phone')}, selected); resetForm(); await loadFolders(); saveStatus.textContent = saved.status==='approved'?'Ficha guardada y publicada en el garaje.':'Ficha enviada. Queda pendiente de revisión; todavía no se ha publicado.';if(admin)void loadReviews();window.dispatchEvent(new Event('club-session-change')); }
   catch (error) { saveStatus.textContent = error.message; } finally { button.disabled = false; }
 });
 function addVisibilityControls(article,member,state,note){if(state!=='approved'&&state!=='blocked')return;const controls=element('div','','garage-page-actions'),reason=element('textarea');let button;if(state==='approved'){reason.maxLength=500;reason.placeholder='Motivo privado (opcional)';button=element('button','Ocultar perfil temporalmente');}else button=element('button','Restaurar perfil');button.type='button';button.addEventListener('click',async()=>{const action=state==='approved'?'block':'unblock',label=state==='approved'?'¿Ocultar esta ficha del garaje y de las novedades públicas?':'¿Restaurar su visibilidad en el garaje?';if(!window.confirm(label))return;button.disabled=true;try{await api('garage/members/'+member.id+'/'+action,'POST',action==='block'?{reason:reason.value}:{});await loadFolders();await loadReviews();window.dispatchEvent(new Event('club-session-change'));}catch(error){note.textContent=error.message;button.disabled=false;}});controls.append(button);if(state==='approved')controls.prepend(reason);article.append(controls);}
-async function loadReviews(){if(!admin)return;const target=$('[data-garage-review-list]'),note=$('[data-garage-review-status]');note.textContent='Cargando fichas para revisar…';try{const state=$('[data-garage-review-filter]').value,items=await api('garage/members?review='+state);target.replaceChildren();for(const member of items){const article=card(member);article.dataset.reviewMember=member.id;if(state==='pending'){const controls=element('div','','garage-page-actions'),folder=element('select'),reviewNote=element('textarea');folder.setAttribute('aria-label','Carpeta de publicación');for(const item of folders){const option=element('option',item.name);option.value=item.id;folder.append(option);}folder.value=member.folderId;reviewNote.maxLength=500;reviewNote.placeholder='Nota privada de revisión (opcional)';article.append(folder,reviewNote);for(const [action,label]of [['approve','Aprobar y publicar'],['reject','Rechazar ficha']]){const button=element('button',label);button.type='button';button.dataset.garageReviewAction=action;button.addEventListener('click',async()=>{for(const b of controls.querySelectorAll('button'))b.disabled=true;try{await api('garage/reviews/'+member.id,'POST',{action,folderId:folder.value,note:reviewNote.value});await loadFolders();await loadReviews();window.dispatchEvent(new Event('club-session-change'));}catch(error){note.textContent=error.message;for(const b of controls.querySelectorAll('button'))b.disabled=false;}});controls.append(button);}article.append(controls);}else if(member.reviewNote)article.append(element('p','Nota privada: '+member.reviewNote));addVisibilityControls(article,member,state,note);target.append(article);}note.textContent=items.length?items.length+' fichas '+(state==='pending'?'pendientes de revisión.':state==='blocked'?'ocultas temporalmente.':'en este estado.'):'No hay fichas en este estado.';}catch(error){note.textContent=error.message;}}
+async function loadReviews(){if(!admin)return;const target=$('[data-garage-review-list]'),note=$('[data-garage-review-status]');note.textContent='Cargando fichas para revisar…';try{const state=$('[data-garage-review-filter]').value,items=await api('garage/members?review='+state);target.replaceChildren();for(const member of items){const article=card(member);article.dataset.reviewMember=member.id;if(state==='pending'){const controls=element('div','','garage-page-actions'),folder=element('select'),reviewNote=element('textarea');folder.setAttribute('aria-label','Carpeta de publicación');for(const item of folders){const option=element('option',item.name);option.value=item.id;folder.append(option);}folder.value=member.folderId;reviewNote.maxLength=500;reviewNote.placeholder='Nota privada de revisión (opcional)';article.append(folder,reviewNote);for(const [action,label]of [['approve','Aprobar y publicar'],['reject','Rechazar ficha']]){const button=element('button',label);button.type='button';button.dataset.garageReviewAction=action;button.addEventListener('click',async()=>{for(const b of controls.querySelectorAll('button'))b.disabled=true;try{await api('garage/reviews/'+member.id,'POST',{action,folderId:folder.value,note:reviewNote.value});if(action==='approve')showNewMemberNotice(note,member,folder.value);await loadFolders();await loadReviews();window.dispatchEvent(new Event('club-session-change'));}catch(error){note.textContent=error.message;for(const b of controls.querySelectorAll('button'))b.disabled=false;}});controls.append(button);}article.append(controls);}else if(member.reviewNote)article.append(element('p','Nota privada: '+member.reviewNote));addVisibilityControls(article,member,state,note);target.append(article);}note.textContent=items.length?items.length+' fichas '+(state==='pending'?'pendientes de revisión.':state==='blocked'?'ocultas temporalmente.':'en este estado.'):'No hay fichas en este estado.';}catch(error){note.textContent=error.message;}}
 $('[data-garage-review-filter]').addEventListener('change',()=>void loadReviews());$('[data-garage-review-refresh]').addEventListener('click',()=>void loadReviews());
 $('[data-garage-export]').addEventListener('click',async event=>{const button=event.currentTarget,note=$('[data-garage-review-status]');button.disabled=true;try{const response=await fetch('/api/garage/export',{cache:'no-store'});if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||'No se pudo exportar el listado.');}const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='octavia-miembros.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);note.textContent='Listado CSV generado. Incluye solo los campos de gestión necesarios, sin teléfonos ni fechas completas de nacimiento.';}catch(error){note.textContent=error.message;}finally{button.disabled=false;}});
 $('[data-cancel-edit]').addEventListener('click',resetForm);
