@@ -102,6 +102,26 @@ function card(member, full = false) {
       }
     });
     body.append(download, feedback);
+
+    const phone = admin ? String(member.phone ?? '').replace(/[^0-9]/g, '') : '';
+    if (phone && /^[1-9][0-9]{6,14}$/.test(phone)) {
+      const folderUrl = new URL('garaje.html', location.href);
+      folderUrl.searchParams.set('carpeta', member.folderId || selected);
+      const message = [
+        'Hola, ' + member.pilot + '.',
+        'Ya tienes disponible tu carnet digital del Club Octavia VRS Catalunya.',
+        'Para guardarlo, entra en Miembros del Club, busca tu ficha y pulsa «Descargar carnet 3D».',
+        folderUrl.href,
+        '¡Nos vemos en la próxima quedada! 🚗',
+      ].join('\n\n');
+      const whatsapp = element('a', 'Avisar por WhatsApp', 'button');
+      whatsapp.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
+      whatsapp.target = '_blank';
+      whatsapp.rel = 'noopener noreferrer';
+      whatsapp.setAttribute('aria-label', 'Avisar por WhatsApp a ' + member.pilot);
+      body.append(whatsapp);
+    }
+
   }
 
   if(member.birthDay){const day=(admin&&member.birthDate?member.birthDate:member.birthDay).split('-').reverse().join('/');body.append(element('p',(admin?'Nacimiento: ':'Cumpleaños: ')+day,'garage-birthday'));}
