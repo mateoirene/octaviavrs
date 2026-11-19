@@ -60,3 +60,29 @@ test('cambiar únicamente el correo conserva contraseña, identidad y sesiones d
  assert.equal(db.raw.prepare('SELECT COUNT(*) n FROM market_admins').get().n,1);
  }finally{db.raw.close();}
 });
+
+test('los sondeos de portada no escriben auditoría para visitantes y conservan la privacidad', async () => {
+ const db = database();
+ try {
+  for (const cookie of [undefined, 'club_session=expired-or-unknown']) {
+   for (const path of ['/api/admin/session', '/api/admin/listings?status=pending', '/api/garage/members?review=pending']) {
+    assert.equal((await request(db, path, {cookie})).status, 401);
+   }
+   assert.equal((await request(db, '/api/club/notifications', {cookie})).status, 200);
+  }
+  assert.equal(db.raw.prepare('SELECT COUNT(*) AS n FROM admin_audit_log').get().n, 0);
+ } finally {
+  db.raw.close();
+ }
+});
+
+test('D1 agotada devuelve un error temporal con el tiempo hasta el reinicio UTC', async () => {
+ const db = {prepare() { throw new Error("D1_ERROR: Your account has exceeded D1's free tier daily row read limit."); }};
+ for (const path of ['/api/market/listings', '/api/admin/session']) {
+  const result = await request(db, path, {cookie:'club_session=session'});
+  assert.equal(result.status, 503);
+  assert.match((await result.json()).error, /límite diario/);
+  const retry = Number(result.headers.get('Retry-After'));
+  assert.ok(retry > 0 && retry <= 86400);
+ }
+});
