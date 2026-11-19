@@ -31,3 +31,21 @@ test('los accesos personales y las inscripciones no se almacenan en caché públ
  }
  assert.equal(cache.values.size,0);
 });
+
+test('la copia anterior de eventos solo se usa para errores temporales y visitantes', async () => {
+ const cache = fixture();
+ await withPublicCache(new Request(url), cache, async () => response([{id:'guardado'}]));
+ const key = new Request(url);
+ for (const seconds of [70, 310]) {
+  const cached = await cache.match(key);
+  const headers = new Headers(cached.headers);
+  headers.set('X-Club-Cache-Captured-At', String(Date.now() - seconds * 1000));
+  await cache.put(key, new Response(cached.body, {headers}));
+  const unavailable = () => new Response('{}', {status:503});
+  assert.equal((await withPublicCache(new Request(url, {headers:{cookie:'club_member_session=test'}}), cache, unavailable)).status, 503);
+  assert.equal((await withPublicCache(new Request(url), cache, () => new Response('{}', {status:403}))).status, 403);
+  const result = await withPublicCache(new Request(url), cache, unavailable);
+  assert.equal(result.status, seconds < 300 ? 200 : 503);
+  assert.equal(result.headers.get('X-Club-Data-Stale'), seconds < 300 ? '1' : null);
+ }
+});
