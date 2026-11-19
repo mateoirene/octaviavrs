@@ -22,9 +22,9 @@ function render(data){
  card(host,'Eventos registrados',ga?'—':number(s.events),ga?'Consulta el desglose de eventos':'Vistas, clics y otras mediciones; no equivale a visitas');
  const keys={pages:ga?'screenPageViews':'count',sources:ga?'sessions':'count',devices:ga?'sessions':'count',events:ga?'eventCount':'count'};
  for(const [key,field]of Object.entries(keys)){data.current[key]=(data.current[key]||[]).slice().sort((a,b)=>(Number(b[field])||0)-(Number(a[field])||0));ranking($('[data-stats-'+key+']'),data.current[key],field);}
- for(const key of ['sections','buttons','simulator','content','errors'])ranking($('[data-stats-'+key+']'),data.current[key]||[]);
+ for(const key of ['sections','buttons','simulator','content','errors'])ranking($('[data-stats-'+key+']'),data.current[key]||[],ga&&key==='sections'?'eventCount':'count');
  ranking($('[data-stats-scroll]'),(data.current.scroll||[]).map(r=>({...r,label:r.label+' % de la página'})));
- if(ga)for(const key of ['sections','buttons','simulator','content','errors','scroll'])$('[data-stats-'+key+']').textContent='Disponible en la fuente Medición propia.';
+ if(ga)for(const key of ['buttons','simulator','content','errors','scroll'])$('[data-stats-'+key+']').textContent='Disponible en la fuente Medición propia.';
  const insights=$('[data-stats-insights]');insights.replaceChildren();
  if(data.current.pages?.length)card(insights,'Lo más visitado',label(data.current.pages[0].label),number(data.current.pages[0][keys.pages])+' páginas vistas');
  if(data.current.buttons?.length)card(insights,'El botón más usado',label(data.current.buttons[0].label),number(data.current.buttons[0].count)+' clics');
@@ -61,7 +61,7 @@ $('[data-stats-export]').onclick=()=>{
 };
 $('[data-stats-settings]').onsubmit=async e=>{e.preventDefault();const form=e.target,body=Object.fromEntries(new FormData(form));for(const key of ['GA4_PRIVACY_VERIFIED','CLARITY_MASKING_VERIFIED'])body[key]=form.elements[key].checked;try{await api('settings',body);$('[data-stats-config-status]').textContent='Identificadores guardados. Las herramientas externas requieren validar su recepción de datos.';await status();}catch(e){$('[data-stats-config-status]').textContent=e.message;}};
 async function status(){
- const s=await api('status'),host=$('[data-stats-providers]');host.replaceChildren();host.append(node('li','Medición propia: disponible con consentimiento'));
+ const s=await api('status'),host=$('[data-stats-providers]');if(s.externalOnly)$('[name=source]').value='ga4';host.replaceChildren();host.append(node('li','Medición propia: histórico y estadísticas consentidas'));
  for(const [key,title]of [['ga4','Google Analytics · etiqueta'],['ga4Reports','Google Analytics · informes'],['clarity','Clarity'],['cloudflare','Cloudflare Web Analytics']])host.append(node('li',title+': '+(s.providers[key]?'Configurado · recepción externa por verificar':'Sin configurar · opcional')));
  for(const [key,value]of Object.entries(s.settings||{})){const input=$('[data-stats-settings]').elements[key];if(input){if(input.type==='checkbox')input.checked=value==='1';else input.value=value;}}
 }
