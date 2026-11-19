@@ -119,8 +119,56 @@ async function handleMarketRequestInner(request,env,context){try{
   const transitions={approve:['pending','approved'],reject:['pending','rejected'],sold:['approved','sold'],withdraw:['approved','rejected']};const pair=transitions[body.action];if(!pair)fail('Acción no válida.');const result=await db.prepare('UPDATE market_listings SET status=?,reviewed_by=?,review_note=?,updated_at=? WHERE id=? AND status=?').bind(pair[1],user.id,String(body.note||'').slice(0,500),now(),path.split('/').pop(),pair[0]).run();if(!result.meta.changes)fail('El anuncio ya cambió. Actualiza la lista.',409);await recordClubEvent(db,{id:body.action==='approve'?'listing:'+path.split('/').pop():crypto.randomUUID(),title:body.action==='approve'?'Nueva pieza publicada en el mercadillo':'Anuncio del mercadillo revisado',href:body.action==='approve'?'mercadillo.html':'admin-mercadillo.html',audience:body.action==='approve'?'public':'admin'},context).catch(()=>{});return json({ok:true});}
  }
  return json({error:'Ruta no encontrada.'},404);
- }catch(error){if(/(?:Álbum|Tutorial) completo/.test(error.message||''))return json({error:'Se ha alcanzado el límite de archivos. Actualiza e inténtalo de nuevo.'},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}
+ }catch(error){const unavailable=quotaResponse(error);if(unavailable)return unavailable;if(/(?:Álbum|Tutorial) completo/.test(error.message||''))return json({error:'Se ha alcanzado el límite de archivos. Actualiza e inténtalo de nuevo.'},409);if(error instanceof SyntaxError||error instanceof TypeError)return json({error:'El envío no tiene un formato válido.'},400);return json({error:error.status?error.message:'No se ha podido completar la operación.'},error.status||500);}}
 
 function adminAuditTarget(request){const url=new URL(request.url),path=url.pathname,method=request.method;if(path.startsWith('/api/admin/')||path.startsWith('/api/cms/admin/'))return true;if(path==='/api/suggestions')return method==='GET';if(path.startsWith('/api/suggestions/'))return true;if(path==='/api/bricos'&&url.searchParams.has('manage'))return true;if(path.startsWith('/api/bricos/')&&!path.endsWith('/comments'))return true;if(path.startsWith('/api/gallery/')&&method!=='GET')return true;if(path.startsWith('/api/garage/')&&(path==='/api/garage/export'||(method!=='GET'&&path!=='/api/garage/submit')||url.searchParams.has('review')||url.searchParams.has('manage')))return true;if(path.startsWith('/api/club/')&&path!=='/api/club/whatsapp-access'&&(method!=='GET'||url.searchParams.has('manage')||path==='/api/club/whatsapp-settings'))return true;if(path.startsWith('/api/analytics/')&&!['/api/analytics/config','/api/analytics/collect'].includes(path))return true;if(path==='/api/club/notifications'||path.startsWith('/api/push/')&&path!=='/api/push/key')return true;return false;}
-export async function handleMarketRequest(request,env,context){const db=env.MARKET_DB;if(!db||!adminAuditTarget(request))return handleMarketRequestInner(request,env,context);const id=crypto.randomUUID(),path=new URL(request.url).pathname;let actor=null;try{actor=await sessionIdentity(db,request);await db.prepare('INSERT INTO admin_audit_log(id,admin_id,method,route,status,created_at) VALUES(?,?,?,?,0,?)').bind(id,actor?.id||null,request.method,path,now()).run();}catch{return json({error:'No se pudo registrar el acceso administrativo.'},503);}const response=await handleMarketRequestInner(request,env,context);try{if(['/api/admin/login','/api/admin/setup'].includes(path)&&response.ok){const body=await response.clone().json().catch(()=>null);if(body?.id)actor={id:body.id};}await db.prepare('UPDATE admin_audit_log SET admin_id=?,status=? WHERE id=?').bind(actor?.id||null,response.status,id).run();}catch{}return response;}
+// Public pages automatically probe these routes. Avoid D1 audit writes for
+// visitors, while keeping the audit for recognized administrative sessions.
+function isBackgroundRead(request) {
+ const { pathname, searchParams } = new URL(request.url);
+ return request.method === 'GET' && (
+  pathname === '/api/admin/session' ||
+  (pathname === '/api/admin/listings' && searchParams.get('status') === 'pending') ||
+  (pathname === '/api/garage/members' && searchParams.get('review') === 'pending') ||
+  pathname === '/api/club/notifications'
+ );
+}
 
+function quotaResponse(error) {
+ if (!/exceeded D1's free tier daily row (?:read|write) limit/i.test(error?.message || '')) return null;
+ const now = Date.now();
+ const reset = (Math.floor(now / 86400000) + 1) * 86400000;
+ return json({error:'Cloudflare D1 ha alcanzado el límite diario. Inténtalo después del reinicio de la cuota.'},503,{
+  'Retry-After':String(Math.ceil((reset - now) / 1000))
+ });
+}
+
+export async function handleMarketRequest(request, env, context) {
+ const db = env.MARKET_DB;
+ if (!db || !adminAuditTarget(request)) return handleMarketRequestInner(request, env, context);
+ const path = new URL(request.url).pathname;
+ const backgroundRead = isBackgroundRead(request);
+ if (backgroundRead && !sessionToken(request)) return handleMarketRequestInner(request, env, context);
+ const id = crypto.randomUUID();
+ let actor;
+ try {
+  actor = await sessionIdentity(db, request);
+  if (!backgroundRead || actor) {
+   await db.prepare('INSERT INTO admin_audit_log(id,admin_id,method,route,status,created_at) VALUES(?,?,?,?,0,?)')
+    .bind(id, actor?.id || null, request.method, path, now()).run();
+  }
+ } catch (error) {
+  return quotaResponse(error) || json({error:'No se pudo registrar el acceso administrativo.'},503);
+ }
+ const response = await handleMarketRequestInner(request, env, context);
+ if (backgroundRead && !actor) return response;
+ try {
+  if (['/api/admin/login','/api/admin/setup'].includes(path) && response.ok) {
+   const body = await response.clone().json().catch(() => null);
+   if (body?.id) actor = {id:body.id};
+  }
+  await db.prepare('UPDATE admin_audit_log SET admin_id=?,status=? WHERE id=?')
+   .bind(actor?.id || null, response.status, id).run();
+ } catch {}
+ return response;
+}
