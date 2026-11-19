@@ -49,3 +49,17 @@ test('la copia anterior de eventos solo se usa para errores temporales y visitan
   assert.equal(result.headers.get('X-Club-Data-Stale'), seconds < 300 ? '1' : null);
  }
 });
+
+test('solo cambios aceptados en anuncios invalidan la lista del mercadillo', async () => {
+ for (const path of ['/api/admin/listings/one','/api/admin/listings/one/edit']) {
+  const cache = fixture(), market = origin + '/api/market/listings';
+  await withPublicCache(new Request(market), cache, async () => response([{id:'anterior'}]));
+  const request = () => new Request(origin+path,{method:'POST'});
+  await withPublicCache(request(), cache, async () => new Response('{}',{status:403}));
+  assert.equal(cache.values.has(market), true);
+  await withPublicCache(request(), cache, async () => response({ok:true}));
+  assert.equal(cache.values.has(market), false);
+  const fresh = await withPublicCache(new Request(market),cache,async()=>response([{id:'nuevo'}]));
+  assert.equal((await fresh.json())[0].id, 'nuevo');
+ }
+});

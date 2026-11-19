@@ -17,6 +17,14 @@ export function openMarketListing(item,at=0){
  const details=dialog.querySelector('[data-piece-details]');details.dataset.analyticsListingId=item.id||'';details.replaceChildren(node('p',new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(item.price)),node('p',item.description));
  for(const [label,value]of [['Estado',item.condition],['Compatible con',item.compatibility],['Localidad',item.location],['Vendedor',item.seller]])if(value)details.append(node('p',label+': '+value));
  const contact=safe(item.contactUrl,['https:','http:','mailto:','tel:']);if(contact){const link=node('a','Contactar con el vendedor ↗');link.href=contact;link.className='button';if(contact.startsWith('http')){link.target='_blank';link.rel='noopener noreferrer';}details.append(link);}
- if(item.editHref){const link=node('a','Editar este anuncio');link.href=item.editHref;link.className='button market-edit-link';details.append(link);}
+ const addEditLink = href => {
+  const link=node('a','Editar este anuncio');link.href=href;link.className='button market-edit-link';details.append(link);
+ };
+ if(item.editHref) addEditLink(item.editHref);
+ else if(item.marketEditorAccess) void item.marketEditorAccess.then(allowed=>{
+  if(allowed && dialog.open && details.dataset.analyticsListingId===item.id && !details.querySelector('.market-edit-link')){
+   addEditLink('admin-mercadillo.html?estado=approved&anuncio='+encodeURIComponent(item.id)+'&editar=1');
+  }
+ });
  dialog.querySelector('[data-piece-prev]').hidden=dialog.querySelector('[data-piece-next]').hidden=current.length<2;if(!dialog.open)dialog.showModal();showPhoto(Math.min(at,current.length-1));
 }

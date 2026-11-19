@@ -64,7 +64,7 @@ jobs:
           solo_d1=true
           while IFS= read -r archivo; do
             case "$archivo" in
-              .github/workflows/publicar.yml|dist/admin-mercadillo.html|dist/analytics-contract.mjs|dist/analytics.js|dist/bricos.html|dist/calendar.mjs|dist/club-news.mjs|dist/colaboradores.html|dist/estadisticas.mjs|dist/event-signups.mjs|dist/evento-calcotada-2027.html|dist/galeria.html|dist/garaje.html|dist/index.html|dist/mercadillo.html|dist/normas-carretera.html|dist/noticias-admin.html|dist/privacidad.html|dist/redes-sociales.html|dist/sugerencias.html|server/analytics.mjs|server/garage.mjs|server/market.mjs|server/public-cache.mjs|tests/analytics.test.mjs|tests/market.test.mjs|tests/public-cache.test.mjs) ;;
+              .github/workflows/publicar.yml|dist/admin-mercadillo.html|dist/analytics-contract.mjs|dist/analytics.js|dist/bricos.html|dist/calendar.mjs|dist/club-news.mjs|dist/colaboradores.html|dist/estadisticas.mjs|dist/event-signups.mjs|dist/evento-calcotada-2027.html|dist/galeria.html|dist/garaje.html|dist/index.html|dist/mercadillo.html|dist/mercadillo.mjs|dist/market-viewer.mjs|dist/normas-carretera.html|dist/noticias-admin.html|dist/privacidad.html|dist/redes-sociales.html|dist/sugerencias.html|server/analytics.mjs|server/garage.mjs|server/market.mjs|server/public-cache.mjs|tests/analytics.test.mjs|tests/market.test.mjs|tests/public-cache.test.mjs) ;;
               *) solo_d1=false ;;
             esac
           done <<< "$archivos"

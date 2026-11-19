@@ -22,11 +22,16 @@ export async function withPublicCache(request, cache, next) {
   const url = new URL(request.url);
   if (!cache) return next();
 
-  // Invalidate this edge after successful event changes.
-  if (['POST', 'DELETE'].includes(request.method) && /^\/api\/club\/events(?:\/[^/]+)?$/.test(url.pathname)) {
+  // Publish successful edits immediately at the edge serving the update.
+  const eventChange = ['POST', 'DELETE'].includes(request.method) &&
+    /^\/api\/club\/events(?:\/[^/]+)?$/.test(url.pathname);
+  const marketChange = request.method === 'POST' &&
+    /^\/api\/admin\/listings\/[^/]+(?:\/edit)?$/.test(url.pathname);
+  if (eventChange || marketChange) {
     const response = await next();
     if (response.ok) {
-      try { await cache.delete(new Request(url.origin + '/api/club/events')); } catch {}
+      const path = eventChange ? '/api/club/events' : '/api/market/listings';
+      try { await cache.delete(new Request(url.origin + path)); } catch {}
     }
     return response;
   }
