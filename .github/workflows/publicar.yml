@@ -35,6 +35,7 @@ jobs:
           echo "solo_css=false" >> "$GITHUB_OUTPUT"
           echo "solo_visual=false" >> "$GITHUB_OUTPUT"
           echo "solo_circuito=false" >> "$GITHUB_OUTPUT"
+          echo "solo_d1=false" >> "$GITHUB_OUTPUT"
           if [ "${{ github.event_name }}" != "push" ] || [ -z "${{ github.event.before }}" ]; then exit 0; fi
           archivos="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
           if [ -z "$archivos" ]; then exit 0; fi
@@ -60,6 +61,14 @@ jobs:
             esac
           done <<< "$archivos"
           echo "solo_administracion=$solo_administracion" >> "$GITHUB_OUTPUT"
+          solo_d1=true
+          while IFS= read -r archivo; do
+            case "$archivo" in
+              .github/workflows/publicar.yml|dist/admin-mercadillo.html|dist/analytics-contract.mjs|dist/analytics.js|dist/bricos.html|dist/calendar.mjs|dist/club-news.mjs|dist/colaboradores.html|dist/estadisticas.mjs|dist/event-signups.mjs|dist/evento-calcotada-2027.html|dist/galeria.html|dist/garaje.html|dist/index.html|dist/mercadillo.html|dist/normas-carretera.html|dist/noticias-admin.html|dist/privacidad.html|dist/redes-sociales.html|dist/sugerencias.html|server/analytics.mjs|server/garage.mjs|server/market.mjs|server/public-cache.mjs|tests/analytics.test.mjs|tests/market.test.mjs|tests/public-cache.test.mjs) ;;
+              *) solo_d1=false ;;
+            esac
+          done <<< "$archivos"
+          if [ "$solo_d1" = true ]; then echo "solo_d1=true" >> "$GITHUB_OUTPUT"; fi
           node scripts/circuit-release.mjs "${{ github.event.before }}" "${{ github.sha }}" >> "$GITHUB_OUTPUT"
       - name: Preparar Node
         uses: actions/setup-node@v4
@@ -98,10 +107,10 @@ jobs:
         env:
           HIGHWAY_SHOTS: '1'
       - name: Comprobar garaje y circuito en Chrome
-        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_administracion != 'true'
+        if: steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_administracion != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         run: node scripts/browser-check.mjs
       - name: Comprobar administradores, permisos y revocación en Chrome
-        if: steps.cambios.outputs.solo_administracion == 'true'
+        if: steps.cambios.outputs.solo_administracion == 'true' || steps.cambios.outputs.solo_d1 == 'true'
         run: node scripts/admin-access-browser-check.mjs
       - name: Guardar vistas de comprobación
         if: always() && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true'
@@ -115,7 +124,7 @@ jobs:
         run: node scripts/cloudflare-target.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          PRESERVE_CLOUDFLARE_CONFIG: ${{ steps.cambios.outputs.solo_visual == 'true' || steps.cambios.outputs.solo_circuito == 'true' }}
+          PRESERVE_CLOUDFLARE_CONFIG: ${{ steps.cambios.outputs.solo_visual == 'true' || steps.cambios.outputs.solo_circuito == 'true' || steps.cambios.outputs.solo_d1 == 'true' }}
       - name: Conservar referencia recuperable de producción
         uses: actions/upload-artifact@v4
         with:
@@ -125,12 +134,12 @@ jobs:
           retention-days: 90
       # Respaldo completo cifrado de la D1 de producción antes de tocar datos.
       - name: Preparar Python para el respaldo
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
       - name: Crear respaldo completo y cifrado de producción
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         run: node .github/backup/crear-copia.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -151,7 +160,7 @@ jobs:
             -----END PUBLIC KEY-----
           CLOUDFLARE_ACCOUNT_ID: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
       - name: Conservar el respaldo previo al cambio
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: copia-seguridad-octavia-web-previa-${{ github.run_id }}
@@ -160,7 +169,7 @@ jobs:
           retention-days: 90
           compression-level: 0
       - name: Aplicar migración de administradores delegados
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -168,7 +177,7 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-14-delegated-admins.sql
       - name: Preparar inscripción personal de socios a eventos
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -176,7 +185,7 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-14-event-signups.sql
       - name: Aplicar migración del centro de control
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -184,7 +193,7 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-10-cms.sql
       - name: Aplicar migración de visibilidad de fichas
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -192,7 +201,7 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-10-garage-member-visibility.sql
       - name: Asignar carnets a los miembros actuales y futuros
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -200,12 +209,12 @@ jobs:
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-12-garage-membership.sql
       - name: Preparar almacenamiento del mercadillo
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         run: node scripts/market-storage.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Sincronizar avisos push del club
-        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true'
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         run: node scripts/push-news.mjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
