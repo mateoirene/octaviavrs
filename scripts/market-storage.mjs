@@ -9,6 +9,14 @@ if(!database.uuid)throw new Error('Cloudflare no confirmó la base de datos.');
 const schema=await readFile(new URL('../server/schema.sql',import.meta.url),'utf8');
 const migration=await api(`/d1/database/${database.uuid}/query`,'POST',{sql:schema});
 if(!Array.isArray(migration)||migration.some(item=>!item.success))throw new Error('No se pudo preparar la estructura del mercadillo.');
+const queryPath=`/d1/database/${database.uuid}/query`;
+const [championshipState]=await api(queryPath,'POST',{sql:'SELECT id FROM racing_championship_initialized WHERE id=1'});
+if(!championshipState?.success||!Array.isArray(championshipState.results))throw new Error('No se pudo verificar el resumen del campeonato.');
+if(championshipState.results.length===0){
+ const sql=await readFile(new URL('../migrations/2026-11-20-racing-championship.sql',import.meta.url),'utf8');
+ const results=await api(queryPath,'POST',{sql});
+ if(!Array.isArray(results)||results.some(item=>!item.success))throw new Error('No se pudo reconstruir el resumen del campeonato.');
+}
 const project=await api('/pages/projects/octaviaap');if(project.name!=='octaviaap'||project.subdomain!=='octaviaap.pages.dev')throw new Error('El proyecto de destino no coincide.');
 const production=project.deployment_configs?.production||{};
 if(production.d1_databases?.MARKET_DB?.id!==database.uuid){await api('/pages/projects/octaviaap','PATCH',{deployment_configs:{production:{d1_databases:{...production.d1_databases,MARKET_DB:{id:database.uuid}}}}});}

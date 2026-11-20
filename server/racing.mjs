@@ -34,9 +34,13 @@ export async function handleRacingRequest(request,db,limit){
   return json(rows);
  }
  if(url.pathname==='/api/racing/championship'&&request.method==='GET'){
-  const standings=(await db.prepare(`WITH ranked AS (SELECT r.*,e.*,ROW_NUMBER() OVER(PARTITION BY e.racer_id,e.circuit ORDER BY r.position ASC,r.total_ms ASC,r.created_at ASC) choice FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE r.level=? AND e.mode='championship') SELECT racer_id,MAX(pilot) pilot,MAX(car) car,SUM(CASE position WHEN 1 THEN 25 WHEN 2 THEN 18 WHEN 3 THEN 15 ELSE 12 END) points,SUM(CASE WHEN position=1 THEN 1 ELSE 0 END) wins,COUNT(*) rounds,SUM(total_ms) total_ms FROM ranked WHERE choice=1 GROUP BY racer_id ORDER BY points DESC,wins DESC,total_ms ASC,racer_id ASC LIMIT 100`).bind(level).all()).results;
   const racer=url.searchParams.get('racer')||'';if(racer&&!/^[0-9a-f-]{36}$/i.test(racer))invalid('El piloto no es válido.');
-  const progress=racer?(await db.prepare("SELECT e.circuit,MIN(r.position) position FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE r.level=? AND e.racer_id=? AND e.mode='championship' GROUP BY e.circuit").bind(level,racer).all()).results:[];
+  const standings=(await db.prepare(`SELECT racer_id,MAX(pilot) pilot,MAX(car) car,
+    SUM(CASE position WHEN 1 THEN 25 WHEN 2 THEN 18 WHEN 3 THEN 15 ELSE 12 END) points,
+    SUM(CASE WHEN position=1 THEN 1 ELSE 0 END) wins,COUNT(*) rounds,SUM(total_ms) total_ms
+    FROM racing_championship_best WHERE level=? GROUP BY racer_id
+    ORDER BY points DESC,wins DESC,total_ms ASC,racer_id ASC LIMIT 100`).bind(level).all()).results;
+  const progress=racer?(await db.prepare("SELECT circuit,position FROM racing_championship_best WHERE level=? AND racer_id=? ORDER BY circuit").bind(level,racer).all()).results:[];
   return json({standings,progress,rounds:CIRCUITS.length});
  }
  if(url.pathname==='/api/racing/results'&&request.method==='POST'){
@@ -45,7 +49,7 @@ export async function handleRacingRequest(request,db,limit){
   if(existing){if(existing.pilot!==result.pilot||existing.level!==result.level||existing.total_ms!==result.total||existing.circuit!==result.circuit||existing.car!==result.car||existing.paint!==result.paint||existing.mode!==result.mode||existing.racer_id&&existing.racer_id!==result.racer)invalid('El identificador ya pertenece a otra carrera.');return json({id:result.id,saved:true});}
   if(result.mode==='championship'){
    const index=CIRCUITS.findIndex(c=>c.id===result.circuit);
-   const won=(await db.prepare("SELECT DISTINCT e.circuit FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE e.racer_id=? AND r.level=? AND e.mode='championship' AND r.position=1").bind(result.racer,result.level).all()).results;
+   const won=(await db.prepare("SELECT circuit FROM racing_championship_best WHERE racer_id=? AND level=? AND position=1").bind(result.racer,result.level).all()).results;
    const victories=new Set(won.map(row=>row.circuit));if(CIRCUITS.slice(0,index).some(c=>!victories.has(c.id)))invalid('Gana las pruebas anteriores antes de pasar a este circuito.');
   }
   await limit('race-result',15);

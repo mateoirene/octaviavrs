@@ -120,6 +120,28 @@ CREATE TABLE IF NOT EXISTS racing_entries (
 CREATE INDEX IF NOT EXISTS racing_entries_circuit ON racing_entries(circuit,result_id);
 CREATE INDEX IF NOT EXISTS racing_entries_racer ON racing_entries(racer_id,mode,circuit);
 
+-- One best result per driver, level and circuit. The race history remains authoritative.
+CREATE TABLE IF NOT EXISTS racing_championship_best (
+ level TEXT NOT NULL, racer_id TEXT NOT NULL, circuit TEXT NOT NULL,
+ result_id TEXT NOT NULL, pilot TEXT NOT NULL, car TEXT NOT NULL,
+ position INTEGER NOT NULL, total_ms INTEGER NOT NULL, created_at INTEGER NOT NULL,
+ PRIMARY KEY(level,racer_id,circuit)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS racing_championship_initialized (id INTEGER PRIMARY KEY);
+CREATE TRIGGER IF NOT EXISTS racing_championship_best_insert
+AFTER INSERT ON racing_entries WHEN NEW.mode='championship'
+BEGIN
+ INSERT INTO racing_championship_best
+ SELECT r.level,NEW.racer_id,NEW.circuit,r.id,r.pilot,NEW.car,r.position,r.total_ms,r.created_at
+ FROM racing_results r WHERE r.id=NEW.result_id
+ ON CONFLICT(level,racer_id,circuit) DO UPDATE SET
+  result_id=excluded.result_id,pilot=excluded.pilot,car=excluded.car,
+  position=excluded.position,total_ms=excluded.total_ms,created_at=excluded.created_at
+ WHERE (excluded.position,excluded.total_ms,excluded.created_at,excluded.result_id)
+     < (racing_championship_best.position,racing_championship_best.total_ms,
+        racing_championship_best.created_at,racing_championship_best.result_id);
+END;
+
 CREATE TABLE IF NOT EXISTS garage_moderation (
  member_id TEXT PRIMARY KEY REFERENCES garage_members(id) ON DELETE CASCADE,
  status TEXT NOT NULL CHECK(status IN ('pending','approved','rejected')),
