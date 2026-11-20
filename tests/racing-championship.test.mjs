@@ -40,3 +40,38 @@ test('puntos en SQLite compartidos, orden validado, repetir no suma, libre y dif
   assert.equal(raw.prepare('SELECT COUNT(*) n FROM racing_results').get().n,6);
  }finally{raw.close();}
 });
+
+test('el campeonato reutiliza la clasificación por nivel, actualiza el progreso y renueva la caché al guardar', async () => {
+ const {handleRacingRequest}=await import('../server/racing.mjs');
+ const entries=new Map(), queries=[];
+ const cache={
+  async match(key){return entries.get(key.url)?.clone();},
+  async put(key,value){entries.set(key.url,value.clone());},
+  async delete(key){return entries.delete(key.url);}
+ };
+ const db={
+  prepare(sql){
+   return {
+    bind(...params){queries.push({sql,params});return this;},
+    async all(){return {results:[]};},
+    async first(){return null;},
+    async run(){return {meta:{changes:1}};}
+   };
+  }
+ };
+ const read=level=>handleRacingRequest(new Request('https://club.example/api/racing/championship?level='+level+'&racer='+racer),db,async()=>{},cache);
+ await read('easy');
+ await read('easy');
+ await read('expert');
+ const count=prefix=>queries.filter(({sql})=>sql.startsWith(prefix)).length;
+ assert.equal(count('WITH ranked'),2);
+ assert.equal(count('SELECT e.circuit,MIN'),3);
+ const save=await handleRacingRequest(new Request('https://club.example/api/racing/results',{
+  method:'POST',body:JSON.stringify(result())
+ }),db,async()=>{},cache);
+ assert.equal(save.status,201);
+ assert.equal(count('SELECT DISTINCT'),0);
+ await read('easy');
+ await read('expert');
+ assert.equal(count('WITH ranked'),3);
+});

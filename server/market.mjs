@@ -60,7 +60,7 @@ async function handleMarketRequestInner(request,env,context){try{
  if(path==='/api/bricos'||path.startsWith('/api/bricos/')){if(method!=='GET')await limit(db,request,path==='/api/bricos'?'bricos-create':path.endsWith('/comments')?'bricos-comment':'bricos-upload',path==='/api/bricos'?4:path.endsWith('/comments')?8:60);return await handleBricosRequest(request,db,actor,context);}
  if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,actor,(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,path==='/api/club/whatsapp-access'?'whatsapp-member-access':'club-management',path==='/api/club/whatsapp-access'?6:60);return await handleClubRequest(request,db,actor,context);}
- if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
+ if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max),context ? globalThis.caches?.default : undefined);
  if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,actor);}
  if(path.startsWith('/api/gallery/'))return await announceMutation(request,await handleGalleryRequest(request,db,actor),db,context);
  if(path.startsWith('/api/garage/')){if(path==='/api/garage/submit'&&method==='POST')await limit(db,request,'garage-submission',4);return await announceMutation(request,await handleGarageRequest(request,db,actor),db,context);}
