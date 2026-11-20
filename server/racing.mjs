@@ -24,7 +24,29 @@ export function validateRaceResult(body){
  if(mode==='championship'&&(circuit==='club'||!body.racer))invalid('Selecciona una prueba del campeonato.');
  return {id:body.id,pilot,level:body.level,circuit,car,paint,mode,racer,total:body.total,laps,best:Math.min(...laps),position:body.position};
 }
-export async function handleRacingRequest(request,db,limit){
+function standingsKey(origin, level) {
+ return new Request(new URL('/api/racing/championship?level='+level+'&view=standings-cache-v1', origin));
+}
+
+async function championshipStandings(db, cache, key, level) {
+ if (cache) {
+  try {
+   const hit = await cache.match(key);
+   if (hit) return await hit.json();
+  } catch {}
+ }
+ const standings=(await db.prepare(`WITH ranked AS (SELECT r.pilot,r.position,r.total_ms,e.racer_id,e.car,ROW_NUMBER() OVER(PARTITION BY e.racer_id,e.circuit ORDER BY r.position ASC,r.total_ms ASC,r.created_at ASC) choice FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE r.level=? AND e.mode='championship') SELECT racer_id,MAX(pilot) pilot,MAX(car) car,SUM(CASE position WHEN 1 THEN 25 WHEN 2 THEN 18 WHEN 3 THEN 15 ELSE 12 END) points,SUM(CASE WHEN position=1 THEN 1 ELSE 0 END) wins,COUNT(*) rounds,SUM(total_ms) total_ms FROM ranked WHERE choice=1 GROUP BY racer_id ORDER BY points DESC,wins DESC,total_ms ASC,racer_id ASC LIMIT 100`).bind(level).all()).results;
+ if (cache) {
+  try {
+   await cache.put(key, new Response(JSON.stringify(standings), {
+    headers: {'Content-Type':'application/json', 'Cache-Control':'public, max-age=30'}
+   }));
+  } catch {}
+ }
+ return standings;
+}
+
+export async function handleRacingRequest(request,db,limit,cache){
  const url=new URL(request.url),level=url.searchParams.get('level')||'easy';
  if(url.pathname==='/api/racing/pilots'&&request.method==='GET')return json({pilots:await racingPilots(db)});
  if(request.method==='GET'&&!Object.hasOwn(LEVELS,level))invalid('El nivel no es válido.');
@@ -34,8 +56,9 @@ export async function handleRacingRequest(request,db,limit){
   return json(rows);
  }
  if(url.pathname==='/api/racing/championship'&&request.method==='GET'){
-  const standings=(await db.prepare(`WITH ranked AS (SELECT r.*,e.*,ROW_NUMBER() OVER(PARTITION BY e.racer_id,e.circuit ORDER BY r.position ASC,r.total_ms ASC,r.created_at ASC) choice FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE r.level=? AND e.mode='championship') SELECT racer_id,MAX(pilot) pilot,MAX(car) car,SUM(CASE position WHEN 1 THEN 25 WHEN 2 THEN 18 WHEN 3 THEN 15 ELSE 12 END) points,SUM(CASE WHEN position=1 THEN 1 ELSE 0 END) wins,COUNT(*) rounds,SUM(total_ms) total_ms FROM ranked WHERE choice=1 GROUP BY racer_id ORDER BY points DESC,wins DESC,total_ms ASC,racer_id ASC LIMIT 100`).bind(level).all()).results;
+
   const racer=url.searchParams.get('racer')||'';if(racer&&!/^[0-9a-f-]{36}$/i.test(racer))invalid('El piloto no es válido.');
+  const standings=await championshipStandings(db,cache,standingsKey(url.origin,level),level);
   const progress=racer?(await db.prepare("SELECT e.circuit,MIN(r.position) position FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE r.level=? AND e.racer_id=? AND e.mode='championship' GROUP BY e.circuit").bind(level,racer).all()).results:[];
   return json({standings,progress,rounds:CIRCUITS.length});
  }
@@ -43,14 +66,17 @@ export async function handleRacingRequest(request,db,limit){
   const result=validateRaceResult(await request.json());
   const existing=await db.prepare("SELECT r.id,r.pilot,r.level,r.total_ms,COALESCE(e.circuit,'club') circuit,COALESCE(e.car,'Octavia VRS MK4') car,COALESCE(e.paint,'blue') paint,COALESCE(e.mode,'free') mode,e.racer_id FROM racing_results r LEFT JOIN racing_entries e ON e.result_id=r.id WHERE r.id=?").bind(result.id).first();
   if(existing){if(existing.pilot!==result.pilot||existing.level!==result.level||existing.total_ms!==result.total||existing.circuit!==result.circuit||existing.car!==result.car||existing.paint!==result.paint||existing.mode!==result.mode||existing.racer_id&&existing.racer_id!==result.racer)invalid('El identificador ya pertenece a otra carrera.');return json({id:result.id,saved:true});}
-  if(result.mode==='championship'){
-   const index=CIRCUITS.findIndex(c=>c.id===result.circuit);
+  const index=result.mode==='championship'?CIRCUITS.findIndex(c=>c.id===result.circuit):0;
+  if(index>0){
    const won=(await db.prepare("SELECT DISTINCT e.circuit FROM racing_results r JOIN racing_entries e ON e.result_id=r.id WHERE e.racer_id=? AND r.level=? AND e.mode='championship' AND r.position=1").bind(result.racer,result.level).all()).results;
    const victories=new Set(won.map(row=>row.circuit));if(CIRCUITS.slice(0,index).some(c=>!victories.has(c.id)))invalid('Gana las pruebas anteriores antes de pasar a este circuito.');
   }
   await limit('race-result',15);
   const statements=[db.prepare('INSERT INTO racing_results(id,pilot,level,total_ms,best_ms,laps_json,position,created_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(result.id,result.pilot,result.level,result.total,result.best,JSON.stringify(result.laps),result.position,Math.floor(Date.now()/1000)),db.prepare('INSERT INTO racing_entries(result_id,racer_id,circuit,car,paint,mode) VALUES(?,?,?,?,?,?) ON CONFLICT(result_id) DO NOTHING').bind(result.id,result.racer,result.circuit,result.car,result.paint,result.mode)];
   if(db.batch)await db.batch(statements);else for(const statement of statements)await statement.run();
+  if(cache && result.mode==='championship'){
+   try { await cache.delete(standingsKey(url.origin,result.level)); } catch {}
+  }
   return json({id:result.id,saved:true,points:result.mode==='championship'?POINTS[result.position]:0},201);
  }
  return json({error:'Ruta no encontrada.'},404);
