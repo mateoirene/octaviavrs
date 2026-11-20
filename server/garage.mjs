@@ -1,5 +1,20 @@
 import {validateBirthDate} from './birthdays.mjs';
 import {normalizeClubPhone} from './whatsapp.mjs';
+const pilotMemberId = 'be298a66-8b6d-4a66-bda5-4aacd25df854';
+
+async function readGarageMedia(query, measure) {
+  if (!measure) return {photo: await query.first()};
+  const result = await query.all();
+  return {photo: result.results[0], rowsRead: result.meta?.rows_read};
+}
+
+function garageMediaResponse(photo, rowsRead) {
+  if (!photo) return reply({error:'Foto no disponible.'},404);
+  const headers = new Headers({'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+  if (Number.isSafeInteger(rowsRead)) headers.set('X-Garage-D1-Rows-Read', String(rowsRead));
+  return new Response(new Uint8Array(photo.data), {headers});
+}
+
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const fail = (message, status = 400) => { throw Object.assign(new Error(message), { status }); };
 const clean = (value, label, min, max) => { const text = String(value || '').trim(); if (text.length < min || text.length > max) fail(`Revisa ${label}.`); return text; };
@@ -31,7 +46,7 @@ export async function handleGarageRequest(request, db, admin) {
   }
   if (path === '/api/garage/members' && method === 'GET') {
     const pilotId = url.searchParams.get('member');
-    if (pilotId !== null && (pilotId !== 'be298a66-8b6d-4a66-bda5-4aacd25df854' || url.searchParams.size !== 1)) {
+    if (pilotId !== null && (pilotId !== pilotMemberId || url.searchParams.size !== 1)) {
       return reply({error:'Ficha no disponible.'},404);
     }
     const folder = url.searchParams.get('folder') || '';
@@ -57,17 +72,29 @@ export async function handleGarageRequest(request, db, admin) {
       ORDER BY s.created_at DESC
     `).bind(...binds).all();
     if (pilotId && !result.results.length) return reply({error:'Ficha no disponible.'},404);
-    const response = reply(result.results.map(row => {const birth=row.birth_date||'';return ({ id: row.id,membershipNumber:(!row.review_status||row.review_status==='approved')&&row.membership_number!==null&&row.membership_number!==undefined&&String(row.membership_number)!==''?'VRS-'+row.membership_number:null,birthDay:birth.slice(5),...(admin&&!pilotId?{birthDate:birth,phone:row.phone||'',whatsappUrl:row.phone?'https://wa.me/'+row.phone:null,blocked:!!row.blocked,blockReason:row.block_reason||''}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}),profileImage:row.has_avatar?'/api/garage/profiles/'+row.id+'/photo':null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: JSON.parse(row.photo_ids).map(id => '/api/garage/photos/' + id) });}));
+    const response = reply(result.results.map(row => {const birth=row.birth_date||'';return ({ id: row.id,membershipNumber:(!row.review_status||row.review_status==='approved')&&row.membership_number!==null&&row.membership_number!==undefined&&String(row.membership_number)!==''?'VRS-'+row.membership_number:null,birthDay:birth.slice(5),...(admin&&!pilotId?{birthDate:birth,phone:row.phone||'',whatsappUrl:row.phone?'https://wa.me/'+row.phone:null,blocked:!!row.blocked,blockReason:row.block_reason||''}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}),profileImage:row.has_avatar?'/api/garage/profiles/'+row.id+'/photo'+(pilotId?'?pilot=vrs23':''):null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: JSON.parse(row.photo_ids).map(id => '/api/garage/photos/' + id + (pilotId?'?pilot=vrs23':'')) });}));
     if (pilotId && Number.isSafeInteger(result.meta?.rows_read)) {
       response.headers.set('X-Garage-D1-Rows-Read', String(result.meta.rows_read));
     }
     return response;
   }
-  if(path.startsWith('/api/garage/profiles/')&&path.endsWith('/photo')&&method==='GET'){const photo=await db.prepare(`SELECT p.content_type,p.data FROM garage_profiles p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.member_id=? AND p.data IS NOT NULL AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))`).bind(path.split('/')[4],admin?1:0,admin?1:0).first();if(!photo)return reply({error:'Foto no disponible.'},404);return new Response(new Uint8Array(photo.data),{headers:{'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
+  if(path.startsWith('/api/garage/profiles/')&&path.endsWith('/photo')&&method==='GET'){
+    const memberId = path.split('/')[4];
+    const measure = url.searchParams.get('pilot') === 'vrs23' && memberId === pilotMemberId;
+    const authorized = admin && !measure ? 1 : 0;
+    const query = db.prepare(`SELECT p.content_type,p.data FROM garage_profiles p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.member_id=? AND p.data IS NOT NULL AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))`).bind(memberId,authorized,authorized);
+    const {photo, rowsRead} = await readGarageMedia(query, measure);
+    return garageMediaResponse(photo, rowsRead);
+  }
   if (path.startsWith('/api/garage/photos/') && method === 'GET') {
-    const photo = await db.prepare(`SELECT p.content_type,p.data FROM garage_photos p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.id=? AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))`).bind(path.split('/').pop(),admin?1:0,admin?1:0).first();
-    if (!photo) return reply({ error: 'Foto no disponible.' }, 404);
-    return new Response(new Uint8Array(photo.data), { headers: { 'Content-Type': photo.content_type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+    const measure = url.searchParams.get('pilot') === 'vrs23';
+    const authorized = admin && !measure ? 1 : 0;
+    const pilotFilter = measure ? ' AND p.member_id=?' : '';
+    const params = [path.split('/').pop(),authorized,authorized];
+    if (measure) params.push(pilotMemberId);
+    const query = db.prepare(`SELECT p.content_type,p.data FROM garage_photos p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.id=? AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))${pilotFilter}`).bind(...params);
+    const {photo, rowsRead} = await readGarageMedia(query, measure);
+    return garageMediaResponse(photo, rowsRead);
   }
   if(path.startsWith('/api/garage/reviews/')&&method==='POST'){
     const id=path.split('/').pop(),body=await request.json();if(!['approve','reject'].includes(body.action))fail('Acción no válida.');
