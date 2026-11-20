@@ -30,12 +30,16 @@ export async function handleGarageRequest(request, db, admin) {
     return reply(rows.map(row => ({ ...row, cover: row.cover ? '/api/garage/photos/' + row.cover : null })));
   }
   if (path === '/api/garage/members' && method === 'GET') {
+    const pilotId = url.searchParams.get('member');
+    if (pilotId !== null && (pilotId !== 'be298a66-8b6d-4a66-bda5-4aacd25df854' || url.searchParams.size !== 1)) {
+      return reply({error:'Ficha no disponible.'},404);
+    }
     const folder = url.searchParams.get('folder') || '';
     const review=url.searchParams.get('review');if(review&&!admin)return reply({error:'Inicia sesión para revisar las fichas.'},401);if(review&&!['pending','approved','rejected','blocked'].includes(review))fail('Estado no válido.');
-    const predicate=review==='blocked'?'mb.is_blocked=1':review?'g.status=?':"m.folder_id=? AND COALESCE(g.status,'approved')='approved' AND COALESCE(mb.is_blocked,0)=0",argument=review||folder,binds=review==='blocked'?[]:[argument];
+    const predicate=pilotId ? "m.id=? AND COALESCE(g.status,'approved')='approved' AND COALESCE(mb.is_blocked,0)=0" : review==='blocked'?'mb.is_blocked=1':review?'g.status=?':"m.folder_id=? AND COALESCE(g.status,'approved')='approved' AND COALESCE(mb.is_blocked,0)=0",argument=pilotId||review||folder,binds=review==='blocked'?[]:[argument];
     const joins='LEFT JOIN garage_memberships mc ON mc.member_id=m.id LEFT JOIN garage_moderation g ON g.member_id=m.id LEFT JOIN garage_member_blocks mb ON mb.member_id=m.id';
     // Fetch related metadata only for members in the response, using one snapshot.
-    const rows=(await db.prepare(`
+    const result=await db.prepare(`
       WITH selected AS (
         SELECT m.*, mc.number membership_number, g.status review_status, g.note review_note,
                COALESCE(mb.is_blocked,0) blocked, mb.reason block_reason
@@ -51,8 +55,13 @@ export async function handleGarageRequest(request, db, admin) {
       LEFT JOIN garage_profiles p ON p.member_id=s.id
       LEFT JOIN garage_birthdays b ON b.member_id=s.id
       ORDER BY s.created_at DESC
-    `).bind(...binds).all()).results;
-    return reply(rows.map(row => {const birth=row.birth_date||'';return ({ id: row.id,membershipNumber:(!row.review_status||row.review_status==='approved')&&row.membership_number!==null&&row.membership_number!==undefined&&String(row.membership_number)!==''?'VRS-'+row.membership_number:null,birthDay:birth.slice(5),...(admin?{birthDate:birth,phone:row.phone||'',whatsappUrl:row.phone?'https://wa.me/'+row.phone:null,blocked:!!row.blocked,blockReason:row.block_reason||''}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}),profileImage:row.has_avatar?'/api/garage/profiles/'+row.id+'/photo':null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: JSON.parse(row.photo_ids).map(id => '/api/garage/photos/' + id) });}));
+    `).bind(...binds).all();
+    if (pilotId && !result.results.length) return reply({error:'Ficha no disponible.'},404);
+    const response = reply(result.results.map(row => {const birth=row.birth_date||'';return ({ id: row.id,membershipNumber:(!row.review_status||row.review_status==='approved')&&row.membership_number!==null&&row.membership_number!==undefined&&String(row.membership_number)!==''?'VRS-'+row.membership_number:null,birthDay:birth.slice(5),...(admin&&!pilotId?{birthDate:birth,phone:row.phone||'',whatsappUrl:row.phone?'https://wa.me/'+row.phone:null,blocked:!!row.blocked,blockReason:row.block_reason||''}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}),profileImage:row.has_avatar?'/api/garage/profiles/'+row.id+'/photo':null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: JSON.parse(row.photo_ids).map(id => '/api/garage/photos/' + id) });}));
+    if (pilotId && Number.isSafeInteger(result.meta?.rows_read)) {
+      response.headers.set('X-Garage-D1-Rows-Read', String(result.meta.rows_read));
+    }
+    return response;
   }
   if(path.startsWith('/api/garage/profiles/')&&path.endsWith('/photo')&&method==='GET'){const photo=await db.prepare(`SELECT p.content_type,p.data FROM garage_profiles p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.member_id=? AND p.data IS NOT NULL AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))`).bind(path.split('/')[4],admin?1:0,admin?1:0).first();if(!photo)return reply({error:'Foto no disponible.'},404);return new Response(new Uint8Array(photo.data),{headers:{'Content-Type':photo.content_type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
   if (path.startsWith('/api/garage/photos/') && method === 'GET') {
