@@ -37,12 +37,17 @@ async function photosFrom(form,field="photos",maximum=3) {
 }
 export async function handleGarageRequest(request, db, admin) {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  const measurePublic = !admin && url.searchParams.get('medir') === '1';
   if (method !== 'GET' && !admin && path!=='/api/garage/submit') return reply({ error: 'Inicia sesión como administrador para gestionar el garaje.' }, 401);
   if(path==='/api/garage/export'&&method==='GET'){if(!admin)return reply({error:'Inicia sesión como propietario para exportar el listado.'},401);const rows=(await db.prepare(`SELECT m.id,m.pilot,m.model,m.engine,m.power,m.year,m.gearbox,m.folder_id,f.name folder_name,CASE WHEN b.is_blocked=1 THEN 'blocked' ELSE COALESCE(g.status,'approved') END status,m.created_at,m.updated_at FROM garage_members m LEFT JOIN garage_folders f ON f.id=m.folder_id LEFT JOIN garage_moderation g ON g.member_id=m.id LEFT JOIN garage_member_blocks b ON b.member_id=m.id ORDER BY m.created_at DESC LIMIT 10000`).all()).results;const cell=value=>{let text=String(value??'');if(/^[=+\-@\t\r]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';},csv=['id,piloto,modelo,motor,potencia,año,cambio,carpeta,estado,fecha_alta,última_actualización',...rows.map(row=>[row.id,row.pilot,row.model,row.engine,row.power,row.year,row.gearbox,row.folder_name,row.status,row.created_at,row.updated_at].map(cell).join(','))].join('\r\n');return new Response('\uFEFF'+csv,{headers:{'Content-Type':'text/csv; charset=utf-8','Content-Disposition':'attachment; filename="octavia-miembros.csv"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});}
   const visibility=path.match(/^\/api\/garage\/members\/([a-f0-9-]{36})\/(block|unblock)$/i);if(visibility&&method==='POST'){if(!admin)return reply({error:'Solo el propietario puede cambiar la visibilidad.'},401);const memberId=visibility[1],current=await db.prepare('SELECT id FROM garage_members WHERE id=?').bind(memberId).first();if(!current)return reply({error:'No se encontró esa ficha.'},404);const timestamp=Math.floor(Date.now()/1000),blocked=visibility[2]==='block';if(blocked){const body=await request.json(),reason=String(body.reason||'').trim().slice(0,500);await db.prepare('INSERT INTO garage_member_blocks(member_id,is_blocked,reason,blocked_at,updated_at,updated_by) VALUES(?,1,?,?,?,?) ON CONFLICT(member_id) DO UPDATE SET is_blocked=1,reason=excluded.reason,blocked_at=excluded.blocked_at,updated_at=excluded.updated_at,updated_by=excluded.updated_by').bind(memberId,reason,timestamp,timestamp,admin.id).run();}else{const result=await db.prepare('UPDATE garage_member_blocks SET is_blocked=0,updated_at=?,updated_by=? WHERE member_id=? AND is_blocked=1').bind(timestamp,admin.id,memberId).run();if(!result.meta.changes)return reply({error:'La ficha no está oculta.'},409);}return reply({id:memberId,blocked});}
   if (path === '/api/garage/folders' && method === 'GET') {
-    const rows = (await db.prepare(`SELECT f.id,f.name,COUNT(m.id) AS members,(SELECT p.id FROM garage_photos p JOIN garage_members c ON c.id=p.member_id WHERE c.folder_id=f.id AND NOT EXISTS(SELECT 1 FROM garage_moderation z WHERE z.member_id=c.id AND z.status<>'approved') AND NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=c.id AND b.is_blocked=1) ORDER BY c.created_at DESC,p.position LIMIT 1) AS cover FROM garage_folders f LEFT JOIN garage_members m ON m.folder_id=f.id AND NOT EXISTS(SELECT 1 FROM garage_moderation z WHERE z.member_id=m.id AND z.status<>'approved') AND NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=m.id AND b.is_blocked=1) GROUP BY f.id ORDER BY f.created_at DESC,f.name`).all()).results;
-    return reply(rows.map(row => ({ ...row, cover: row.cover ? '/api/garage/photos/' + row.cover : null })));
+    const result = await db.prepare(`SELECT f.id,f.name,COUNT(m.id) AS members,(SELECT p.id FROM garage_photos p JOIN garage_members c ON c.id=p.member_id WHERE c.folder_id=f.id AND NOT EXISTS(SELECT 1 FROM garage_moderation z WHERE z.member_id=c.id AND z.status<>'approved') AND NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=c.id AND b.is_blocked=1) ORDER BY c.created_at DESC,p.position LIMIT 1) AS cover FROM garage_folders f LEFT JOIN garage_members m ON m.folder_id=f.id AND NOT EXISTS(SELECT 1 FROM garage_moderation z WHERE z.member_id=m.id AND z.status<>'approved') AND NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=m.id AND b.is_blocked=1) GROUP BY f.id ORDER BY f.created_at DESC,f.name`).all();
+    const response = reply(result.results.map(row => ({ ...row, cover: row.cover ? '/api/garage/photos/' + row.cover : null })));
+    if (measurePublic && Number.isSafeInteger(result.meta?.rows_read)) {
+      response.headers.set('X-Garage-D1-Rows-Read', String(result.meta.rows_read));
+    }
+    return response;
   }
   if (path === '/api/garage/members' && method === 'GET') {
     const pilotId = url.searchParams.get('member');
@@ -73,25 +78,26 @@ export async function handleGarageRequest(request, db, admin) {
     `).bind(...binds).all();
     if (pilotId && !result.results.length) return reply({error:'Ficha no disponible.'},404);
     const response = reply(result.results.map(row => {const birth=row.birth_date||'';return ({ id: row.id,membershipNumber:(!row.review_status||row.review_status==='approved')&&row.membership_number!==null&&row.membership_number!==undefined&&String(row.membership_number)!==''?'VRS-'+row.membership_number:null,birthDay:birth.slice(5),...(admin&&!pilotId?{birthDate:birth,phone:row.phone||'',whatsappUrl:row.phone?'https://wa.me/'+row.phone:null,blocked:!!row.blocked,blockReason:row.block_reason||''}:{}),...(review?{reviewStatus:row.review_status,reviewNote:row.review_note}:{}),profileImage:row.has_avatar?'/api/garage/profiles/'+row.id+'/photo'+(pilotId?'?pilot=vrs23':''):null, folderId: row.folder_id, pilot: row.pilot, instagram: row.instagram, instagramUrl: row.instagram ? `https://www.instagram.com/${row.instagram}/` : null, model: row.model, engine: row.engine, power: row.power, year: row.year, gearbox: row.gearbox, notes: row.notes, images: JSON.parse(row.photo_ids).map(id => '/api/garage/photos/' + id + (pilotId?'?pilot=vrs23':'')) });}));
-    if (pilotId && Number.isSafeInteger(result.meta?.rows_read)) {
+    if ((pilotId || (measurePublic && !review)) && Number.isSafeInteger(result.meta?.rows_read)) {
       response.headers.set('X-Garage-D1-Rows-Read', String(result.meta.rows_read));
     }
     return response;
   }
   if(path.startsWith('/api/garage/profiles/')&&path.endsWith('/photo')&&method==='GET'){
     const memberId = path.split('/')[4];
-    const measure = url.searchParams.get('pilot') === 'vrs23' && memberId === pilotMemberId;
+    const measure = measurePublic || (url.searchParams.get('pilot') === 'vrs23' && memberId === pilotMemberId);
     const authorized = admin && !measure ? 1 : 0;
     const query = db.prepare(`SELECT p.content_type,p.data FROM garage_profiles p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.member_id=? AND p.data IS NOT NULL AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))`).bind(memberId,authorized,authorized);
     const {photo, rowsRead} = await readGarageMedia(query, measure);
     return garageMediaResponse(photo, rowsRead);
   }
   if (path.startsWith('/api/garage/photos/') && method === 'GET') {
-    const measure = url.searchParams.get('pilot') === 'vrs23';
+    const isPilotMedia = url.searchParams.get('pilot') === 'vrs23';
+    const measure = measurePublic || isPilotMedia;
     const authorized = admin && !measure ? 1 : 0;
-    const pilotFilter = measure ? ' AND p.member_id=?' : '';
+    const pilotFilter = isPilotMedia ? ' AND p.member_id=?' : '';
     const params = [path.split('/').pop(),authorized,authorized];
-    if (measure) params.push(pilotMemberId);
+    if (isPilotMedia) params.push(pilotMemberId);
     const query = db.prepare(`SELECT p.content_type,p.data FROM garage_photos p LEFT JOIN garage_moderation g ON g.member_id=p.member_id WHERE p.id=? AND (COALESCE(g.status,'approved')='approved' OR ?=1) AND (?=1 OR NOT EXISTS(SELECT 1 FROM garage_member_blocks b WHERE b.member_id=p.member_id AND b.is_blocked=1))${pilotFilter}`).bind(...params);
     const {photo, rowsRead} = await readGarageMedia(query, measure);
     return garageMediaResponse(photo, rowsRead);
