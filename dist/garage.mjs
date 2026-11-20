@@ -125,8 +125,17 @@ function card(member, full = false) {
       download.disabled = true;
       feedback.textContent = '';
       try {
-        const { downloadMemberCard } = await import('./member-card-download.mjs?v=2');
-        await downloadMemberCard(member.pilot, member.membershipNumber);
+        if (member.id === 'be298a66-8b6d-4a66-bda5-4aacd25df854' && member.membershipNumber === 'VRS-23') {
+          const link = element('a');
+          link.href = 'assets/carnet-vrs23-frontal-y-reverso.png';
+          link.download = 'Carnet-VRS-23-Raul-Mozos-frontal-y-reverso.png';
+          document.body.append(link);
+          link.click();
+          link.remove();
+        } else {
+          const { downloadMemberCard } = await import('./member-card-download.mjs?v=2');
+          await downloadMemberCard(member.pilot, member.membershipNumber);
+        }
       } catch {
         feedback.textContent = 'No se pudo descargar el carnet. Inténtalo de nuevo.';
       } finally {
