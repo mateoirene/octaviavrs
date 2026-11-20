@@ -8,7 +8,9 @@ let admin = false, folders = [], selected = new URLSearchParams(location.search)
 function element(tag, text, className) { const node = document.createElement(tag); if (text) setVrsText(node,text); if (className) node.className = className; return node; }
 async function api(path, method = 'GET', body) {
   const response = await fetch('/api/' + path, { method, cache: 'no-store', ...(body instanceof FormData ? { body } : body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}) });
-  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'No se ha podido completar la operación.'); return data;
+  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'No se ha podido completar la operación.');
+  if (data.garagePublicPending) window.alert('El cambio se ha guardado. La copia del Garaje público no se pudo actualizar.');
+  return data;
 }
 function showPhoto(url, title, id) { const dialog = $('[data-garage-lightbox]'); dialog.querySelector('img').src = url; dialog.querySelector('img').alt = title; dialog.showModal();window.clubAnalytics?.track('member_car_view',{section:'garaje',resource_id:id}); }
 $('[data-close-garage-photo]').addEventListener('click', () => $('[data-garage-lightbox]').close());

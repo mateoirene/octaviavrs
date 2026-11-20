@@ -9,6 +9,7 @@ import {handlePushRequest,recordClubEvent} from './push.mjs';
 import {handleRacingRequest} from './racing.mjs';
 import { handleGalleryRequest } from './gallery.mjs';
 import { handleGarageRequest } from './garage.mjs';
+import { publishGarageMutation } from './garage-public-r2.mjs';
 import { dispatchReviewMail, reviewMailStatus } from './review-mail.mjs';
 import { handleCmsRequest } from './cms.mjs';
 import { ACTIVATION_HASH, OWNER_ADMIN_ID, OWNER_ADMIN_EMAIL } from './config.mjs';
@@ -63,7 +64,21 @@ async function handleMarketRequestInner(request,env,context){try{
  if(path.startsWith('/api/racing/'))return await handleRacingRequest(request,db,(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/push/')||path==='/api/club/notifications'){if(method!=='GET')await limit(db,request,'push-settings',20);return await handlePushRequest(request,db,actor);}
  if(path.startsWith('/api/gallery/'))return await announceMutation(request,await handleGalleryRequest(request,db,actor),db,context);
- if(path.startsWith('/api/garage/')){if(path==='/api/garage/submit'&&method==='POST')await limit(db,request,'garage-submission',4);return await announceMutation(request,await handleGarageRequest(request,db,actor),db,context);}
+ if(path.startsWith('/api/garage/')){
+   if(path==='/api/garage/submit'&&method==='POST')await limit(db,request,'garage-submission',4);
+   const bucket = env.GARAGE_PUBLIC_R2;
+   const rebuild = path === '/api/garage/rebuild-public' && method === 'POST';
+   if (rebuild && actor?.role !== 'owner') fail('Solo el propietario puede actualizar la copia pública.',403);
+   if (rebuild && !bucket) fail('El almacenamiento público todavía no está configurado.',503);
+   const mutate = () => rebuild ? json({rebuilt:true}) : handleGarageRequest(request, db, actor);
+   const read = path => handleGarageRequest(new Request(new URL(path,request.url)),db,null);
+   const changesPublicGarage = actor && ['POST','DELETE'].includes(method) &&
+     /^\/api\/garage\/(?:folders|members|reviews)(?:\/|$)/.test(path);
+   const result = bucket && (rebuild || changesPublicGarage)
+     ? await publishGarageMutation(bucket, mutate, read)
+     : await mutate();
+   return rebuild ? result : await announceMutation(request,result,db,context);
+ }
  if(path==='/api/market/status'&&method==='GET')return json({ready:true,initialized:!!await db.prepare('SELECT id FROM market_admins LIMIT 1').first()});
  if(path==='/api/market/listings'&&method==='GET')return json(await listings(db,'approved'));
  if(path.startsWith('/api/market/photos/')&&method==='GET'){
