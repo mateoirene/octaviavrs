@@ -133,8 +133,8 @@ function card(member, full = false) {
           link.click();
           link.remove();
         } else {
-          const { downloadMemberCard } = await import('./member-card-download.mjs?v=3');
-          await downloadMemberCard(member.pilot, member.membershipNumber);
+          const { downloadMemberCard } = await import('./member-card-download.mjs?v=4');
+          await downloadMemberCard(member.pilot, member.membershipNumber, member.id);
         }
       } catch {
         feedback.textContent = 'No se pudo descargar el carnet. Inténtalo de nuevo.';
