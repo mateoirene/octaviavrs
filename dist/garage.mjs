@@ -133,7 +133,7 @@ function card(member, full = false) {
           link.click();
           link.remove();
         } else {
-          const { downloadMemberCard } = await import('./member-card-download.mjs?v=2');
+          const { downloadMemberCard } = await import('./member-card-download.mjs?v=3');
           await downloadMemberCard(member.pilot, member.membershipNumber);
         }
       } catch {
