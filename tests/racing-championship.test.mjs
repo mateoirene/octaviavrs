@@ -40,3 +40,14 @@ test('puntos en SQLite compartidos, orden validado, repetir no suma, libre y dif
   assert.equal(raw.prepare('SELECT COUNT(*) n FROM racing_results').get().n,6);
  }finally{raw.close();}
 });
+
+test('el resumen mantiene una sola fila por piloto y prueba sin perder carreras históricas',async()=>{
+ const {raw,call}=fixture();
+ try{
+  for(let i=0;i<4;i++)assert.equal((await call('results',result({position:i===0?1:2}))).status,201);
+  assert.equal(raw.prepare('SELECT COUNT(*) n FROM racing_results').get().n,4);
+  const best=raw.prepare('SELECT position FROM racing_championship_best').all();
+  assert.equal(best.length,1);
+  assert.equal(best[0].position,1);
+ }finally{raw.close();}
+});
