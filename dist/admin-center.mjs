@@ -44,7 +44,7 @@ async function loadAudit(){try{const rows=await api('cms/admin/audit');$('[data-
 async function loadPages(){try{const pages=await api('cms/admin/pages');$('[data-custom-pages]').innerHTML=pages.length?pages.map(page=>`<article class="content-row"><div><strong>${escapeHtml(page.draft_title)}</strong><small>/${escapeHtml(page.slug)} · ${escapeHtml(page.state)} · v${page.version}</small></div><div class="row-actions"><button type="button" data-edit-page="${escapeHtml(page.slug)}">Editar</button><button type="button" data-history-page="${escapeHtml(page.slug)}">Historial</button><a href="pagina.html?slug=${encodeURIComponent(page.slug)}&cms-preview=1" target="_blank" rel="noopener">Previsualizar ↗</a></div></article>`).join(''):'<p>Aún no hay páginas personalizadas.</p>';for(const button of $$('[data-edit-page]'))button.onclick=()=>{const page=pages.find(item=>item.slug===button.dataset.editPage),form=$('[data-page-form]');form.elements.expectedVersion.value=page.version;form.elements.slug.value=page.slug;form.elements.slug.readOnly=true;form.elements.title.value=page.draft_title;form.elements.description.value=page.draft_description;form.elements.body.value=page.draft_body;renderRichText($('[data-page-preview]'),page.draft_body);form.elements.state.value=page.state==='scheduled'?'draft':page.state;};for(const button of $$('[data-history-page]'))button.onclick=()=>showPageHistory(button.dataset.historyPage);}catch(error){setStatus(error.message);}}
 async function showPageHistory(slug){try{const rows=await api(`cms/admin/pages/${slug}/versions`),list=$('[data-custom-pages]');list.innerHTML=`<button type="button" data-page-history-back>← Volver a páginas</button>`+rows.map(row=>`<article class="content-row"><div><strong>Versión ${row.version}</strong><small>${dateTime(row.created_at)}</small></div><button type="button" data-restore-page-version="${row.id}">Recuperar como borrador</button></article>`).join('');$('[data-page-history-back]').onclick=loadPages;for(const button of $$('[data-restore-page-version]'))button.onclick=async()=>{try{await api(`cms/admin/page-versions/${button.dataset.restorePageVersion}/restore`,{method:'POST',body:'{}'});await loadPages();setStatus('Página recuperada como borrador.');}catch(error){setStatus(error.message);}};}catch(error){setStatus(error.message);}}
 async function loadBackup(){try{const backup=await api('cms/admin/backup');const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='octavia-cms-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);setStatus('Copia de seguridad del CMS descargada.');}catch(error){setStatus(error.message,$('[data-backup-status]'));}}
-async function loadNews(){try{const [items,media]=await Promise.all([api('cms/admin/news'),api('cms/admin/media')]);const select=$('[data-news-form] [name=mediaId]'),selected=select.value,selectedOption=select.selectedOptions[0];select.innerHTML='<option value="">Sin multimedia</option>'+media.map(item=>`<option value="${item.id}">${escapeHtml(item.content_type)} · ${escapeHtml(item.caption||item.id.slice(0,8))}</option>`).join('');if(selected&&selectedOption&&![...select.options].some(option=>option.value===selected))select.add(selectedOption);select.value=selected;const list=$('[data-news-list]');list.innerHTML=items.length?items.map(item=>`<article class="content-row"><div><strong>${escapeHtml(item.draft_title)}</strong><small>${escapeHtml(item.draft_category)} · ${escapeHtml(item.state)} · v${item.version}</small><small>${item.draft_featured?'Destacada · ':''}${item.draft_media_type?escapeHtml(item.draft_media_type):'Sin multimedia'}</small></div><div class="row-actions"><button type="button" data-edit-news="${item.id}">Editar</button><button type="button" data-news-history="${item.id}">Historial</button><button type="button" data-archive-news="${item.id}" data-version="${item.version}">Archivar</button></div></article>`).join(''):'<p>No hay noticias en el CMS todavía.</p>';for(const button of $$('[data-edit-news]'))button.onclick=()=>{const item=items.find(row=>row.id===button.dataset.editNews),form=$('[data-news-form]');form.elements.id.value=item.id;form.elements.expectedVersion.value=item.version;form.elements.title.value=item.draft_title;form.elements.category.value=item.draft_category;form.elements.body.value=item.draft_body;renderRichText($('[data-news-preview]'),item.draft_body);form.elements.linkUrl.value=item.draft_link_url;if(item.draft_media_id&&![...select.options].some(option=>option.value===item.draft_media_id))select.add(new Option(item.draft_media_type+' · Archivo adjunto',item.draft_media_id));form.elements.mediaId.value=item.draft_media_id;showNewsPhoto();form.elements.expiresOn.value=item.draft_expires_on;form.elements.featured.checked=Boolean(item.draft_featured);form.elements.state.value=item.state==='scheduled'?'draft':item.state;form.elements.publishAt.value=item.publish_at?new Date(item.publish_at*1000).toISOString().slice(0,16):'';$('[data-news-form-title]').textContent='Editar noticia';};for(const button of $$('[data-news-history]'))button.onclick=()=>showNewsHistory(button.dataset.newsHistory);for(const button of $$('[data-archive-news]'))button.onclick=async()=>{if(!confirm('¿Archivar esta noticia? Se conservará en el historial y en las copias.'))return;try{await api(`cms/admin/news/${button.dataset.archiveNews}?version=${button.dataset.version}`,{method:'DELETE'});await loadNews();setStatus('Noticia archivada.');}catch(error){setStatus(error.message);}};}catch(error){setStatus(error.message,$('[data-news-editor-status]'));}}
+async function loadNews(){try{const [items,media]=await Promise.all([api('cms/admin/news'),api('cms/admin/media')]);const select=$('[data-news-form] [name=mediaId]'),selected=select.value,selectedOption=select.selectedOptions[0];select.innerHTML='<option value="">Sin multimedia</option>'+media.map(item=>`<option value="${item.id}">${escapeHtml(item.content_type)} · ${escapeHtml(item.caption||item.id.slice(0,8))}</option>`).join('');if(selected&&selectedOption&&![...select.options].some(option=>option.value===selected))select.add(selectedOption);select.value=selected;const list=$('[data-news-list]');list.innerHTML=items.length?items.map(item=>`<article class="content-row"><div><strong>${escapeHtml(item.draft_title)}</strong><small>${escapeHtml(item.draft_category)} · ${escapeHtml(item.state)} · v${item.version}</small><small>${item.draft_featured?'Destacada · ':''}${item.draft_media_type?escapeHtml(item.draft_media_type):'Sin multimedia'}</small></div><div class="row-actions"><button type="button" data-edit-news="${item.id}">Editar</button><button type="button" data-news-history="${item.id}">Historial</button><button type="button" data-archive-news="${item.id}" data-version="${item.version}">Archivar</button></div></article>`).join(''):'<p>No hay noticias en el CMS todavía.</p>';for(const button of $$('[data-edit-news]'))button.onclick=()=>{if(savingNews)return;const item=items.find(row=>row.id===button.dataset.editNews),form=$('[data-news-form]');form.elements.id.value=item.id;form.elements.expectedVersion.value=item.version;form.elements.title.value=item.draft_title;form.elements.category.value=item.draft_category;form.elements.body.value=item.draft_body;renderRichText($('[data-news-preview]'),item.draft_body);form.elements.linkUrl.value=item.draft_link_url;if(item.draft_media_id&&![...select.options].some(option=>option.value===item.draft_media_id))select.add(new Option(item.draft_media_type+' · Archivo adjunto',item.draft_media_id));form.elements.mediaId.value=item.draft_media_id;clearNewsPhotoSelection();form.elements.expiresOn.value=item.draft_expires_on;form.elements.featured.checked=Boolean(item.draft_featured);form.elements.state.value=item.state==='scheduled'?'draft':item.state;form.elements.publishAt.value=item.publish_at?new Date(item.publish_at*1000).toISOString().slice(0,16):'';$('[data-news-form-title]').textContent='Editar noticia';};for(const button of $$('[data-news-history]'))button.onclick=()=>showNewsHistory(button.dataset.newsHistory);for(const button of $$('[data-archive-news]'))button.onclick=async()=>{if(!confirm('¿Archivar esta noticia? Se conservará en el historial y en las copias.'))return;try{await api(`cms/admin/news/${button.dataset.archiveNews}?version=${button.dataset.version}`,{method:'DELETE'});await loadNews();setStatus('Noticia archivada.');}catch(error){setStatus(error.message);}};}catch(error){setStatus(error.message,$('[data-news-editor-status]'));}}
 async function showNewsHistory(newsId){try{const rows=await api(`cms/admin/news/${newsId}/versions`),list=$('[data-news-list]');list.innerHTML='<button type="button" data-news-history-back>← Volver a noticias</button>'+rows.map(row=>`<article class="content-row"><div><strong>Versión ${row.version}</strong><small>${escapeHtml(row.action)} · ${dateTime(row.created_at)}</small></div><button type="button" data-restore-news="${row.id}">Recuperar como borrador</button></article>`).join('');$('[data-news-history-back]').onclick=loadNews;for(const button of $$('[data-restore-news]'))button.onclick=async()=>{try{await api(`cms/admin/news-versions/${button.dataset.restoreNews}/restore`,{method:'POST',body:'{}'});await loadNews();setStatus('Versión recuperada como borrador.');}catch(error){setStatus(error.message);}};}catch(error){setStatus(error.message);}}
 
 await fillPageOptions();$('[data-seo-page]').onchange=async()=>{try{const data=await api('cms/admin/settings');fillPageSeo(data.seo);}catch(error){setStatus(error.message);}};
@@ -61,46 +61,80 @@ const backgroundFile=$('[data-background-file]'),backgroundApply=$('[data-backgr
 $$('[data-settings-history]').forEach(button=>button.addEventListener('click',()=>loadSettingsHistory(button.dataset.settingsHistory)));
 document.addEventListener('change',async event=>{if(event.target.closest('[data-features-form]')){const form=event.target.closest('[data-features-form]'),value=Object.fromEntries([...form.querySelectorAll('input[type=checkbox]')].map(input=>[input.name,input.checked]));try{await api('cms/admin/settings',{method:'POST',body:JSON.stringify({key:'features',value})});setStatus('Funciones públicas actualizadas.');}catch(error){setStatus(error.message);}}});
 $('[data-media-form]').addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await api('cms/admin/media',{method:'POST',body:form});event.currentTarget.reset();setStatus('Archivo multimedia subido.',$('[data-media-status]'));await loadMedia();}catch(error){setStatus(error.message,$('[data-media-status]'));}});
-const newsPhoto=$('[data-news-photo]'), newsPhotoUpload=$('[data-news-photo-upload]');
-const newsMedia=$('[data-news-form] [name=mediaId]'), newsPhotoPreview=$('[data-news-photo-preview]');
+const newsForm=$('[data-news-form]');
+const newsPhoto=$('[data-news-photo]'), newsMedia=newsForm.elements.mediaId;
+const newsPhotoPreview=$('[data-news-photo-preview]'), newsPhotoStatus=$('[data-news-photo-status]');
+let newsPhotoUrl='', savingNews=false;
 function showNewsPhoto(){
+  if(newsPhotoUrl)URL.revokeObjectURL(newsPhotoUrl);
+  const file=newsPhoto.files?.[0];
+  newsPhotoUrl=file?URL.createObjectURL(file):'';
   const option=newsMedia.selectedOptions[0];
-  const isImage=Boolean(newsMedia.value&&option?.textContent.startsWith('image/'));
-  newsPhotoPreview.hidden=!isImage;
-  if(isImage)newsPhotoPreview.src='/api/cms/media/'+encodeURIComponent(newsMedia.value);
+  const source=newsPhotoUrl||(newsMedia.value&&option?.textContent.startsWith('image/')
+    ?'/api/cms/media/'+encodeURIComponent(newsMedia.value):'');
+  newsPhotoPreview.hidden=!source;
+  if(source)newsPhotoPreview.src=source;
   else newsPhotoPreview.removeAttribute('src');
 }
-newsMedia.addEventListener('change',showNewsPhoto);
-newsPhoto.addEventListener('change',()=>{newsPhotoUpload.disabled=!newsPhoto.files?.[0];});
-newsPhotoUpload.addEventListener('click',async()=>{
-  const file=newsPhoto.files?.[0];
-  if(!file)return;
-  const status=$('[data-news-photo-status]');
-  const form=newsPhoto.closest('form');
-  const submit=form.querySelector('button[type=submit]');
-  const originalNewsId=form.elements.id.value;
-  newsPhotoUpload.disabled=true;
-  newsPhoto.disabled=true;
-  if(submit)submit.disabled=true;
+function clearNewsPhotoSelection(){
+  newsPhoto.value='';
+  setStatus('',newsPhotoStatus);
+  showNewsPhoto();
+}
+newsMedia.addEventListener('change',clearNewsPhotoSelection);
+newsPhoto.addEventListener('change',()=>{
+  showNewsPhoto();
+  setStatus(newsPhoto.files?.[0]?'La foto se adjuntará al guardar la noticia.':'',newsPhotoStatus);
+});
+newsForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(savingNews)return;
+  const data=Object.fromEntries(new FormData(newsForm));
+  data.featured=newsForm.elements.featured.checked;
+  data.expectedVersion=Number(data.expectedVersion)||0;
+  data.mediaType=data.mediaId?newsMedia.selectedOptions[0]?.textContent.split(' · ')[0]:'';
+  const status=$('[data-news-editor-status]');
+  data.publishAt=data.state==='scheduled'?Math.floor(new Date(data.publishAt).getTime()/1000):null;
+  if(data.state==='scheduled'&&!data.publishAt)return setStatus('Indica la fecha y hora de publicación.',status);
+  savingNews=true;
+  const submit=newsForm.querySelector('button[type=submit]');
+  const formControls=[submit,newsPhoto,newsMedia,$('[data-news-new]')].filter(Boolean);
+  for(const control of formControls)control.disabled=true;
   try{
-    const upload=new FormData(), photo=await preparePhotoForUpload(file);
-    upload.append('file',photo,photo.name);
-    const media=await api('cms/admin/media',{method:'POST',body:upload});
-    if(form.elements.id.value!==originalNewsId)return;
-    newsMedia.add(new Option(media.contentType+' · '+photo.name,media.id));
-    newsMedia.value=media.id;
-    showNewsPhoto();
-    newsPhoto.value='';
-    setStatus('Foto adjunta. Guarda o publica la noticia cuando esté lista.',status);
+    const file=newsPhoto.files?.[0];
+    if(file){
+      setStatus('Subiendo la foto…',newsPhotoStatus);
+      const photo=await preparePhotoForUpload(file), upload=new FormData();
+      upload.append('file',photo,photo.name);
+      const media=await api('cms/admin/media',{method:'POST',body:upload});
+      data.mediaId=media.id;
+      data.mediaType=media.contentType;
+      newsMedia.add(new Option(media.contentType+' · '+photo.name,media.id));
+      newsMedia.value=media.id;
+      clearNewsPhotoSelection();
+    }
+    const result=await api('cms/admin/news',{method:'POST',body:JSON.stringify(data)});
+    newsForm.elements.id.value=result.id;
+    newsForm.elements.expectedVersion.value=result.version;
+    setStatus(result.state==='published'?'Noticia publicada.':result.state==='scheduled'?'Noticia programada.':'Borrador guardado.',status);
+    await Promise.all([loadNews(),refreshDashboard()]);
   }catch(error){
     setStatus(error.message,status);
+    if(newsPhoto.files?.[0])setStatus('La foto sigue seleccionada. Puedes volver a intentarlo.',newsPhotoStatus);
   }finally{
-    newsPhoto.disabled=false;
-    newsPhotoUpload.disabled=!newsPhoto.files?.[0];
-    if(submit)submit.disabled=false;
+    for(const control of formControls)control.disabled=false;
+    savingNews=false;
   }
 });
-$('[data-news-form]').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget,data=Object.fromEntries(new FormData(form));data.featured=form.elements.featured.checked;data.expectedVersion=Number(data.expectedVersion)||0;data.mediaType=data.mediaId?form.elements.mediaId.selectedOptions[0]?.textContent.split(' · ')[0]:'';if(data.state==='scheduled'){data.publishAt=Math.floor(new Date(data.publishAt).getTime()/1000);if(!data.publishAt)return setStatus('Indica la fecha y hora de publicación.',$('[data-news-editor-status]'));}else data.publishAt=null;try{const result=await api('cms/admin/news',{method:'POST',body:JSON.stringify(data)});form.elements.id.value=result.id;form.elements.expectedVersion.value=result.version;setStatus(result.state==='published'?'Noticia publicada.':result.state==='scheduled'?'Noticia programada.':'Borrador guardado.',$('[data-news-editor-status]'));await Promise.all([loadNews(),refreshDashboard()]);}catch(error){setStatus(error.message,$('[data-news-editor-status]'));}});$('[data-news-new]').onclick=()=>{const form=$('[data-news-form]');form.reset();form.elements.id.value='';form.elements.expectedVersion.value='';form.elements.category.value='Noticias';newsPhotoUpload.disabled=true;showNewsPhoto();$('[data-news-form-title]').textContent='Nueva noticia';};$('[data-news-form] [name=state]').onchange=event=>{$('[data-news-schedule]').hidden=event.target.value!=='scheduled';};
+$('[data-news-new]').onclick=()=>{
+  newsForm.reset();
+  newsForm.elements.id.value='';
+  newsForm.elements.expectedVersion.value='';
+  newsForm.elements.category.value='Noticias';
+  clearNewsPhotoSelection();
+  $('[data-news-form-title]').textContent='Nueva noticia';
+};
+newsForm.elements.state.onchange=event=>{$('[data-news-schedule]').hidden=event.target.value!=='scheduled';};
 $('[data-page-form]').addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget));data.expectedVersion=Number(data.expectedVersion)||0;try{const page=await api('cms/admin/pages',{method:'POST',body:JSON.stringify(data)});event.currentTarget.elements.expectedVersion.value=page.version;event.currentTarget.elements.slug.readOnly=true;setStatus(page.state==='published'?'Página publicada en pagina.html?slug='+page.slug:'Borrador guardado.',$('[data-page-result]'));await loadPages();}catch(error){setStatus(error.message,$('[data-page-result]'));}});$('[data-new-page]').onclick=()=>{const form=$('[data-page-form]');form.reset();form.elements.expectedVersion.value='';form.elements.slug.readOnly=false;};
 $('[data-backup-download]').onclick=loadBackup;$('[data-backup-restore]').onclick=async()=>{const file=$('[data-backup-file]').files[0];if(!file)return setStatus('Selecciona primero una copia JSON.',$('[data-backup-status]'));if(!confirm('¿Restaurar esta copia? Recuperará contenido CMS, ajustes y visibilidad de fichas incluidas. No eliminará filas ni archivos multimedia.'))return;try{const snapshot=JSON.parse(await file.text());await api('cms/admin/backup',{method:'POST',body:JSON.stringify(snapshot)});setStatus('Copia restaurada. Los cambios quedaron registrados en las tablas del CMS.',$('[data-backup-status]'));await Promise.all([loadContent(),loadSettings(),loadPages()]);}catch(error){setStatus(error.message,$('[data-backup-status]'));}};
 window.addEventListener('message',event=>{if(event.origin!==location.origin||event.data?.type!=='cms-preview-updated')return;refreshPreview();});

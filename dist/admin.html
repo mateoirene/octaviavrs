@@ -86,7 +86,6 @@
         </section>
         <section data-view="news" class="control-view" hidden><p class="control-lead">Redacta, programa y publica noticias. Los cambios se guardan con historial y el feed público muestra la versión publicada.</p><div class="control-columns"><form class="control-card control-form" data-news-form><h2 data-news-form-title>Nueva noticia</h2><input type="hidden" name="id"><input type="hidden" name="expectedVersion"><label>Título<input name="title" maxlength="160" required></label><label>Categoría<input name="category" maxlength="60" value="Noticias" required></label><label>Texto de la noticia<textarea name="body" rows="7" maxlength="8000" required></textarea></label><div class="rich-toolbar"><button type="button" data-rich-before="**" data-rich-after="**" data-rich-target="news">Negrita</button><button type="button" data-rich-before="*" data-rich-after="*" data-rich-target="news">Cursiva</button><button type="button" data-rich-before="- " data-rich-target="news">Lista</button><button type="button" data-rich-before="# " data-rich-target="news">Título</button></div><div class="rich-preview" data-news-preview aria-label="Vista previa del texto"></div><label>Enlace relacionado (opcional)<input name="linkUrl" type="url" placeholder="https://"></label><div class="news-photo-upload">
 <label>Subir foto de la noticia<input type="file" data-news-photo accept="image/jpeg,image/png,image/webp"></label>
-<button type="button" data-news-photo-upload disabled>Adjuntar foto</button>
 <img data-news-photo-preview alt="Vista previa de la imagen adjunta" hidden>
 <p data-news-photo-status role="status"></p>
 </div><label>Imagen o vídeo del gestor<select name="mediaId"><option value="">Sin multimedia</option></select></label><label>Fecha de caducidad (opcional)<input name="expiresOn" type="date"></label><label><input name="featured" type="checkbox"> Destacar noticia</label><label>Publicación<select name="state"><option value="draft">Guardar borrador</option><option value="published">Publicar ahora</option><option value="scheduled">Programar publicación</option></select></label><label data-news-schedule hidden>Fecha y hora<input name="publishAt" type="datetime-local"></label><div class="form-actions"><button class="button">Guardar noticia</button><button type="button" data-news-new>Nueva noticia</button></div><p data-news-editor-status role="status"></p></form><section class="control-card"><h2>Noticias del CMS</h2><div class="content-list" data-news-list><p>Cargando…</p></div><p>Para editar publicaciones antiguas del sistema, <a href="noticias-admin.html" target="_blank" rel="noopener">abre el editor anterior ↗</a>.</p></section></div></section>
@@ -106,6 +105,6 @@
       </div>
     </section>
   </main>
-  <script type="module" src="admin-center.mjs?v=20261121-foto-2"></script>
+  <script type="module" src="admin-center.mjs?v=20261121-foto-3"></script>
 </body>
 </html>
