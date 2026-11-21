@@ -173,3 +173,5 @@
 @media(prefers-reduced-motion:reduce){.admin-center-page .control-nav{transition:none}}
 
 .admin-center-page .control-nav .control-nav-icon{font-size:15px}
+
+.news-photo-upload{display:grid;gap:10px}.news-photo-upload img{display:block;width:min(100%,320px);max-height:230px;object-fit:contain}.news-photo-upload img[hidden]{display:none}
