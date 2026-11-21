@@ -149,15 +149,15 @@
   .club-news-section .club-news-station {border-bottom-width:11px}
 }
 
-/* Mantener los carteles completos y dar más altura a las fotos de noticias. */
+/* Las fotos adjuntas conservan su proporción, también en formato vertical. */
 .club-news-section .club-news-screen img[data-news-photo="true"] {
-  max-height: min(76svh, 760px);
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: none;
+  margin: 0 auto;
   padding: 0;
   background: #08090d;
   object-fit: contain;
-}
-@media (max-width:650px) {
-  .club-news-section .club-news-screen img[data-news-photo="true"] {
-    max-height: min(78svh, 620px);
-  }
 }
