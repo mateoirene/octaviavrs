@@ -15,3 +15,7 @@
 
 /* Fotografías locales mejoradas de los colaboradores identificados */
 .directory-link-profile{text-align:center;background:linear-gradient(145deg,#152130f2,#0c121bed);box-shadow:0 16px 38px #0007,inset 0 1px #ffffff12}.directory-profile-image{display:block;width:min(72%,210px);height:auto;aspect-ratio:1;object-fit:cover;margin:0 auto 20px;border-radius:50%;border:1px solid #b8c4ce80;background:#090d12;box-shadow:0 12px 28px #0009,0 0 0 5px #dfe8ef0b}.directory-link-profile>.platform-icon{display:block;margin:0 auto 8px}.directory-link-profile h3{margin-top:10px}.directory-link-profile p{max-width:42ch;margin-left:auto;margin-right:auto}.directory-link-profile>a{margin-top:6px;font-weight:750;text-underline-offset:4px}.directory-link-profile .directory-tools{justify-content:center}
+
+.directory-link .directory-discount{position:relative;z-index:1;width:100%;margin-top:12px}
+.directory-link .directory-discount summary{color:#fff;font-weight:700;cursor:pointer;padding:10px 12px;border:1px solid #a73242;border-radius:8px;background:#31141c;overflow-wrap:anywhere}
+.directory-link .directory-discount img{display:block;width:100%;height:auto;max-width:520px;margin:12px auto 0;border-radius:8px}
