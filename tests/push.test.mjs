@@ -3,3 +3,21 @@ function fixture(){const raw=new DatabaseSync(':memory:');raw.exec(readFileSync(
 const decode=s=>Uint8Array.from(Buffer.from(s,'base64url'));
 test('VAPID real, clave privada protegida y destino push validado',async()=>{const {raw,db}=fixture();try{const keys=await getPushKeys(db);assert.equal((await getPushKeys(db)).public_key,keys.public_key);assert.equal(decode(keys.public_key).length,65);const auth=await vapidAuthorization(keys,'https://fcm.googleapis.com/fcm/send/test',1000);const jwt=auth.match(/^vapid t=([^,]+), k=/)[1],parts=jwt.split('.'),payload=JSON.parse(Buffer.from(parts[1],'base64url'));assert.equal(payload.aud,'https://fcm.googleapis.com');assert.equal(payload.exp,44200);const publicKey=await crypto.subtle.importKey('raw',decode(keys.public_key),{name:'ECDSA',namedCurve:'P-256'},false,['verify']);assert.equal(await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},publicKey,decode(parts[2]),new TextEncoder().encode(parts[0]+'.'+parts[1])),true);for(const endpoint of ['http://fcm.googleapis.com/test','https://127.0.0.1/test','https://evil.example/test','https://fcm.googleapis.com.evil.example/test','https://fcm.googleapis.com:444/test'])assert.equal(validPushEndpoint(endpoint),false);assert.equal(validPushEndpoint('https://web.push.apple.com/test'),true);assert.equal((await handlePushRequest(new Request('https://club.example/api/push/key'),db,null)).status,401);const response=await handlePushRequest(new Request('https://club.example/api/push/key'),db,{id:'c15706ae-7b72-4779-9785-8c2f5c1e50ea'});assert.deepEqual(Object.keys(await response.json()),['publicKey']);}finally{raw.close();}});
 test('cada aviso nuevo dispara push una vez; expirados se eliminan y contenido privado no se publica',async()=>{const {raw,db}=fixture();try{raw.prepare('INSERT INTO push_subscriptions(id,admin_id,endpoint,created_at) VALUES(?,?,?,?)').run('s','c15706ae-7b72-4779-9785-8c2f5c1e50ea','https://fcm.googleapis.com/fcm/send/test',1);let sent=0;const send=async(url,options)=>{sent++;assert.equal(options.body,undefined);assert.ok(options.headers.Authorization.startsWith('vapid t='));return new Response('',{status:201});};const event={id:'one',title:'Aviso',href:'garaje.html#revisiones',audience:'admin'};await recordClubEvent(db,event,null,send);await recordClubEvent(db,event,null,send);assert.equal(sent,1);const pub=await handlePushRequest(new Request('https://club.example/api/club/notifications'),db,null);assert.deepEqual(await pub.json(),[]);const privateNews=await handlePushRequest(new Request('https://club.example/api/club/notifications'),db,{id:'c15706ae-7b72-4779-9785-8c2f5c1e50ea'});assert.equal((await privateNews.json()).length,1);await sendAdminPush(db,async()=>new Response('',{status:410}));assert.equal(raw.prepare('SELECT COUNT(*) n FROM push_subscriptions').get().n,0);}finally{raw.close();}});
+
+test('un dispositivo público recibe aprobaciones y jamás avisos de revisión', async()=>{
+ const {raw,db}=fixture();
+ const endpoint='https://fcm.googleapis.com/fcm/send/public';
+ const subscription=method=>new Request('https://club.example/api/push/public-subscription',{method,body:JSON.stringify({endpoint})});
+ const delivered=[];
+ try{
+  assert.equal((await handlePushRequest(subscription('POST'),db,null)).status,200);
+  const send=async url=>{delivered.push(url);return new Response(null,{status:201});};
+  await recordClubEvent(db,{id:'pending',title:'Pendiente',href:'garaje.html',audience:'admin'},null,send);
+  assert.deepEqual(delivered,[]);
+  await recordClubEvent(db,{id:'approved',title:'Ficha publicada',href:'garaje.html',audience:'public'},null,send);
+  assert.deepEqual(delivered,[endpoint]);
+  await handlePushRequest(subscription('DELETE'),db,null);
+  await recordClubEvent(db,{id:'next',title:'Ficha publicada',href:'garaje.html',audience:'public'},null,send);
+  assert.deepEqual(delivered,[endpoint]);
+ }finally{raw.close();}
+});

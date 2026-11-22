@@ -1,5 +1,5 @@
 import {initClubContact} from './contact.mjs?v=20261104-miembros';
-import {initPushControls} from './push-client.mjs?v=20261024';
+import {initPushControls} from './push-client.mjs?v=20261122-publico';
 import { createCarNotificationSound } from './notification-chime.mjs';
 import { setVrsText } from './branding.mjs';
 const STORAGE_KEY = 'club-notifications-read-v1';
@@ -101,10 +101,10 @@ export async function initNotifications(doc = document) {
   doc.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) { setOpen(false); button.focus(); } });
   window.addEventListener('storage', event => { if (event.key === STORAGE_KEY) { read = readIds(storage); render(); } });
   async function load(url) { const response = await fetch(url, { cache: 'no-store' }); if (!response.ok) throw new Error('No disponible'); return response.json(); }
-  async function refresh() {
+  async function refresh(fromPush=false) {
     if (busy) return; busy = true;
     try {
-      const results = await Promise.allSettled([load('data/notificaciones.json'), load('/api/market/listings'), load('/api/admin/listings?status=pending'),load('/api/club/notifications'),load('/api/garage/members?review=pending')]);
+      const results = await Promise.allSettled([load('data/notificaciones.json'), load('/api/market/listings'), load('/api/admin/listings?status=pending'),load('/api/club/notifications'+(fromPush?'?push=1':'')),load('/api/garage/members?review=pending')]);
       if (results[0].status === 'rejected' && results[1].status === 'rejected') throw new Error('Sin conexión');
       const values = results.map(result => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []);
       const garagePending=values[4].map(item=>({id:'garage-pending:'+item.id,title:'Ficha del garaje pendiente de revisión',message:item.pilot+' · '+item.model,href:'garaje.html?revision='+encodeURIComponent(item.id)+'#revisiones'}));items = buildNotifications([...garagePending,...values[3],...values[0]],values[1],values[2]);garageReviewAccess.hidden=results[4].status!=='fulfilled';garageReviewAccess.textContent=values[4].length?'Revisar '+values[4].length+' fichas del garaje pendientes →':'Abrir revisión de fichas del garaje →';
@@ -119,8 +119,7 @@ export async function initNotifications(doc = document) {
     finally { busy = false; }
   }
   window.addEventListener('club-session-change', () => { reviewAccess.hidden = true; garageReviewAccess.hidden = true; items = items.filter(item => !item.id.startsWith('pending:')&&!item.id.startsWith('garage-pending:')&&item.audience!=='admin'); render(); void refresh(); });
-  doc.addEventListener('visibilitychange', () => { if (!doc.hidden) void refresh(); });
-  setInterval(() => { if (!doc.hidden) void refresh(); }, 180000);
+  doc.defaultView?.navigator?.serviceWorker?.addEventListener('message', event => { if (event.data?.type==='club-news-push') void refresh(true); });
   await refresh();if(new URLSearchParams(location.search).get('avisos')==='1')setOpen(true);
 }
 if (typeof document !== 'undefined') void initNotifications();

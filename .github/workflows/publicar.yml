@@ -208,6 +208,14 @@ jobs:
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4'
           command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-12-garage-membership.sql
+      - name: Preparar suscripciones públicas del club
+        if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: d1 execute octavia-club-mercadillo --remote --file=migrations/2026-11-22-public-push.sql
       - name: Preparar almacenamiento del mercadillo
         if: steps.destino.outputs.ready == 'true' && steps.cambios.outputs.solo_css != 'true' && steps.cambios.outputs.solo_visual != 'true' && steps.cambios.outputs.solo_circuito != 'true' && steps.cambios.outputs.solo_d1 != 'true'
         run: node scripts/market-storage.mjs

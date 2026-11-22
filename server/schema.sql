@@ -429,3 +429,7 @@ CREATE TABLE IF NOT EXISTS club_event_creators(
  member_id TEXT NOT NULL REFERENCES garage_members(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS club_event_creators_member ON club_event_creators(member_id);
+CREATE TABLE IF NOT EXISTS club_public_push (
+  id TEXT PRIMARY KEY,
+  endpoint TEXT NOT NULL
+);
