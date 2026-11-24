@@ -56,16 +56,7 @@ async function handleMarketRequestInner(request,env,context){try{
  if(Number(request.headers.get('content-length')||0)>requestLimit)fail('Las fotos ocupan demasiado.',413);
  if(method!=='GET'&&request.body){const reader=request.body.getReader();let size=0;const chunks=[];while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>requestLimit){await reader.cancel();fail('El envío ocupa demasiado.',413);}chunks.push(value);}request=new Request(request.url,{method,headers:request.headers,body:new Blob(chunks)});}
  if(path==='/api/suggestions'||path.startsWith('/api/suggestions/')){if(method!=='GET')await limit(db,request,path==='/api/suggestions'?'suggestions-submit':'suggestions-manage',path==='/api/suggestions'?4:60);return await handleSuggestions(request,db,actor,context);}
- if(path.startsWith('/api/cms/')){
-  const response=await handleCmsRequest(request,env,db,actor,(purpose,max)=>limit(db,request,purpose,max));
-  if(method==='POST'&&path==='/api/cms/admin/news'&&response.ok){
-   try{
-    const item=await response.clone().json();
-    if(item.state==='published')await recordClubEvent(db,{id:'cms-news:'+item.id,title:item.title,href:'index.html#noticias'},context);
-   }catch{}
-  }
-  return response;
- }
+ if(path.startsWith('/api/cms/'))return await handleCmsRequest(request,env,db,actor,(purpose,max)=>limit(db,request,purpose,max));
  if(path==='/api/bricos'||path.startsWith('/api/bricos/')){if(method!=='GET')await limit(db,request,path==='/api/bricos'?'bricos-create':path.endsWith('/comments')?'bricos-comment':'bricos-upload',path==='/api/bricos'?4:path.endsWith('/comments')?8:60);return await handleBricosRequest(request,db,actor,context);}
  if(path.startsWith('/api/analytics/'))return await handleAnalyticsRequest(request,env,db,actor,(purpose,max)=>limit(db,request,purpose,max));
  if(path.startsWith('/api/club/')&&path!=='/api/club/notifications'){if(method!=='GET')await limit(db,request,path==='/api/club/whatsapp-access'?'whatsapp-member-access':'club-management',path==='/api/club/whatsapp-access'?6:60);return await handleClubRequest(request,db,actor,context);}

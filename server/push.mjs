@@ -15,35 +15,12 @@ export async function sendAdminPush(db,send=fetch){
  const keys=await getPushKeys(db);
  await Promise.allSettled(subscribers.map(async subscription=>{try{const response=await send(subscription.endpoint,{method:'POST',headers:{Authorization:await vapidAuthorization(keys,subscription.endpoint),TTL:'86400',Urgency:'normal'},signal:AbortSignal.timeout(10000)});if(response.status===404||response.status===410)await db.prepare('DELETE FROM push_subscriptions WHERE id=?').bind(subscription.id).run();else await db.prepare('UPDATE push_subscriptions SET last_status=? WHERE id=?').bind(response.ok?'sent':'HTTP '+response.status,subscription.id).run();}catch{await db.prepare("UPDATE push_subscriptions SET last_status='retry-needed' WHERE id=?").bind(subscription.id).run();}}));
 }
-async function sendPublicPush(db, send=fetch){
- const keys=await getPushKeys(db);
- let after='';
- for(;;){
-  const {results}=await db.prepare('SELECT id,endpoint FROM club_public_push WHERE id>? ORDER BY id LIMIT 50').bind(after).all();
-  if(!results.length)return;
-  await Promise.allSettled(results.map(async ({id,endpoint})=>{
-   const response=await send(endpoint,{method:'POST',headers:{Authorization:await vapidAuthorization(keys,endpoint),TTL:'86400'},redirect:'error',signal:AbortSignal.timeout(5000)});
-   if(response.status===404||response.status===410)await db.prepare('DELETE FROM club_public_push WHERE id=?').bind(id).run();
-  }));
-  if(results.length<50)return;
-  after=results.at(-1).id;
- }
-}
 export async function recordClubEvent(db,event,context,send){
  const result=await db.prepare('INSERT INTO club_notifications(id,title,message,href,audience,kind,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(event.id,event.title,event.message||'',event.href,event.audience||'public',event.kind||'news',Math.floor(Date.now()/1000)).run();
- if(result.meta.changes){const delivery=Promise.allSettled([sendAdminPush(db,send),...(event.audience==='admin'?[]:[sendPublicPush(db,send)])]);if(context?.waitUntil)context.waitUntil(delivery);else await delivery;}
+ if(result.meta.changes){const delivery=sendAdminPush(db,send).catch(()=>{});if(context?.waitUntil)context.waitUntil(delivery);else await delivery;}
 }
 export async function handlePushRequest(request,db,admin){const path=new URL(request.url).pathname;
  if(path==='/api/club/notifications'&&request.method==='GET'){const rows=(await db.prepare("SELECT id,title,message,href,audience FROM club_notifications WHERE (audience='public' OR ?=1) AND kind NOT IN ('pending-market','pending-garage') ORDER BY created_at DESC,id DESC LIMIT 100").bind(admin?1:0).all()).results;return reply([...await birthdayNotifications(db),...rows]);}
- if(path==='/api/push/public-key'&&request.method==='GET')return reply({publicKey:(await getPushKeys(db)).public_key});
- if(path==='/api/push/public-subscription'&&['POST','DELETE'].includes(request.method)){
-  const {endpoint}=await request.json();
-  if(typeof endpoint!=='string'||!validPushEndpoint(endpoint))fail('Suscripción no válida.');
-  const id=await endpointId(endpoint);
-  if(request.method==='DELETE')await db.prepare('DELETE FROM club_public_push WHERE id=?').bind(id).run();
-  else await db.prepare('INSERT INTO club_public_push(id,endpoint) VALUES(?,?) ON CONFLICT(id) DO NOTHING').bind(id,endpoint).run();
-  return reply({ok:true});
- }
  if(!admin)return reply({error:'Inicia sesión como administrador para activar los avisos del móvil.'},401);
  if(path==='/api/push/key'&&request.method==='GET'){const keys=await getPushKeys(db);return reply({publicKey:keys.public_key});}
  if(path==='/api/push/subscription'&&['POST','DELETE'].includes(request.method)){const body=await request.json(),endpoint=body.endpoint;if(typeof endpoint!=='string'||!validPushEndpoint(endpoint))fail('El navegador no ha proporcionado una suscripción compatible.');const id=await endpointId(endpoint);
